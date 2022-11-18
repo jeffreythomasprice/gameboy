@@ -515,6 +515,15 @@ public class CPU
 				}
 				break;
 
+			case 0x08:
+				{
+					var address = ReadNextPCUInt16();
+					logger.LogTrace($"LD ({ToHex(address)}), {Register16.SP}");
+					memory.WriteUInt16(address, RegisterSP);
+					clock += 20;
+				}
+				break;
+
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
 		}
@@ -537,14 +546,14 @@ public class CPU
 	private void SetToImmediate(Address destination, byte source)
 	{
 		logger.LogTrace($"LD {destination}, {ToHex(source)}");
-		memory.Write(destination.Value, source);
+		memory.WriteUInt8(destination.Value, source);
 		clock += 12;
 	}
 
 	private void SetAddressToRegister(Address destination, Register8 source)
 	{
 		logger.LogTrace($"LD {destination}, {source}");
-		memory.Write(destination.Value, GetRegister(source));
+		memory.WriteUInt8(destination.Value, GetRegister(source));
 		clock += 8;
 	}
 
@@ -572,9 +581,9 @@ public class CPU
 	private void Increment(Address destinationAndSource)
 	{
 		logger.LogTrace($"INC {destinationAndSource}");
-		var before = memory.Read(destinationAndSource.Value);
+		var before = memory.ReadUInt8(destinationAndSource.Value);
 		var after = (byte)(before + 1);
-		memory.Write(destinationAndSource.Value, after);
+		memory.WriteUInt8(destinationAndSource.Value, after);
 		clock += 12;
 		ZeroFlag = after == 0;
 		SubtractFlag = false;
@@ -596,9 +605,9 @@ public class CPU
 	private void Decrement(Address destinationAndSource)
 	{
 		logger.LogTrace($"DEC {destinationAndSource}");
-		var before = memory.Read(destinationAndSource.Value);
+		var before = memory.ReadUInt8(destinationAndSource.Value);
 		var after = (byte)(before - 1);
-		memory.Write(destinationAndSource.Value, after);
+		memory.WriteUInt8(destinationAndSource.Value, after);
 		clock += 12;
 		ZeroFlag = after == 0;
 		SubtractFlag = true;
@@ -713,15 +722,15 @@ public class CPU
 
 	private byte ReadNextPCUInt8()
 	{
-		var result = memory.Read(RegisterPC);
+		var result = memory.ReadUInt8(RegisterPC);
 		RegisterPC++;
 		return result;
 	}
 
 	private UInt16 ReadNextPCUInt16()
 	{
-		var low = ReadNextPCUInt8();
-		var high = ReadNextPCUInt8();
-		return (UInt16)((high << 8) | low);
+		var result = memory.ReadUInt16(RegisterPC);
+		RegisterPC += 2;
+		return result;
 	}
 }

@@ -4,7 +4,7 @@ public class SimpleMemory : IMemory
 {
 	private byte[] data = new byte[0];
 
-	public byte Read(UInt16 address)
+	public byte ReadUInt8(UInt16 address)
 	{
 		if (address < data.Length)
 		{
@@ -13,7 +13,7 @@ public class SimpleMemory : IMemory
 		return 0;
 	}
 
-	public void Write(UInt16 address, byte value)
+	public void WriteUInt8(UInt16 address, byte value)
 	{
 		if (address >= data.Length)
 		{

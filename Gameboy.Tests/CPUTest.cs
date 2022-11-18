@@ -6,12 +6,12 @@ public class CPUTest
 	{
 		public void WriteTo(IMemory destination)
 		{
-			destination.Write(Address, Data);
+			destination.WriteArray(Address, Data);
 		}
 
 		public void AssertEquals(IMemory actual)
 		{
-			Assert.Equal(Data, actual.Read(Address, Data.Length));
+			Assert.Equal(Data, actual.ReadArray(Address, Data.Length));
 		}
 	}
 
@@ -1414,6 +1414,39 @@ public class CPUTest
 					.SubtractFlag(false)
 					.HalfCarryFlag(false)
 					.CarryFlag(false),
+			};
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_08))]
+	public void Instruction_08(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(20)
+				.AddPC(3)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_08
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x08, 0x34, 0x12 }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1122),
+				new MemoryData[] { new(0x1234, new byte[] { 0x22, 0x11 }), },
+				(CPUBuilder expected) => expected,
 			};
 		}
 	}

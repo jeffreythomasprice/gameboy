@@ -310,6 +310,31 @@ public class CPU
 				}
 				break;
 
+			case 0x0a:
+				{
+					SetRegisterToAddress(Register8.A, new Address(RegisterBC, Register16.BC.ToString()));
+				}
+				break;
+			case 0x1a:
+				{
+					SetRegisterToAddress(Register8.A, new Address(RegisterDE, Register16.DE.ToString()));
+				}
+				break;
+			case 0x2a:
+				{
+					var source = new Address(RegisterHL, $"{Register16.HL}+");
+					RegisterHL++;
+					SetRegisterToAddress(Register8.A, source);
+				}
+				break;
+			case 0x3a:
+				{
+					var source = new Address(RegisterHL, $"{Register16.HL}-");
+					RegisterHL--;
+					SetRegisterToAddress(Register8.A, source);
+				}
+				break;
+
 			case 0x03:
 				{
 					Increment(Register16.BC);
@@ -328,6 +353,27 @@ public class CPU
 			case 0x33:
 				{
 					Increment(Register16.SP);
+				}
+				break;
+
+			case 0x0b:
+				{
+					Decrement(Register16.BC);
+				}
+				break;
+			case 0x1b:
+				{
+					Decrement(Register16.DE);
+				}
+				break;
+			case 0x2b:
+				{
+					Decrement(Register16.HL);
+				}
+				break;
+			case 0x3b:
+				{
+					Decrement(Register16.SP);
 				}
 				break;
 
@@ -578,6 +624,13 @@ public class CPU
 		clock += 8;
 	}
 
+	private void SetRegisterToAddress(Register8 destination, Address source)
+	{
+		logger.LogTrace($"LD {destination}, {source}");
+		SetRegister(destination, memory.ReadUInt8(source.Value));
+		clock += 8;
+	}
+
 	private void Increment(Register8 destinationAndSource)
 	{
 		logger.LogTrace($"INC {destinationAndSource}");
@@ -621,6 +674,15 @@ public class CPU
 		ZeroFlag = after == 0;
 		SubtractFlag = true;
 		HalfCarryFlag = (after & 0b1111_0000) == (before & 0b1111_0000);
+	}
+
+	private void Decrement(Register16 destinationAndSource)
+	{
+		logger.LogTrace($"DEC {destinationAndSource}");
+		var before = GetRegister(destinationAndSource);
+		var after = (UInt16)(before - 1);
+		SetRegister(destinationAndSource, after);
+		clock += 8;
 	}
 
 	private void Decrement(Address destinationAndSource)

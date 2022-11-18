@@ -1050,7 +1050,48 @@ public class CPU
 				}
 				break;
 
-			// TODO JEFF 0x80 and higher
+			case 0x80:
+				{
+					Add(Register8.A, Register8.B);
+				}
+				break;
+			case 0x81:
+				{
+					Add(Register8.A, Register8.C);
+				}
+				break;
+			case 0x82:
+				{
+					Add(Register8.A, Register8.D);
+				}
+				break;
+			case 0x83:
+				{
+					Add(Register8.A, Register8.E);
+				}
+				break;
+			case 0x84:
+				{
+					Add(Register8.A, Register8.H);
+				}
+				break;
+			case 0x85:
+				{
+					Add(Register8.A, Register8.L);
+				}
+				break;
+			case 0x86:
+				{
+					Add(Register8.A, new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0x87:
+				{
+					Add(Register8.A, Register8.A);
+				}
+				break;
+
+			// TODO JEFF 0x88 and higher
 
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
@@ -1179,16 +1220,47 @@ public class CPU
 		HalfCarryFlag = (after & 0b1111_0000) == (before & 0b1111_0000);
 	}
 
+	private void Add(Register8 destination, Register8 source)
+	{
+		logger.LogTrace($"ADD {destination}, {source}");
+		var before = GetRegister(destination);
+		var sourceValue = GetRegister(source);
+		var after16 = (UInt16)((UInt16)before + (UInt16)sourceValue);
+		var after8 = (byte)after16;
+		SetRegister(destination, after8);
+		ZeroFlag = after8 == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = (before & 0b0000_1111) + (sourceValue & 0b0000_1111) > 0b0000_1111;
+		CarryFlag = after16 > 0b1111_1111;
+		Clock += 4;
+	}
+
+	private void Add(Register8 destination, Address source)
+	{
+		logger.LogTrace($"ADD {destination}, {source}");
+		var before = GetRegister(destination);
+		var sourceValue = memory.ReadUInt8(source.Value);
+		var after16 = (UInt16)((UInt16)before + (UInt16)sourceValue);
+		var after8 = (byte)after16;
+		SetRegister(destination, after8);
+		ZeroFlag = after8 == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = (before & 0b0000_1111) + (sourceValue & 0b0000_1111) > 0b0000_1111;
+		CarryFlag = after16 > 0b1111_1111;
+		Clock += 8;
+	}
+
 	private void Add(Register16 destination, Register16 source)
 	{
 		logger.LogTrace($"ADD {destination}, {source}");
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
-		var after = (UInt32)before + (UInt32)sourceValue;
-		SetRegister(destination, (UInt16)after);
+		var after32 = (UInt32)before + (UInt32)sourceValue;
+		var after16 = (UInt16)after32;
+		SetRegister(destination, after16);
 		SubtractFlag = false;
 		HalfCarryFlag = (before & 0b0000_1111_1111_1111) + (sourceValue & 0b0000_1111_1111_1111) > 0b0000_1111_1111_1111;
-		CarryFlag = after > 0b1111_1111_1111_1111;
+		CarryFlag = after32 > 0b1111_1111_1111_1111;
 		Clock += 8;
 	}
 

@@ -1498,7 +1498,56 @@ public class CPU
 				}
 				break;
 
-			// TODO JEFF 0xc6 and higher
+			case 0xc6:
+				{
+					var data = ReadNextPCUInt8();
+					Add(Register8.A, data);
+				}
+				break;
+			case 0xce:
+				{
+					var data = ReadNextPCUInt8();
+					Add(Register8.A, data, CarryFlag);
+				}
+				break;
+			case 0xd6:
+				{
+					var data = ReadNextPCUInt8();
+					Subtract(Register8.A, data);
+				}
+				break;
+			case 0xde:
+				{
+					var data = ReadNextPCUInt8();
+					Subtract(Register8.A, data, CarryFlag);
+				}
+				break;
+			case 0xe6:
+				{
+					var data = ReadNextPCUInt8();
+					And(Register8.A, data);
+				}
+				break;
+			case 0xee:
+				{
+					var data = ReadNextPCUInt8();
+					Xor(Register8.A, data);
+				}
+				break;
+			case 0xf6:
+				{
+					var data = ReadNextPCUInt8();
+					Or(Register8.A, data);
+				}
+				break;
+			case 0xfe:
+				{
+					var data = ReadNextPCUInt8();
+					Compare(Register8.A, data);
+				}
+				break;
+
+			// TODO JEFF 0xc7 and higher
 
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
@@ -1739,6 +1788,35 @@ public class CPU
 		Clock += 8;
 	}
 
+	private void Add(Register8 destination, byte source)
+	{
+		logger.LogTrace($"ADD {destination}, {source}");
+		var before = GetRegister(destination);
+		var after16 = (UInt16)((UInt16)before + (UInt16)source);
+		var after8 = (byte)after16;
+		SetRegister(destination, after8);
+		ZeroFlag = after8 == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = (before & 0b0000_1111) + (source & 0b0000_1111) > 0b0000_1111;
+		CarryFlag = after16 > 0b1111_1111;
+		Clock += 8;
+	}
+
+	private void Add(Register8 destination, byte source, bool sourceCarry)
+	{
+		logger.LogTrace($"ADC {destination}, {source}");
+		var before = GetRegister(destination);
+		var sourceCarryValue = sourceCarry ? 1 : 0;
+		var after16 = (UInt16)((UInt16)before + (UInt16)source + sourceCarryValue);
+		var after8 = (byte)after16;
+		SetRegister(destination, after8);
+		ZeroFlag = after8 == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = (before & 0b0000_1111) + (source & 0b0000_1111) + sourceCarryValue > 0b0000_1111;
+		CarryFlag = after16 > 0b1111_1111;
+		Clock += 8;
+	}
+
 	private void Add(Register16 destination, Register16 source)
 	{
 		logger.LogTrace($"ADD {destination}, {source}");
@@ -1796,6 +1874,48 @@ public class CPU
 		Clock += 8;
 	}
 
+	private void Subtract(Register8 destination, Address source, bool sourceCarry)
+	{
+		logger.LogTrace($"SBC {destination}, {source}");
+		var before = GetRegister(destination);
+		var sourceValue = memory.ReadUInt8(source.Value);
+		var sourceCarryValue = sourceCarry ? 1 : 0;
+		var after = (byte)(before - sourceValue - sourceCarryValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = true;
+		HalfCarryFlag = (before & 0b0000_1111) < ((sourceValue & 0b0000_1111) + sourceCarryValue);
+		CarryFlag = before < (sourceValue + sourceCarryValue);
+		Clock += 8;
+	}
+
+	private void Subtract(Register8 destination, byte source)
+	{
+		logger.LogTrace($"SUB {destination}, {source}");
+		var before = GetRegister(destination);
+		var after = (byte)(before - source);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = true;
+		HalfCarryFlag = (before & 0b0000_1111) < (source & 0b0000_1111);
+		CarryFlag = before < source;
+		Clock += 8;
+	}
+
+	private void Subtract(Register8 destination, byte source, bool sourceCarry)
+	{
+		logger.LogTrace($"SBC {destination}, {source}");
+		var before = GetRegister(destination);
+		var sourceCarryValue = sourceCarry ? 1 : 0;
+		var after = (byte)(before - source - sourceCarryValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = true;
+		HalfCarryFlag = (before & 0b0000_1111) < ((source & 0b0000_1111) + sourceCarryValue);
+		CarryFlag = before < (source + sourceCarryValue);
+		Clock += 8;
+	}
+
 	private void Compare(Register8 destination, Register8 source)
 	{
 		logger.LogTrace($"CP {destination}, {source}");
@@ -1822,18 +1942,15 @@ public class CPU
 		Clock += 8;
 	}
 
-	private void Subtract(Register8 destination, Address source, bool sourceCarry)
+	private void Compare(Register8 destination, byte source)
 	{
-		logger.LogTrace($"SBC {destination}, {source}");
+		logger.LogTrace($"CP {destination}, {source}");
 		var before = GetRegister(destination);
-		var sourceValue = memory.ReadUInt8(source.Value);
-		var sourceCarryValue = sourceCarry ? 1 : 0;
-		var after = (byte)(before - sourceValue - sourceCarryValue);
-		SetRegister(destination, after);
+		var after = (byte)(before - source);
 		ZeroFlag = after == 0;
 		SubtractFlag = true;
-		HalfCarryFlag = (before & 0b0000_1111) < ((sourceValue & 0b0000_1111) + sourceCarryValue);
-		CarryFlag = before < (sourceValue + sourceCarryValue);
+		HalfCarryFlag = (before & 0b0000_1111) < (source & 0b0000_1111);
+		CarryFlag = before < source;
 		Clock += 8;
 	}
 
@@ -1857,6 +1974,19 @@ public class CPU
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after = (byte)(before & sourceValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = true;
+		CarryFlag = false;
+		Clock += 8;
+	}
+
+	private void And(Register8 destination, byte source)
+	{
+		logger.LogTrace($"AND {destination}, {source}");
+		var before = GetRegister(destination);
+		var after = (byte)(before & source);
 		SetRegister(destination, after);
 		ZeroFlag = after == 0;
 		SubtractFlag = false;
@@ -1893,6 +2023,19 @@ public class CPU
 		Clock += 8;
 	}
 
+	private void Xor(Register8 destination, byte source)
+	{
+		logger.LogTrace($"XOR {destination}, {source}");
+		var before = GetRegister(destination);
+		var after = (byte)(before ^ source);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = false;
+		Clock += 8;
+	}
+
 	private void Or(Register8 destination, Register8 source)
 	{
 		logger.LogTrace($"OR {destination}, {source}");
@@ -1913,6 +2056,19 @@ public class CPU
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after = (byte)(before | sourceValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = false;
+		Clock += 8;
+	}
+
+	private void Or(Register8 destination, byte source)
+	{
+		logger.LogTrace($"OR {destination}, {source}");
+		var before = GetRegister(destination);
+		var after = (byte)(before | source);
 		SetRegister(destination, after);
 		ZeroFlag = after == 0;
 		SubtractFlag = false;

@@ -1337,7 +1337,48 @@ public class CPU
 				}
 				break;
 
-			// TODO JEFF 0xb8 and higher
+			case 0xb8:
+				{
+					Compare(Register8.A, Register8.B);
+				}
+				break;
+			case 0xb9:
+				{
+					Compare(Register8.A, Register8.C);
+				}
+				break;
+			case 0xba:
+				{
+					Compare(Register8.A, Register8.D);
+				}
+				break;
+			case 0xbb:
+				{
+					Compare(Register8.A, Register8.E);
+				}
+				break;
+			case 0xbc:
+				{
+					Compare(Register8.A, Register8.H);
+				}
+				break;
+			case 0xbd:
+				{
+					Compare(Register8.A, Register8.L);
+				}
+				break;
+			case 0xbe:
+				{
+					Compare(Register8.A, new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0xbf:
+				{
+					Compare(Register8.A, Register8.A);
+				}
+				break;
+
+			// TODO JEFF 0xc0 and higher
 
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
@@ -1585,6 +1626,32 @@ public class CPU
 		Clock += 8;
 	}
 
+	private void Compare(Register8 destination, Register8 source)
+	{
+		logger.LogTrace($"CP {destination}, {source}");
+		var before = GetRegister(destination);
+		var sourceValue = GetRegister(source);
+		var after = (byte)(before - sourceValue);
+		ZeroFlag = after == 0;
+		SubtractFlag = true;
+		HalfCarryFlag = (before & 0b0000_1111) < (sourceValue & 0b0000_1111);
+		CarryFlag = before < sourceValue;
+		Clock += 4;
+	}
+
+	private void Compare(Register8 destination, Address source)
+	{
+		logger.LogTrace($"CP {destination}, {source}");
+		var before = GetRegister(destination);
+		var sourceValue = memory.ReadUInt8(source.Value);
+		var after = (byte)(before - sourceValue);
+		ZeroFlag = after == 0;
+		SubtractFlag = true;
+		HalfCarryFlag = (before & 0b0000_1111) < (sourceValue & 0b0000_1111);
+		CarryFlag = before < sourceValue;
+		Clock += 8;
+	}
+
 	private void Subtract(Register8 destination, Address source, bool sourceCarry)
 	{
 		logger.LogTrace($"SBC {destination}, {source}");
@@ -1602,6 +1669,7 @@ public class CPU
 
 	private void And(Register8 destination, Register8 source)
 	{
+		logger.LogTrace($"AND {destination}, {source}");
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var after = (byte)(before & sourceValue);
@@ -1615,6 +1683,7 @@ public class CPU
 
 	private void And(Register8 destination, Address source)
 	{
+		logger.LogTrace($"AND {destination}, {source}");
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after = (byte)(before & sourceValue);
@@ -1628,6 +1697,7 @@ public class CPU
 
 	private void Xor(Register8 destination, Register8 source)
 	{
+		logger.LogTrace($"XOR {destination}, {source}");
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var after = (byte)(before ^ sourceValue);
@@ -1641,6 +1711,7 @@ public class CPU
 
 	private void Xor(Register8 destination, Address source)
 	{
+		logger.LogTrace($"XOR {destination}, {source}");
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after = (byte)(before ^ sourceValue);
@@ -1654,6 +1725,7 @@ public class CPU
 
 	private void Or(Register8 destination, Register8 source)
 	{
+		logger.LogTrace($"OR {destination}, {source}");
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var after = (byte)(before | sourceValue);
@@ -1667,6 +1739,7 @@ public class CPU
 
 	private void Or(Register8 destination, Address source)
 	{
+		logger.LogTrace($"OR {destination}, {source}");
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after = (byte)(before | sourceValue);

@@ -5,7 +5,7 @@ public class CPUTest
 	[Fact]
 	public void Registers()
 	{
-		var cpu = new CPU(new SimpleMemory());
+		var cpu = new CPU(LoggerUtils.CreateLoggerFactory(), new SimpleMemory());
 
 		cpu.RegisterA = 1;
 		cpu.RegisterB = 2;
@@ -122,5 +122,168 @@ public class CPUTest
 		Assert.False(cpu.SubtractFlag);
 		Assert.False(cpu.HalfCarryFlag);
 		Assert.False(cpu.CarryFlag);
+	}
+
+	[Fact]
+	public void Instruction_00()
+	{
+		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
+		var memory = new SimpleMemory();
+		memory.Write(CPU.InitialPC, new byte[] { 0x00, });
+		var actual = new CPU(loggerFactory, memory);
+		var expected = new CPUBuilder(loggerFactory, memory)
+			.Copy(actual)
+			.AddClock(4)
+			.AddPC(1)
+			.CPU;
+		actual.ExecuteInstruction();
+		AssertEqual(expected, actual);
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_01_11_21_31))]
+	public void Instructions_01_11_21_31(byte[] instructions, Func<CPUBuilder, CPUBuilder> expectedBuilder)
+	{
+		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
+		var memory = new SimpleMemory();
+		memory.Write(CPU.InitialPC, instructions);
+		var actual = new CPU(loggerFactory, memory);
+		var expected = expectedBuilder(
+			new CPUBuilder(loggerFactory, memory)
+				.Copy(actual)
+				.AddClock(12)
+				.AddPC(3)
+			)
+			.CPU;
+		actual.ExecuteInstruction();
+		AssertEqual(expected, actual);
+	}
+
+	public static IEnumerable<object[]> InstructionData_01_11_21_31
+	{
+		get
+		{
+			yield return new object[] {
+				new byte[] { 0x01, 0x12, 0x34 },
+				(CPUBuilder expected) => expected.RegisterBC(0x3412),
+			};
+			yield return new object[] {
+				new byte[] { 0x11, 0x12, 0x34 },
+				(CPUBuilder expected) => expected.RegisterDE(0x3412),
+			};
+			yield return new object[] {
+				new byte[] { 0x21, 0x12, 0x34 },
+				(CPUBuilder expected) => expected.RegisterHL(0x3412),
+			};
+			yield return new object[] {
+				new byte[] { 0x31, 0x12, 0x34 },
+				(CPUBuilder expected) => expected.RegisterSP(0x3412),
+			};
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_02_12_22_32))]
+	public void Instructions_02_12_22_32(
+		(UInt16, byte[])[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		(UInt16, byte[])[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder)
+	{
+		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
+		var memory = new SimpleMemory();
+		foreach (var (address, data) in actualMemory)
+		{
+			memory.Write(address, data);
+		}
+		var actual = actualBuilder(new CPUBuilder(loggerFactory, memory)).CPU;
+		var expected = expectedBuilder(
+			new CPUBuilder(loggerFactory, memory)
+				.Copy(actual)
+				.AddClock(8)
+				.AddPC(1)
+			)
+			.CPU;
+		actual.ExecuteInstruction();
+		AssertEqual(expected, actual);
+		foreach (var (address, data) in expectedMemory)
+		{
+			AssertMemoryEqual(address, data, memory);
+		}
+	}
+
+	public static IEnumerable<object[]> InstructionData_02_12_22_32
+	{
+		get
+		{
+			yield return new object[] {
+				new[] { (CPU.InitialPC, new byte[] { 0x02, }), },
+				(CPUBuilder actual) => actual
+					.RegisterA(0x42)
+					.RegisterBC(0x1234),
+				new[] { ((UInt16)0x1234, new byte[] { 0x42, }), },
+				(CPUBuilder expected) => expected,
+			};
+			yield return new object[] {
+				new[] { (CPU.InitialPC, new byte[] { 0x12, }), },
+				(CPUBuilder actual) => actual
+					.RegisterA(0x42)
+					.RegisterDE(0x1234),
+				new[] { ((UInt16)0x1234, new byte[] { 0x42, }), },
+				(CPUBuilder expected) => expected,
+			};
+			yield return new object[] {
+				new[] { (CPU.InitialPC, new byte[] { 0x22, }), },
+				(CPUBuilder actual) => actual
+					.RegisterA(0x42)
+					.RegisterHL(0x1234),
+				new[] { ((UInt16)0x1234, new byte[] { 0x42, }), },
+				(CPUBuilder expected) => expected
+					.RegisterHL(0x1235),
+			};
+			yield return new object[] {
+				new[] { (CPU.InitialPC, new byte[] { 0x32, }), },
+				(CPUBuilder actual) => actual
+					.RegisterA(0x42)
+					.RegisterHL(0x1234),
+				new[] { ((UInt16)0x1234, new byte[] { 0x42, }), },
+				(CPUBuilder expected) => expected
+					.RegisterA(0x42)
+					.RegisterHL(0x1233),
+			};
+		}
+	}
+
+	private void AssertEqual(CPU expected, CPU actual)
+	{
+		AssertEqual("register A", expected.RegisterA, actual.RegisterA);
+		AssertEqual("register B", expected.RegisterB, actual.RegisterB);
+		AssertEqual("register C", expected.RegisterC, actual.RegisterC);
+		AssertEqual("register D", expected.RegisterD, actual.RegisterD);
+		AssertEqual("register E", expected.RegisterE, actual.RegisterE);
+		AssertEqual("register F", expected.RegisterF, actual.RegisterF);
+		AssertEqual("register H", expected.RegisterH, actual.RegisterH);
+		AssertEqual("register L", expected.RegisterL, actual.RegisterL);
+		AssertEqual("register SP", expected.RegisterSP, actual.RegisterSP);
+		AssertEqual("register PC", expected.RegisterPC, actual.RegisterPC);
+		AssertEqual("register AF", expected.RegisterAF, actual.RegisterAF);
+		AssertEqual("register BC", expected.RegisterBC, actual.RegisterBC);
+		AssertEqual("register DE", expected.RegisterDE, actual.RegisterDE);
+		AssertEqual("register HL", expected.RegisterHL, actual.RegisterHL);
+		AssertEqual("zero flag", expected.ZeroFlag, actual.ZeroFlag);
+		AssertEqual("subtract flag", expected.SubtractFlag, actual.SubtractFlag);
+		AssertEqual("half carry flag", expected.HalfCarryFlag, actual.HalfCarryFlag);
+		AssertEqual("carry flag", expected.CarryFlag, actual.CarryFlag);
+		AssertEqual("clock", expected.Clock, actual.Clock);
+	}
+
+	private void AssertEqual<T>(string name, T expected, T actual) where T : IEquatable<T>
+	{
+		Assert.True(expected.Equals(actual), $"{name} should be {expected} was {actual}");
+	}
+
+	private void AssertMemoryEqual(UInt16 address, byte[] expected, IMemory actual)
+	{
+		Assert.Equal(expected, actual.Read(address, expected.Length));
 	}
 }

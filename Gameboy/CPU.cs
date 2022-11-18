@@ -1,12 +1,18 @@
 namespace Gameboy;
 
+using Microsoft.Extensions.Logging;
+using static NumberUtils;
+
 public class CPU
 {
+	public const UInt16 InitialPC = 0x0100;
+
 	private const byte ZeroFlagMask = 0b1000_0000;
 	private const byte SubtractFlagMask = 0b0100_0000;
 	private const byte HalfCarryFlagMask = 0b0010_0000;
 	private const byte CarryFlagMask = 0b0001_0000;
 
+	private ILogger logger;
 	private readonly IMemory memory;
 
 	private byte registerA;
@@ -19,10 +25,13 @@ public class CPU
 	private byte registerL;
 	private UInt16 registerSP;
 	private UInt16 registerPC;
+	private UInt64 clock;
 
-	public CPU(IMemory memory)
+	public CPU(ILoggerFactory loggerFactory, IMemory memory)
 	{
+		this.logger = loggerFactory.CreateLogger(GetType());
 		this.memory = memory;
+		Reset();
 	}
 
 	public byte RegisterA
@@ -187,5 +196,91 @@ public class CPU
 				registerF &= unchecked((byte)(~CarryFlagMask));
 			}
 		}
+	}
+
+	public UInt64 Clock
+	{
+		get => clock;
+		set => clock = value;
+	}
+
+	public void Reset()
+	{
+		// TODO starting conditions
+		registerA = 0;
+		registerB = 0;
+		registerC = 0;
+		registerD = 0;
+		registerE = 0;
+		registerF = 0;
+		registerH = 0;
+		registerL = 0;
+		registerSP = 0;
+		registerPC = InitialPC;
+		clock = 0;
+	}
+
+	public void ExecuteInstruction()
+	{
+		var instruction = ReadNextPCUInt8();
+		switch (instruction)
+		{
+			case 0x00:
+				logger.LogTrace("NOP");
+				clock += 4;
+				break;
+			case 0x01:
+			case 0x11:
+			case 0x21:
+			case 0x31:
+				{
+					var data = ReadNextPCUInt16();
+					var registerIndex = (instruction & 0b0011_0000) >> 4;
+					var (_, registerName) = registerIndex switch
+					{
+						0 => (RegisterBC = data, "BC"),
+						1 => (RegisterDE = data, "DE"),
+						2 => (RegisterHL = data, "HL"),
+						_ => (RegisterSP = data, "SP"),
+					};
+					logger.LogTrace($"LD {registerName}, {ToHex(data)}");
+					clock += 12;
+				}
+				break;
+			case 0x02:
+			case 0x12:
+			case 0x22:
+			case 0x32:
+				{
+					var reigsterIndex = (instruction & 0b0011_0000) >> 4;
+					var (address, _, registerName) = reigsterIndex switch
+					{
+						0 => (RegisterBC, 0, "(BC)"),
+						1 => (RegisterDE, 0, "(DE)"),
+						2 => (RegisterHL, RegisterHL++, "(HL+)"),
+						_ => (RegisterHL, RegisterHL--, "(HL-)"),
+					};
+					logger.LogTrace($"LD {registerName}, A");
+					memory.Write(address, RegisterA);
+					clock += 8;
+				}
+				break;
+			default:
+				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
+		}
+	}
+
+	private byte ReadNextPCUInt8()
+	{
+		var result = memory.Read(RegisterPC);
+		RegisterPC++;
+		return result;
+	}
+
+	private UInt16 ReadNextPCUInt16()
+	{
+		var low = ReadNextPCUInt8();
+		var high = ReadNextPCUInt8();
+		return (UInt16)((high << 8) | low);
 	}
 }

@@ -524,6 +524,27 @@ public class CPU
 				}
 				break;
 
+			case 0x09:
+				{
+					Add(Register16.HL, Register16.BC);
+				}
+				break;
+			case 0x19:
+				{
+					Add(Register16.HL, Register16.DE);
+				}
+				break;
+			case 0x29:
+				{
+					Add(Register16.HL, Register16.HL);
+				}
+				break;
+			case 0x39:
+				{
+					Add(Register16.HL, Register16.SP);
+				}
+				break;
+
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
 		}
@@ -612,6 +633,19 @@ public class CPU
 		ZeroFlag = after == 0;
 		SubtractFlag = true;
 		HalfCarryFlag = (after & 0b1111_0000) == (before & 0b1111_0000);
+	}
+
+	private void Add(Register16 destination, Register16 source)
+	{
+		logger.LogTrace($"ADD {destination}, {source}");
+		var before = GetRegister(destination);
+		var sourceValue = GetRegister(source);
+		var after = (UInt32)before + (UInt32)sourceValue;
+		SetRegister(destination, (UInt16)after);
+		SubtractFlag = false;
+		HalfCarryFlag = (before & 0b0000_1111_1111_1111) + (sourceValue & 0b0000_1111_1111_1111) > 0b0000_1111_1111_1111;
+		CarryFlag = after > 0b1111_1111_1111_1111;
+		clock += 8;
 	}
 
 	private byte GetRegister(Register8 r)

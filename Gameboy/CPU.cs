@@ -1132,6 +1132,47 @@ public class CPU
 				}
 				break;
 
+			case 0x90:
+				{
+					Subtract(Register8.A, Register8.B);
+				}
+				break;
+			case 0x91:
+				{
+					Subtract(Register8.A, Register8.C);
+				}
+				break;
+			case 0x92:
+				{
+					Subtract(Register8.A, Register8.D);
+				}
+				break;
+			case 0x93:
+				{
+					Subtract(Register8.A, Register8.E);
+				}
+				break;
+			case 0x94:
+				{
+					Subtract(Register8.A, Register8.H);
+				}
+				break;
+			case 0x95:
+				{
+					Subtract(Register8.A, Register8.L);
+				}
+				break;
+			case 0x96:
+				{
+					Subtract(Register8.A, new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0x97:
+				{
+					Subtract(Register8.A, Register8.A);
+				}
+				break;
+
 			// TODO JEFF 0x90 and higher
 
 			default:
@@ -1334,6 +1375,34 @@ public class CPU
 		SubtractFlag = false;
 		HalfCarryFlag = (before & 0b0000_1111_1111_1111) + (sourceValue & 0b0000_1111_1111_1111) > 0b0000_1111_1111_1111;
 		CarryFlag = after32 > 0b1111_1111_1111_1111;
+		Clock += 8;
+	}
+
+	private void Subtract(Register8 destination, Register8 source)
+	{
+		logger.LogTrace($"SUB {destination}, {source}");
+		var before = GetRegister(destination);
+		var sourceValue = GetRegister(source);
+		var after = (byte)(before - sourceValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = true;
+		HalfCarryFlag = (before & 0b0000_1111) < (sourceValue & 0b0000_1111);
+		CarryFlag = before < sourceValue;
+		Clock += 4;
+	}
+
+	private void Subtract(Register8 destination, Address source)
+	{
+		logger.LogTrace($"SUB {destination}, {source}");
+		var before = GetRegister(destination);
+		var sourceValue = memory.ReadUInt8(source.Value);
+		var after = (byte)(before - sourceValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = true;
+		HalfCarryFlag = (before & 0b0000_1111) < (sourceValue & 0b0000_1111);
+		CarryFlag = before < sourceValue;
 		Clock += 8;
 	}
 

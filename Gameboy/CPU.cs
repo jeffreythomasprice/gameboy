@@ -462,6 +462,59 @@ public class CPU
 				}
 				break;
 
+			case 0x07:
+				{
+					logger.LogTrace("RLCA");
+					var before = RegisterA;
+					var after = (byte)((before << 1) | ((before & 0b1000_0000) >> 7));
+					RegisterA = after;
+					ZeroFlag = after == 0;
+					SubtractFlag = false;
+					HalfCarryFlag = false;
+					CarryFlag = (before & 0b1000_0000) != 0;
+					clock += 4;
+				}
+				break;
+			case 0x0f:
+				{
+					logger.LogTrace("RRCA");
+					var before = RegisterA;
+					var after = (byte)((before >> 1) | ((before & 0b0000_0001) << 7));
+					RegisterA = after;
+					ZeroFlag = after == 0;
+					SubtractFlag = false;
+					HalfCarryFlag = false;
+					CarryFlag = (before & 0b0000_0001) != 0;
+					clock += 4;
+				}
+				break;
+			case 0x17:
+				{
+					logger.LogTrace("RLA");
+					var before = RegisterA;
+					var after = (byte)((before << 1) | (CarryFlag ? 0b0000_0001 : 0));
+					RegisterA = after;
+					ZeroFlag = after == 0;
+					SubtractFlag = false;
+					HalfCarryFlag = false;
+					CarryFlag = (before & 0b1000_0000) != 0;
+					clock += 4;
+				}
+				break;
+			case 0x1f:
+				{
+					logger.LogTrace("RRA");
+					var before = RegisterA;
+					var after = (byte)((before >> 1) | (CarryFlag ? 0b1000_0000 : 0));
+					RegisterA = after;
+					ZeroFlag = after == 0;
+					SubtractFlag = false;
+					HalfCarryFlag = false;
+					CarryFlag = (before & 0b0000_0001) != 0;
+					clock += 4;
+				}
+				break;
+
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
 		}

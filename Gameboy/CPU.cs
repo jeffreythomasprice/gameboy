@@ -1452,7 +1452,53 @@ public class CPU
 				}
 				break;
 
-			// TODO JEFF 0xc4 and higher
+			case 0xc4:
+				{
+					var address = ReadNextPCUInt16();
+					ConditionalCallUInt16(!ZeroFlag, "NZ", address);
+				}
+				break;
+			case 0xcc:
+				{
+					var address = ReadNextPCUInt16();
+					ConditionalCallUInt16(ZeroFlag, "Z", address);
+				}
+				break;
+			case 0xd4:
+				{
+					var address = ReadNextPCUInt16();
+					ConditionalCallUInt16(!CarryFlag, "NC", address);
+				}
+				break;
+			case 0xdc:
+				{
+					var address = ReadNextPCUInt16();
+					ConditionalCallUInt16(CarryFlag, "C", address);
+				}
+				break;
+
+			case 0xc5:
+				{
+					Push(Register16.BC);
+				}
+				break;
+			case 0xd5:
+				{
+					Push(Register16.DE);
+				}
+				break;
+			case 0xe5:
+				{
+					Push(Register16.HL);
+				}
+				break;
+			case 0xf5:
+				{
+					Push(Register16.AF);
+				}
+				break;
+
+			// TODO JEFF 0xc6 and higher
 
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
@@ -1505,6 +1551,21 @@ public class CPU
 		else
 		{
 			Clock += 8;
+		}
+	}
+
+	private void ConditionalCallUInt16(bool condition, string conditionString, UInt16 address)
+	{
+		logger.LogTrace($"CALL {conditionString}, {ToHex(address)}");
+		if (condition)
+		{
+			Clock += 24;
+			PushUInt16(RegisterPC);
+			RegisterPC = address;
+		}
+		else
+		{
+			Clock += 12;
 		}
 	}
 
@@ -1971,6 +2032,13 @@ public class CPU
 		logger.LogTrace($"POP {destination}");
 		SetRegister(destination, PopUInt16());
 		clock += 12;
+	}
+
+	private void Push(Register16 source)
+	{
+		logger.LogTrace($"PUSH {source}");
+		PushUInt16(GetRegister(source));
+		clock += 16;
 	}
 
 	private byte ReadNextPCUInt8()

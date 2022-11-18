@@ -1214,7 +1214,130 @@ public class CPU
 				}
 				break;
 
-			// TODO JEFF 0xa0 and higher
+			case 0xa0:
+				{
+					And(Register8.A, Register8.B);
+				}
+				break;
+			case 0xa1:
+				{
+					And(Register8.A, Register8.C);
+				}
+				break;
+			case 0xa2:
+				{
+					And(Register8.A, Register8.D);
+				}
+				break;
+			case 0xa3:
+				{
+					And(Register8.A, Register8.E);
+				}
+				break;
+			case 0xa4:
+				{
+					And(Register8.A, Register8.H);
+				}
+				break;
+			case 0xa5:
+				{
+					And(Register8.A, Register8.L);
+				}
+				break;
+			case 0xa6:
+				{
+					And(Register8.A, new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0xa7:
+				{
+					And(Register8.A, Register8.A);
+				}
+				break;
+
+			case 0xa8:
+				{
+					Xor(Register8.A, Register8.B);
+				}
+				break;
+			case 0xa9:
+				{
+					Xor(Register8.A, Register8.C);
+				}
+				break;
+			case 0xaa:
+				{
+					Xor(Register8.A, Register8.D);
+				}
+				break;
+			case 0xab:
+				{
+					Xor(Register8.A, Register8.E);
+				}
+				break;
+			case 0xac:
+				{
+					Xor(Register8.A, Register8.H);
+				}
+				break;
+			case 0xad:
+				{
+					Xor(Register8.A, Register8.L);
+				}
+				break;
+			case 0xae:
+				{
+					Xor(Register8.A, new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0xaf:
+				{
+					Xor(Register8.A, Register8.A);
+				}
+				break;
+
+			case 0xb0:
+				{
+					Or(Register8.A, Register8.B);
+				}
+				break;
+			case 0xb1:
+				{
+					Or(Register8.A, Register8.C);
+				}
+				break;
+			case 0xb2:
+				{
+					Or(Register8.A, Register8.D);
+				}
+				break;
+			case 0xb3:
+				{
+					Or(Register8.A, Register8.E);
+				}
+				break;
+			case 0xb4:
+				{
+					Or(Register8.A, Register8.H);
+				}
+				break;
+			case 0xb5:
+				{
+					Or(Register8.A, Register8.L);
+				}
+				break;
+			case 0xb6:
+				{
+					Or(Register8.A, new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0xb7:
+				{
+					Or(Register8.A, Register8.A);
+				}
+				break;
+
+			// TODO JEFF 0xb8 and higher
 
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
@@ -1474,6 +1597,84 @@ public class CPU
 		SubtractFlag = true;
 		HalfCarryFlag = (before & 0b0000_1111) < ((sourceValue & 0b0000_1111) + sourceCarryValue);
 		CarryFlag = before < (sourceValue + sourceCarryValue);
+		Clock += 8;
+	}
+
+	private void And(Register8 destination, Register8 source)
+	{
+		var before = GetRegister(destination);
+		var sourceValue = GetRegister(source);
+		var after = (byte)(before & sourceValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = true;
+		CarryFlag = false;
+		Clock += 4;
+	}
+
+	private void And(Register8 destination, Address source)
+	{
+		var before = GetRegister(destination);
+		var sourceValue = memory.ReadUInt8(source.Value);
+		var after = (byte)(before & sourceValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = true;
+		CarryFlag = false;
+		Clock += 8;
+	}
+
+	private void Xor(Register8 destination, Register8 source)
+	{
+		var before = GetRegister(destination);
+		var sourceValue = GetRegister(source);
+		var after = (byte)(before ^ sourceValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = false;
+		Clock += 4;
+	}
+
+	private void Xor(Register8 destination, Address source)
+	{
+		var before = GetRegister(destination);
+		var sourceValue = memory.ReadUInt8(source.Value);
+		var after = (byte)(before ^ sourceValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = false;
+		Clock += 8;
+	}
+
+	private void Or(Register8 destination, Register8 source)
+	{
+		var before = GetRegister(destination);
+		var sourceValue = GetRegister(source);
+		var after = (byte)(before | sourceValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = false;
+		Clock += 4;
+	}
+
+	private void Or(Register8 destination, Address source)
+	{
+		var before = GetRegister(destination);
+		var sourceValue = memory.ReadUInt8(source.Value);
+		var after = (byte)(before | sourceValue);
+		SetRegister(destination, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = false;
 		Clock += 8;
 	}
 

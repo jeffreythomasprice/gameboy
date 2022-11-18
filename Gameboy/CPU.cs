@@ -5,6 +5,36 @@ using static NumberUtils;
 
 public class CPU
 {
+	private enum Register8
+	{
+		A,
+		B,
+		C,
+		D,
+		E,
+		F,
+		H,
+		L,
+	}
+
+	private enum Register16
+	{
+		AF,
+		BC,
+		DE,
+		HL,
+		SP,
+		PC,
+	}
+
+	private record struct Address(
+		UInt16 Value,
+		string Description
+	)
+	{
+		public override string ToString() => $"({Description})";
+	}
+
 	public const UInt16 InitialPC = 0x0100;
 
 	private const byte ZeroFlagMask = 0b1000_0000;
@@ -229,44 +259,402 @@ public class CPU
 				logger.LogTrace("NOP");
 				clock += 4;
 				break;
+
 			case 0x01:
+				{
+					var data = ReadNextPCUInt16();
+					SetToImmediate(Register16.BC, data);
+				}
+				break;
 			case 0x11:
+				{
+					var data = ReadNextPCUInt16();
+					SetToImmediate(Register16.DE, data);
+				}
+				break;
 			case 0x21:
+				{
+					var data = ReadNextPCUInt16();
+					SetToImmediate(Register16.HL, data);
+				}
+				break;
 			case 0x31:
 				{
 					var data = ReadNextPCUInt16();
-					var registerIndex = (instruction & 0b0011_0000) >> 4;
-					var (_, registerName) = registerIndex switch
-					{
-						0 => (RegisterBC = data, "BC"),
-						1 => (RegisterDE = data, "DE"),
-						2 => (RegisterHL = data, "HL"),
-						_ => (RegisterSP = data, "SP"),
-					};
-					logger.LogTrace($"LD {registerName}, {ToHex(data)}");
-					clock += 12;
+					SetToImmediate(Register16.SP, data);
 				}
 				break;
+
 			case 0x02:
+				{
+					SetAddressToRegister(new Address(RegisterBC, Register16.BC.ToString()), Register8.A);
+				}
+				break;
 			case 0x12:
+				{
+					SetAddressToRegister(new Address(RegisterDE, Register16.DE.ToString()), Register8.A);
+				}
+				break;
 			case 0x22:
+				{
+					var destination = new Address(RegisterHL, $"{Register16.HL}+");
+					RegisterHL++;
+					SetAddressToRegister(destination, Register8.A);
+				}
+				break;
 			case 0x32:
 				{
-					var reigsterIndex = (instruction & 0b0011_0000) >> 4;
-					var (address, _, registerName) = reigsterIndex switch
-					{
-						0 => (RegisterBC, 0, "(BC)"),
-						1 => (RegisterDE, 0, "(DE)"),
-						2 => (RegisterHL, RegisterHL++, "(HL+)"),
-						_ => (RegisterHL, RegisterHL--, "(HL-)"),
-					};
-					logger.LogTrace($"LD {registerName}, A");
-					memory.Write(address, RegisterA);
-					clock += 8;
+					var destination = new Address(RegisterHL, $"{Register16.HL}-");
+					RegisterHL--;
+					SetAddressToRegister(destination, Register8.A);
 				}
 				break;
+
+			case 0x03:
+				{
+					Increment(Register16.BC);
+				}
+				break;
+			case 0x13:
+				{
+					Increment(Register16.DE);
+				}
+				break;
+			case 0x23:
+				{
+					Increment(Register16.HL);
+				}
+				break;
+			case 0x33:
+				{
+					Increment(Register16.SP);
+				}
+				break;
+
+			case 0x04:
+				{
+					Increment(Register8.B);
+				}
+				break;
+			case 0x0c:
+				{
+					Increment(Register8.C);
+				}
+				break;
+			case 0x14:
+				{
+					Increment(Register8.D);
+				}
+				break;
+			case 0x1c:
+				{
+					Increment(Register8.E);
+				}
+				break;
+			case 0x24:
+				{
+					Increment(Register8.H);
+				}
+				break;
+			case 0x2c:
+				{
+					Increment(Register8.L);
+				}
+				break;
+			case 0x34:
+				{
+					Increment(new Address(RegisterHL, RegisterHL.ToString()));
+				}
+				break;
+			case 0x3c:
+				{
+					Increment(Register8.A);
+				}
+				break;
+
+			case 0x05:
+				{
+					Decrement(Register8.B);
+				}
+				break;
+			case 0x0d:
+				{
+					Decrement(Register8.C);
+				}
+				break;
+			case 0x15:
+				{
+					Decrement(Register8.D);
+				}
+				break;
+			case 0x1d:
+				{
+					Decrement(Register8.E);
+				}
+				break;
+			case 0x25:
+				{
+					Decrement(Register8.H);
+				}
+				break;
+			case 0x2d:
+				{
+					Decrement(Register8.L);
+				}
+				break;
+			case 0x35:
+				{
+					Decrement(new Address(RegisterHL, RegisterHL.ToString()));
+				}
+				break;
+			case 0x3d:
+				{
+					Decrement(Register8.A);
+				}
+				break;
+
+			case 0x06:
+				{
+					var data = ReadNextPCUInt8();
+					SetToImmediate(Register8.B, data);
+				}
+				break;
+			case 0x0e:
+				{
+					var data = ReadNextPCUInt8();
+					SetToImmediate(Register8.C, data);
+				}
+				break;
+			case 0x16:
+				{
+					var data = ReadNextPCUInt8();
+					SetToImmediate(Register8.D, data);
+				}
+				break;
+			case 0x1e:
+				{
+					var data = ReadNextPCUInt8();
+					SetToImmediate(Register8.E, data);
+				}
+				break;
+			case 0x26:
+				{
+					var data = ReadNextPCUInt8();
+					SetToImmediate(Register8.H, data);
+				}
+				break;
+			case 0x2e:
+				{
+					var data = ReadNextPCUInt8();
+					SetToImmediate(Register8.L, data);
+				}
+				break;
+			case 0x36:
+				{
+					var data = ReadNextPCUInt8();
+					SetToImmediate(new Address(RegisterHL, Register16.HL.ToString()), data);
+				}
+				break;
+			case 0x3e:
+				{
+					var data = ReadNextPCUInt8();
+					SetToImmediate(Register8.A, data);
+				}
+				break;
+
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
+		}
+	}
+
+	private void SetToImmediate(Register8 destination, byte source)
+	{
+		logger.LogTrace($"LD {destination}, {ToHex(source)}");
+		SetRegister(destination, source);
+		clock += 8;
+	}
+
+	private void SetToImmediate(Register16 destination, UInt16 source)
+	{
+		logger.LogTrace($"LD {destination}, {ToHex(source)}");
+		SetRegister(destination, source);
+		clock += 12;
+	}
+
+	private void SetToImmediate(Address destination, byte source)
+	{
+		logger.LogTrace($"LD {destination}, {ToHex(source)}");
+		memory.Write(destination.Value, source);
+		clock += 12;
+	}
+
+	private void SetAddressToRegister(Address destination, Register8 source)
+	{
+		logger.LogTrace($"LD {destination}, {source}");
+		memory.Write(destination.Value, GetRegister(source));
+		clock += 8;
+	}
+
+	private void Increment(Register8 destinationAndSource)
+	{
+		logger.LogTrace($"INC {destinationAndSource}");
+		var before = GetRegister(destinationAndSource);
+		var after = (byte)(before + 1);
+		SetRegister(destinationAndSource, after);
+		clock += 4;
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = (after & 0b0000_1111) < (before & 0b0000_1111);
+	}
+
+	private void Increment(Register16 destinationAndSource)
+	{
+		logger.LogTrace($"INC {destinationAndSource}");
+		var before = GetRegister(destinationAndSource);
+		var after = (UInt16)(before + 1);
+		SetRegister(destinationAndSource, after);
+		clock += 8;
+	}
+
+	private void Increment(Address destinationAndSource)
+	{
+		logger.LogTrace($"INC {destinationAndSource}");
+		var before = memory.Read(destinationAndSource.Value);
+		var after = (byte)(before + 1);
+		memory.Write(destinationAndSource.Value, after);
+		clock += 12;
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = (after & 0b0000_1111) < (before & 0b0000_1111);
+	}
+
+	private void Decrement(Register8 destinationAndSource)
+	{
+		logger.LogTrace($"DEC {destinationAndSource}");
+		var before = GetRegister(destinationAndSource);
+		var after = (byte)(before - 1);
+		SetRegister(destinationAndSource, after);
+		clock += 4;
+		ZeroFlag = after == 0;
+		SubtractFlag = true;
+		HalfCarryFlag = (after & 0b1111_0000) == (before & 0b1111_0000);
+	}
+
+	private void Decrement(Address destinationAndSource)
+	{
+		logger.LogTrace($"DEC {destinationAndSource}");
+		var before = memory.Read(destinationAndSource.Value);
+		var after = (byte)(before - 1);
+		memory.Write(destinationAndSource.Value, after);
+		clock += 12;
+		ZeroFlag = after == 0;
+		SubtractFlag = true;
+		HalfCarryFlag = (after & 0b1111_0000) == (before & 0b1111_0000);
+	}
+
+	private byte GetRegister(Register8 r)
+	{
+		switch (r)
+		{
+			case Register8.A:
+				return RegisterA;
+			case Register8.B:
+				return RegisterB;
+			case Register8.C:
+				return RegisterC;
+			case Register8.D:
+				return RegisterD;
+			case Register8.E:
+				return RegisterE;
+			case Register8.F:
+				return RegisterF;
+			case Register8.H:
+				return RegisterH;
+			case Register8.L:
+				return RegisterL;
+			default:
+				throw new ArgumentException($"unhandled {r}");
+		}
+	}
+
+	private void SetRegister(Register8 r, byte value)
+	{
+		switch (r)
+		{
+			case Register8.A:
+				RegisterA = value;
+				break;
+			case Register8.B:
+				RegisterB = value;
+				break;
+			case Register8.C:
+				RegisterC = value;
+				break;
+			case Register8.D:
+				RegisterD = value;
+				break;
+			case Register8.E:
+				RegisterE = value;
+				break;
+			case Register8.F:
+				RegisterF = value;
+				break;
+			case Register8.H:
+				RegisterH = value;
+				break;
+			case Register8.L:
+				RegisterL = value;
+				break;
+			default:
+				throw new ArgumentException($"unhandled {r}");
+		}
+	}
+
+	private UInt16 GetRegister(Register16 r)
+	{
+		switch (r)
+		{
+			case Register16.AF:
+				return RegisterAF;
+			case Register16.BC:
+				return RegisterBC;
+			case Register16.DE:
+				return RegisterDE;
+			case Register16.HL:
+				return RegisterHL;
+			case Register16.SP:
+				return RegisterSP;
+			case Register16.PC:
+				return RegisterPC;
+			default:
+				throw new ArgumentException($"unhandled {r}");
+		}
+	}
+
+	private void SetRegister(Register16 r, UInt16 value)
+	{
+		switch (r)
+		{
+			case Register16.AF:
+				RegisterAF = value;
+				break;
+			case Register16.BC:
+				RegisterBC = value;
+				break;
+			case Register16.DE:
+				RegisterDE = value;
+				break;
+			case Register16.HL:
+				RegisterHL = value;
+				break;
+			case Register16.SP:
+				RegisterSP = value;
+				break;
+			case Register16.PC:
+				RegisterPC = value;
+				break;
+			default:
+				throw new ArgumentException($"unhandled {r}");
 		}
 	}
 

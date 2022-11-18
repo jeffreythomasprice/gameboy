@@ -56,6 +56,8 @@ public class CPU
 	private UInt16 registerSP;
 	private UInt16 registerPC;
 	private UInt64 clock;
+	private bool isStopped;
+	private bool isHalted;
 
 	public CPU(ILoggerFactory loggerFactory, IMemory memory)
 	{
@@ -234,6 +236,18 @@ public class CPU
 		set => clock = value;
 	}
 
+	public bool IsStopped
+	{
+		get => isStopped;
+		set => isStopped = value;
+	}
+
+	public bool IsHalted
+	{
+		get => isHalted;
+		set => isHalted = value;
+	}
+
 	public void Reset()
 	{
 		// TODO starting conditions
@@ -248,10 +262,23 @@ public class CPU
 		registerSP = 0;
 		registerPC = InitialPC;
 		clock = 0;
+		isStopped = false;
+		isHalted = false;
 	}
 
 	public void ExecuteInstruction()
 	{
+		if (IsStopped)
+		{
+			logger.LogTrace("skipping instruction, previous STOP");
+			return;
+		}
+		if (IsHalted)
+		{
+			logger.LogTrace("skipping instruction, previous HALT");
+			return;
+		}
+
 		var instruction = ReadNextPCUInt8();
 		switch (instruction)
 		{
@@ -591,8 +618,123 @@ public class CPU
 				}
 				break;
 
+			case 0x10:
+				{
+					logger.LogTrace("STOP");
+					// convention is that the next byte is 0x00, but unchecked
+					ReadNextPCUInt8();
+					isStopped = true;
+					clock += 4;
+				}
+				break;
+
+			case 0x18:
+				{
+					var delta = ReadNextPCInt8();
+					logger.LogTrace($"JR {delta}");
+					RegisterPC = (UInt16)((int)RegisterPC + (int)delta);
+					clock += 12;
+				}
+				break;
+			case 0x20:
+				{
+					ConditionalJump(!ZeroFlag, "NZ", ReadNextPCInt8());
+				}
+				break;
+			case 0x28:
+				{
+					ConditionalJump(ZeroFlag, "Z", ReadNextPCInt8());
+				}
+				break;
+			case 0x30:
+				{
+					ConditionalJump(!CarryFlag, "NC", ReadNextPCInt8());
+				}
+				break;
+			case 0x38:
+				{
+					ConditionalJump(CarryFlag, "C", ReadNextPCInt8());
+				}
+				break;
+
+			case 0x27:
+				{
+					// https://forums.nesdev.org/viewtopic.php?p=196282&sid=20ffd9ebbfc1973358a81b9a3c59857b#p196282
+					logger.LogTrace("DAA");
+					if (SubtractFlag)
+					{
+						if (CarryFlag)
+						{
+							RegisterA -= 0x60;
+						}
+						if (HalfCarryFlag)
+						{
+							RegisterA -= 0x06;
+						}
+					}
+					else
+					{
+						if (CarryFlag || RegisterA > 0x99)
+						{
+							RegisterA += 0x60;
+							CarryFlag = true;
+						}
+						if (HalfCarryFlag || (RegisterA & 0x0f) > 0x09)
+						{
+							RegisterA += 0x06;
+						}
+					}
+					ZeroFlag = RegisterA == 0;
+					HalfCarryFlag = false;
+					clock += 4;
+				}
+				break;
+
+			case 0x2f:
+				{
+					logger.LogTrace("CPL");
+					RegisterA = (byte)(~RegisterA);
+					SubtractFlag = true;
+					HalfCarryFlag = true;
+					clock += 4;
+				}
+				break;
+
+			case 0x37:
+				{
+					logger.LogTrace("SCF");
+					SubtractFlag = false;
+					HalfCarryFlag = false;
+					CarryFlag = true;
+					clock += 4;
+				}
+				break;
+			case 0x3f:
+				{
+					logger.LogTrace("CCF");
+					SubtractFlag = false;
+					HalfCarryFlag = false;
+					CarryFlag = !CarryFlag;
+					clock += 4;
+				}
+				break;
+
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
+		}
+	}
+
+	private void ConditionalJump(bool condition, string conditionString, sbyte delta)
+	{
+		logger.LogTrace($"JR {condition}, {delta}");
+		if (condition)
+		{
+			RegisterPC = (UInt16)((int)RegisterPC + (int)delta);
+			clock += 12;
+		}
+		else
+		{
+			clock += 8;
 		}
 	}
 
@@ -821,6 +963,11 @@ public class CPU
 		var result = memory.ReadUInt8(RegisterPC);
 		RegisterPC++;
 		return result;
+	}
+
+	private sbyte ReadNextPCInt8()
+	{
+		return (sbyte)ReadNextPCUInt8();
 	}
 
 	private UInt16 ReadNextPCUInt16()

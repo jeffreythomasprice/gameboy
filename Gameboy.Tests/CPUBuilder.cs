@@ -148,4 +148,16 @@ public class CPUBuilder
 		cpu.Clock = cpu.Clock + (UInt64)delta;
 		return this;
 	}
+
+	public CPUBuilder IsHalted(bool value)
+	{
+		cpu.IsHalted = value;
+		return this;
+	}
+
+	public CPUBuilder IsStopped(bool value)
+	{
+		cpu.IsStopped = value;
+		return this;
+	}
 }

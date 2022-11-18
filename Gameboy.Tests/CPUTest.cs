@@ -6355,6 +6355,340 @@ public class CPUTest
 		}
 	}
 
+	[Theory]
+	[MemberData(nameof(InstructionData_c0_c8_d0_d8))]
+	public void Instruction_c0_c8_d0_d8(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_c0_c8_d0_d8
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xc0 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000)
+					.ZeroFlag(false),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterPC(0x3412)
+					.AddClock(20),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xc0 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000)
+					.ZeroFlag(true),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.AddPC(1)
+					.AddClock(8),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xc8 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000)
+					.ZeroFlag(true),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterPC(0x3412)
+					.AddClock(20),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xc8 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000)
+					.ZeroFlag(false),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.AddPC(1)
+					.AddClock(8),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xd0 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000)
+					.CarryFlag(false),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterPC(0x3412)
+					.AddClock(20),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xd0 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000)
+					.CarryFlag(true),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.AddPC(1)
+					.AddClock(8),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xd8 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000)
+					.CarryFlag(true),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterPC(0x3412)
+					.AddClock(20),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xd8 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000)
+					.CarryFlag(false),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.AddPC(1)
+					.AddClock(8),
+			};
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_c1_d1_e1_f1))]
+	public void Instruction_c1_d1_e1_f1(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(12)
+				.AddPC(1)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_c1_d1_e1_f1
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xc1 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterBC(0x3412),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xd1 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterDE(0x3412),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xe1 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterHL(0x3412),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xf1 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterAF(0x3412),
+			};
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_c2_ca_d2_da))]
+	public void Instruction_c2_ca_d2_da(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_c2_ca_d2_da
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xc2, 0x12, 0x34 }), },
+				(CPUBuilder actual) => actual
+					.ZeroFlag(false),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x3412)
+					.AddClock(16),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xc2, 0x12, 0x34 }), },
+				(CPUBuilder actual) => actual
+					.ZeroFlag(true),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.AddPC(3)
+					.AddClock(12),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xca, 0x12, 0x34 }), },
+				(CPUBuilder actual) => actual
+					.ZeroFlag(true),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x3412)
+					.AddClock(16),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xca, 0x12, 0x34 }), },
+				(CPUBuilder actual) => actual
+					.ZeroFlag(false),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.AddPC(3)
+					.AddClock(12),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xd2, 0x12, 0x34 }), },
+				(CPUBuilder actual) => actual
+					.CarryFlag(false),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x3412)
+					.AddClock(16),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xd2, 0x12, 0x34 }), },
+				(CPUBuilder actual) => actual
+					.CarryFlag(true),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.AddPC(3)
+					.AddClock(12),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xda, 0x12, 0x34 }), },
+				(CPUBuilder actual) => actual
+					.CarryFlag(true),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x3412)
+					.AddClock(16),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xda, 0x12, 0x34 }), },
+				(CPUBuilder actual) => actual
+					.CarryFlag(false),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.AddPC(3)
+					.AddClock(12),
+			};
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_c3))]
+	public void Instruction_c3(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(16)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_c3
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xc3, 0x12, 0x34 }), },
+				(CPUBuilder actual) => actual,
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x3412),
+			};
+		}
+	}
+
 	private void PerformTest(
 		MemoryData[] actualMemory,
 		Func<CPUBuilder, CPUBuilder> actualBuilder,

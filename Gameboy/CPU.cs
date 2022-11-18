@@ -638,22 +638,22 @@ public class CPU
 				break;
 			case 0x20:
 				{
-					ConditionalJump(!ZeroFlag, "NZ", ReadNextPCInt8());
+					ConditionalJumpInt8(!ZeroFlag, "NZ", ReadNextPCInt8());
 				}
 				break;
 			case 0x28:
 				{
-					ConditionalJump(ZeroFlag, "Z", ReadNextPCInt8());
+					ConditionalJumpInt8(ZeroFlag, "Z", ReadNextPCInt8());
 				}
 				break;
 			case 0x30:
 				{
-					ConditionalJump(!CarryFlag, "NC", ReadNextPCInt8());
+					ConditionalJumpInt8(!CarryFlag, "NC", ReadNextPCInt8());
 				}
 				break;
 			case 0x38:
 				{
-					ConditionalJump(CarryFlag, "C", ReadNextPCInt8());
+					ConditionalJumpInt8(CarryFlag, "C", ReadNextPCInt8());
 				}
 				break;
 
@@ -1378,20 +1378,129 @@ public class CPU
 				}
 				break;
 
-			// TODO JEFF 0xc0 and higher
+			case 0xc0:
+				{
+					ConditionalReturn(!ZeroFlag, "NZ");
+				}
+				break;
+			case 0xc8:
+				{
+					ConditionalReturn(ZeroFlag, "Z");
+				}
+				break;
+			case 0xd0:
+				{
+					ConditionalReturn(!CarryFlag, "NC");
+				}
+				break;
+			case 0xd8:
+				{
+					ConditionalReturn(CarryFlag, "C");
+				}
+				break;
+
+			case 0xc1:
+				{
+					Pop(Register16.BC);
+				}
+				break;
+			case 0xd1:
+				{
+					Pop(Register16.DE);
+				}
+				break;
+			case 0xe1:
+				{
+					Pop(Register16.HL);
+				}
+				break;
+			case 0xf1:
+				{
+					Pop(Register16.AF);
+				}
+				break;
+
+			case 0xc2:
+				{
+					var address = ReadNextPCUInt16();
+					ConditionalJumpUInt16(!ZeroFlag, "NZ", address);
+				}
+				break;
+			case 0xca:
+				{
+					var address = ReadNextPCUInt16();
+					ConditionalJumpUInt16(ZeroFlag, "Z", address);
+				}
+				break;
+			case 0xd2:
+				{
+					var address = ReadNextPCUInt16();
+					ConditionalJumpUInt16(!CarryFlag, "NC", address);
+				}
+				break;
+			case 0xda:
+				{
+					var address = ReadNextPCUInt16();
+					ConditionalJumpUInt16(CarryFlag, "C", address);
+				}
+				break;
+
+			case 0xc3:
+				{
+					var address = ReadNextPCUInt16();
+					JumpUInt16(address);
+				}
+				break;
+
+			// TODO JEFF 0xc4 and higher
 
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
 		}
 	}
 
-	private void ConditionalJump(bool condition, string conditionString, sbyte delta)
+	private void ConditionalJumpInt8(bool condition, string conditionString, sbyte delta)
 	{
 		logger.LogTrace($"JR {condition}, {delta}");
 		if (condition)
 		{
 			RegisterPC = (UInt16)((int)RegisterPC + (int)delta);
 			Clock += 12;
+		}
+		else
+		{
+			Clock += 8;
+		}
+	}
+
+	private void ConditionalJumpUInt16(bool condition, string conditionString, UInt16 address)
+	{
+		logger.LogTrace($"JP {conditionString}, {ToHex(address)}");
+		if (condition)
+		{
+			RegisterPC = address;
+			Clock += 16;
+		}
+		else
+		{
+			Clock += 12;
+		}
+	}
+
+	private void JumpUInt16(UInt16 address)
+	{
+		logger.LogTrace($"JP {ToHex(address)}");
+		RegisterPC = address;
+		Clock += 16;
+	}
+
+	private void ConditionalReturn(bool condition, string conditionString)
+	{
+		logger.LogTrace($"RET {conditionString}");
+		if (condition)
+		{
+			RegisterPC = PopUInt16();
+			Clock += 20;
 		}
 		else
 		{
@@ -1857,6 +1966,13 @@ public class CPU
 		}
 	}
 
+	private void Pop(Register16 destination)
+	{
+		logger.LogTrace($"POP {destination}");
+		SetRegister(destination, PopUInt16());
+		clock += 12;
+	}
+
 	private byte ReadNextPCUInt8()
 	{
 		var result = memory.ReadUInt8(RegisterPC);
@@ -1873,6 +1989,19 @@ public class CPU
 	{
 		var result = memory.ReadUInt16(RegisterPC);
 		RegisterPC += 2;
+		return result;
+	}
+
+	private void PushUInt16(UInt16 value)
+	{
+		RegisterSP -= 2;
+		memory.WriteUInt16(RegisterSP, value);
+	}
+
+	private UInt16 PopUInt16()
+	{
+		var result = memory.ReadUInt16(RegisterSP);
+		RegisterSP += 2;
 		return result;
 	}
 }

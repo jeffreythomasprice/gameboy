@@ -7832,6 +7832,184 @@ public class CPUTest
 		}
 	}
 
+	[Theory]
+	[MemberData(nameof(InstructionData_prefix_00_01_02_03_04_05_07))]
+	public void Instruction_prefix_00_01_02_03_04_05_07(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(8)
+				.AddPC(2)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_prefix_00_01_02_03_04_05_07
+	{
+		get
+		{
+			foreach (var (instruction, setter) in new (byte, Func<CPUBuilder, byte, CPUBuilder>)[] {
+				(0x00, (builder, x) => builder.RegisterB(x)),
+				(0x01, (builder, x) => builder.RegisterC(x)),
+				(0x02, (builder, x) => builder.RegisterD(x)),
+				(0x03, (builder, x) => builder.RegisterE(x)),
+				(0x04, (builder, x) => builder.RegisterH(x)),
+				(0x05, (builder, x) => builder.RegisterL(x)),
+				(0x07, (builder, x) => builder.RegisterA(x)),
+			})
+			{
+				yield return new object?[] {
+					new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcb, instruction }), },
+					(CPUBuilder actual) => setter(actual, 0b1100_1010)
+						.CarryFlag(false),
+					new MemoryData[0],
+					(CPUBuilder expected) => setter(expected, 0b1001_0101)
+						.ZeroFlag(false)
+						.SubtractFlag(false)
+						.HalfCarryFlag(false)
+						.CarryFlag(true),
+				};
+				yield return new object?[] {
+					new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcb, instruction }), },
+					(CPUBuilder actual) => setter(actual, 0b1100_1010)
+						.CarryFlag(true),
+					new MemoryData[0],
+					(CPUBuilder expected) => setter(expected, 0b1001_0101)
+						.ZeroFlag(false)
+						.SubtractFlag(false)
+						.HalfCarryFlag(false)
+						.CarryFlag(true),
+				};
+				yield return new object?[] {
+					new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcb, instruction }), },
+					(CPUBuilder actual) => setter(actual, 0b0100_1010)
+						.CarryFlag(false),
+					new MemoryData[0],
+					(CPUBuilder expected) => setter(expected, 0b1001_0100)
+						.ZeroFlag(false)
+						.SubtractFlag(false)
+						.HalfCarryFlag(false)
+						.CarryFlag(false),
+				};
+				yield return new object?[] {
+					new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcb, instruction }), },
+					(CPUBuilder actual) => setter(actual, 0b0000_0000)
+						.CarryFlag(false),
+					new MemoryData[0],
+					(CPUBuilder expected) => setter(expected, 0b0000_0000)
+						.ZeroFlag(true)
+						.SubtractFlag(false)
+						.HalfCarryFlag(false)
+						.CarryFlag(false),
+				};
+			}
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_prefix_06))]
+	public void Instruction_prefix_06(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(16)
+				.AddPC(2)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_prefix_06
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xcb, 0x06 }),
+					new(0x1234, new byte[] { 0b1100_1010 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterHL(0x1234)
+					.CarryFlag(false),
+				new MemoryData[] {
+					new(0x1234, new byte[] { 0b1001_0101 }),
+				},
+				(CPUBuilder expected) => expected
+					.ZeroFlag(false)
+					.SubtractFlag(false)
+					.HalfCarryFlag(false)
+					.CarryFlag(true),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xcb, 0x06 }),
+					new(0x1234, new byte[] { 0b1100_1010 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterHL(0x1234)
+					.CarryFlag(true),
+				new MemoryData[] {
+					new(0x1234, new byte[] { 0b1001_0101 }),
+				},
+				(CPUBuilder expected) => expected
+					.ZeroFlag(false)
+					.SubtractFlag(false)
+					.HalfCarryFlag(false)
+					.CarryFlag(true),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xcb, 0x06 }),
+					new(0x1234, new byte[] { 0b0100_1010 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterHL(0x1234)
+					.CarryFlag(false),
+				new MemoryData[] {
+					new(0x1234, new byte[] { 0b1001_0100 }),
+				},
+				(CPUBuilder expected) => expected
+					.ZeroFlag(false)
+					.SubtractFlag(false)
+					.HalfCarryFlag(false)
+					.CarryFlag(false),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xcb, 0x06 }),
+					new(0x1234, new byte[] { 0b0000_0000 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterHL(0x1234)
+					.CarryFlag(false),
+				new MemoryData[] {
+					new(0x1234, new byte[] { 0b0000_0000 }),
+				},
+				(CPUBuilder expected) => expected
+					.ZeroFlag(true)
+					.SubtractFlag(false)
+					.HalfCarryFlag(false)
+					.CarryFlag(false),
+			};
+		}
+	}
+
+	// TODO JEFF tests for prefix 08 through 0f
+	// TODO JEFF tests for prefix 10 through 17
+	// TODO JEFF tests for prefix 18 through 1f
 
 	private void PerformTest(
 		MemoryData[] actualMemory,

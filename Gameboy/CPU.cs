@@ -1757,7 +1757,178 @@ public class CPU
 
 	private void ExecutePrefixInstruction()
 	{
-		// TODO implement the 0xcb prefix instructions
+		var instruction = ReadNextPCUInt8();
+		switch (instruction)
+		{
+			case 0x00:
+				{
+					RotateLeftDontIncludeCarry(Register8.B);
+				}
+				break;
+			case 0x01:
+				{
+					RotateLeftDontIncludeCarry(Register8.C);
+				}
+				break;
+			case 0x02:
+				{
+					RotateLeftDontIncludeCarry(Register8.D);
+				}
+				break;
+			case 0x03:
+				{
+					RotateLeftDontIncludeCarry(Register8.E);
+				}
+				break;
+			case 0x04:
+				{
+					RotateLeftDontIncludeCarry(Register8.H);
+				}
+				break;
+			case 0x05:
+				{
+					RotateLeftDontIncludeCarry(Register8.L);
+				}
+				break;
+			case 0x06:
+				{
+					RotateLeftDontIncludeCarry(new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0x07:
+				{
+					RotateLeftDontIncludeCarry(Register8.A);
+				}
+				break;
+
+			case 0x08:
+				{
+					RotateRightDontIncludeCarry(Register8.B);
+				}
+				break;
+			case 0x09:
+				{
+					RotateRightDontIncludeCarry(Register8.C);
+				}
+				break;
+			case 0x0a:
+				{
+					RotateRightDontIncludeCarry(Register8.D);
+				}
+				break;
+			case 0x0b:
+				{
+					RotateRightDontIncludeCarry(Register8.E);
+				}
+				break;
+			case 0x0c:
+				{
+					RotateRightDontIncludeCarry(Register8.H);
+				}
+				break;
+			case 0x0d:
+				{
+					RotateRightDontIncludeCarry(Register8.L);
+				}
+				break;
+			case 0x0e:
+				{
+					RotateRightDontIncludeCarry(new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0x0f:
+				{
+					RotateRightDontIncludeCarry(Register8.A);
+				}
+				break;
+
+			case 0x10:
+				{
+					RotateLeftThroughCarry(Register8.B);
+				}
+				break;
+			case 0x11:
+				{
+					RotateLeftThroughCarry(Register8.C);
+				}
+				break;
+			case 0x12:
+				{
+					RotateLeftThroughCarry(Register8.D);
+				}
+				break;
+			case 0x13:
+				{
+					RotateLeftThroughCarry(Register8.E);
+				}
+				break;
+			case 0x14:
+				{
+					RotateLeftThroughCarry(Register8.H);
+				}
+				break;
+			case 0x15:
+				{
+					RotateLeftThroughCarry(Register8.L);
+				}
+				break;
+			case 0x16:
+				{
+					RotateLeftThroughCarry(new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0x17:
+				{
+					RotateLeftThroughCarry(Register8.A);
+				}
+				break;
+
+			case 0x18:
+				{
+					RotateRightThroughCarry(Register8.B);
+				}
+				break;
+			case 0x19:
+				{
+					RotateRightThroughCarry(Register8.C);
+				}
+				break;
+			case 0x1a:
+				{
+					RotateRightThroughCarry(Register8.D);
+				}
+				break;
+			case 0x1b:
+				{
+					RotateRightThroughCarry(Register8.E);
+				}
+				break;
+			case 0x1c:
+				{
+					RotateRightThroughCarry(Register8.H);
+				}
+				break;
+			case 0x1d:
+				{
+					RotateRightThroughCarry(Register8.L);
+				}
+				break;
+			case 0x1e:
+				{
+					RotateRightThroughCarry(new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0x1f:
+				{
+					RotateRightThroughCarry(Register8.A);
+				}
+				break;
+
+			default:
+				throw new NotImplementedException($"unhandled prefix instruction {ToHex(instruction)}");
+		}
+
+		// TODO JEFF implement the 0xcb prefix instructions, remaining is everything >= 0x20
 	}
 
 	private void ConditionalJumpInt8(bool condition, string conditionString, sbyte delta)
@@ -2462,6 +2633,110 @@ public class CPU
 		// by the time the clock is at least that value then ext instruction must have completed
 		interruptEnableDeltas.Enqueue(new(value, Clock + 5));
 		Clock += 4;
+	}
+
+	private void RotateLeftDontIncludeCarry(Register8 register)
+	{
+		logger.LogTrace($"RLC {register}");
+		var before = GetRegister(register);
+		var after = (byte)((before << 1) | ((before & 0b1000_0000) >> 7));
+		SetRegister(register, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b1000_0000) != 0;
+		Clock += 8;
+	}
+
+	private void RotateLeftDontIncludeCarry(Address address)
+	{
+		logger.LogTrace($"RLC {address}");
+		var before = memory.ReadUInt8(address.Value);
+		var after = (byte)((before << 1) | ((before & 0b1000_0000) >> 7));
+		memory.WriteUInt8(address.Value, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b1000_0000) != 0;
+		Clock += 16;
+	}
+
+	private void RotateLeftThroughCarry(Register8 register)
+	{
+		logger.LogTrace($"RL {register}");
+		var before = GetRegister(register);
+		var after = (byte)((before << 1) | (CarryFlag ? 0b0000_0001 : 0));
+		SetRegister(register, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b1000_0000) != 0;
+		Clock += 8;
+	}
+
+	private void RotateLeftThroughCarry(Address address)
+	{
+		logger.LogTrace($"RL {address}");
+		var before = memory.ReadUInt8(address.Value);
+		var after = (byte)((before << 1) | (CarryFlag ? 0b0000_0001 : 0));
+		memory.WriteUInt8(address.Value, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b1000_0000) != 0;
+		Clock += 16;
+	}
+
+	private void RotateRightDontIncludeCarry(Register8 register)
+	{
+		logger.LogTrace($"RRC {register}");
+		var before = GetRegister(register);
+		var after = (byte)((before >> 1) | ((before & 0b0000_0001) << 7));
+		SetRegister(register, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b0000_0001) != 0;
+		Clock += 8;
+	}
+
+	private void RotateRightDontIncludeCarry(Address address)
+	{
+		logger.LogTrace($"RRC {address}");
+		var before = memory.ReadUInt8(address.Value);
+		var after = (byte)((before >> 1) | ((before & 0b0000_0001) << 7));
+		memory.WriteUInt8(address.Value, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b0000_0001) != 0;
+		Clock += 8;
+	}
+
+	private void RotateRightThroughCarry(Register8 register)
+	{
+		logger.LogTrace($"RR {register}");
+		var before = GetRegister(register);
+		var after = (byte)((before >> 1) | (CarryFlag ? 0b1000_0000 : 0));
+		SetRegister(register, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b0000_0001) != 0;
+		Clock += 16;
+	}
+
+	private void RotateRightThroughCarry(Address address)
+	{
+		logger.LogTrace($"RR {address}");
+		var before = memory.ReadUInt8(address.Value);
+		var after = (byte)((before >> 1) | (CarryFlag ? 0b1000_0000 : 0));
+		memory.WriteUInt8(address.Value, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b0000_0001) != 0;
+		Clock += 16;
 	}
 
 	private void Pop(Register16 destination)

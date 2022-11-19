@@ -7748,6 +7748,91 @@ public class CPUTest
 		AssertEqual(expected.CPU, actual);
 	}
 
+	[Theory]
+	[MemberData(nameof(InstructionData_f8))]
+	public void Instruction_f8(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(12)
+				.AddPC(2)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_f8
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xf8, 0x00 }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x0102),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterHL(0x0102)
+					.ZeroFlag(false)
+					.SubtractFlag(false)
+					.HalfCarryFlag(false)
+					.CarryFlag(false),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xf8, 0xff }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x01ff),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterHL(0x01fe)
+					.ZeroFlag(false)
+					.SubtractFlag(false)
+					.HalfCarryFlag(true)
+					.CarryFlag(false),
+			};
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_f9))]
+	public void Instruction_f9(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(8)
+				.AddPC(1)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_f9
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xf9 }), },
+				(CPUBuilder actual) => actual
+					.RegisterHL(0x1234),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1234),
+			};
+		}
+	}
+
+
 	private void PerformTest(
 		MemoryData[] actualMemory,
 		Func<CPUBuilder, CPUBuilder> actualBuilder,

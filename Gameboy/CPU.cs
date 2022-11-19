@@ -35,27 +35,6 @@ public class CPU
 		public override string ToString() => $"({Description})";
 	}
 
-	private record struct LiteralOffsetAddress(
-		UInt16 BaseValue,
-		byte Offset
-	)
-	{
-		public override string ToString() => $"({ToHex(BaseValue)} + {ToHex(Offset)})";
-
-		public UInt16 Value => (UInt16)(BaseValue + Offset);
-	}
-
-	private record struct RegisterOffsetAddress(
-		UInt16 BaseValue,
-		Register8 Offset,
-		byte OffsetValue
-	)
-	{
-		public override string ToString() => $"({ToHex(BaseValue)} + {Offset})";
-
-		public UInt16 Value => (UInt16)(BaseValue + OffsetValue);
-	}
-
 	// interrupts get enabled or disabled after the instruction that follows is executed
 	// so keep track of a desired clock value, as long as the current clock is at least that value we execute the delta
 	private record struct InterruptEnableDelta(
@@ -1663,24 +1642,32 @@ public class CPU
 			case 0xe0:
 				{
 					var offset = ReadNextPCUInt8();
-					SetTo(new LiteralOffsetAddress(0xff00, offset), Register8.A);
+					logger.LogTrace($"LDH (0xff00+{offset}), A");
+					memory.WriteUInt8((UInt16)(0xff00 + offset), RegisterA);
+					Clock += 12;
 				}
 				break;
 			case 0xf0:
 				{
 					var offset = ReadNextPCUInt8();
-					SetTo(Register8.A, new LiteralOffsetAddress(0xff00, offset));
+					logger.LogTrace($"LDH A, (0xff00+{offset})");
+					RegisterA = memory.ReadUInt8((UInt16)(0xff00 + offset));
+					Clock += 12;
 				}
 				break;
 
 			case 0xe2:
 				{
-					SetTo(new RegisterOffsetAddress(0xff00, Register8.C, RegisterC), Register8.A);
+					logger.LogTrace($"LD (0xff00+c), A");
+					memory.WriteUInt8((UInt16)(0xff00 + RegisterC), RegisterA);
+					Clock += 8;
 				}
 				break;
 			case 0xf2:
 				{
-					SetTo(Register8.A, new RegisterOffsetAddress(0xff00, Register8.C, RegisterC));
+					logger.LogTrace($"LD A, (0xff00+c)");
+					RegisterA = memory.ReadUInt8((UInt16)(0xff00 + RegisterC));
+					Clock += 8;
 				}
 				break;
 
@@ -1700,13 +1687,17 @@ public class CPU
 			case 0xea:
 				{
 					var address = ReadNextPCUInt16();
-					SetTo(new Address(address, ToHex(address)), Register8.A, clockOffset: 16);
+					logger.LogTrace($"LD ({ToHex(address)}), A");
+					memory.WriteUInt8(address, RegisterA);
+					Clock += 16;
 				}
 				break;
 			case 0xfa:
 				{
 					var address = ReadNextPCUInt16();
-					SetTo(Register8.A, new Address(address, ToHex(address)), clockOffset: 16);
+					logger.LogTrace($"LD A, ({ToHex(address)})");
+					RegisterA = memory.ReadUInt8(address);
+					Clock += 16;
 				}
 				break;
 
@@ -1723,15 +1714,25 @@ public class CPU
 
 			case 0xf8:
 				{
-					// TODO JEFF LD HL, SP + r8
-				}
-				break;
-			case 0xf9:
-				{
-					// TODO JEFF LD SP, HL
+					var offset = ReadNextPCInt8();
+					logger.LogTrace($"LD HL, SP+{offset}");
+					var before = RegisterSP;
+					var after32 = (UInt32)((Int32)before + offset);
+					RegisterHL = (UInt16)after32;
+					ZeroFlag = false;
+					SubtractFlag = false;
+					HalfCarryFlag = (before & 0b0000_1111_1111_1111) + (offset & 0b0000_1111_1111_1111) > 0b0000_1111_1111_1111;
+					CarryFlag = after32 > 0b1111_1111_1111_1111;
+					Clock += 12;
 				}
 				break;
 
+			case 0xf9:
+				{
+					RegisterSP = RegisterHL;
+					Clock += 8;
+				}
+				break;
 
 			case 0xd3:
 			case 0xdb:
@@ -1882,18 +1883,18 @@ public class CPU
 		Clock += 12;
 	}
 
-	private void SetTo(Address destination, Register8 source, int clockOffset = 8)
+	private void SetTo(Address destination, Register8 source)
 	{
 		logger.LogTrace($"LD {destination}, {source}");
 		memory.WriteUInt8(destination.Value, GetRegister(source));
-		Clock = (UInt16)((Int64)Clock + clockOffset);
+		Clock += 8;
 	}
 
-	private void SetTo(Register8 destination, Address source, int clockOffset = 8)
+	private void SetTo(Register8 destination, Address source)
 	{
 		logger.LogTrace($"LD {destination}, {source}");
 		SetRegister(destination, memory.ReadUInt8(source.Value));
-		Clock = (UInt16)((Int64)Clock + clockOffset);
+		Clock += 8;
 	}
 
 	private void SetTo(Register8 destination, Register8 source)
@@ -1901,34 +1902,6 @@ public class CPU
 		logger.LogTrace($"LD {destination}, {source}");
 		SetRegister(destination, GetRegister(source));
 		Clock += 4;
-	}
-
-	private void SetTo(LiteralOffsetAddress destination, Register8 source)
-	{
-		logger.LogTrace($"LDH {destination}, {source}");
-		memory.WriteUInt8(destination.Value, GetRegister(source));
-		Clock += 12;
-	}
-
-	private void SetTo(Register8 destination, LiteralOffsetAddress source)
-	{
-		logger.LogTrace($"LDH {destination}, {source}");
-		SetRegister(destination, memory.ReadUInt8(source.Value));
-		Clock += 12;
-	}
-
-	private void SetTo(RegisterOffsetAddress destination, Register8 source)
-	{
-		logger.LogTrace($"LDH {destination}, {source}");
-		memory.WriteUInt8(destination.Value, GetRegister(source));
-		Clock += 8;
-	}
-
-	private void SetTo(Register8 destination, RegisterOffsetAddress source)
-	{
-		logger.LogTrace($"LDH {destination}, {source}");
-		SetRegister(destination, memory.ReadUInt8(source.Value));
-		Clock += 8;
 	}
 
 	private void Increment(Register8 destinationAndSource)

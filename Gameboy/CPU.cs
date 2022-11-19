@@ -1671,24 +1671,27 @@ public class CPU
 
 			case 0xe8:
 				{
-					// TODO JEFF ADD SP, r8
+					var data = ReadNextPCInt8();
+					Add(Register16.SP, data);
 				}
 				break;
 
 			case 0xe9:
 				{
-					// TODO JEFF ADD SP, r8
+					Jump(Register16.HL);
 				}
 				break;
 
 			case 0xea:
 				{
-					// TODO JEFF LD (a16), A
+					var address = ReadNextPCUInt16();
+					SetTo(new Address(address, ToHex(address)), Register8.A, clockOffset: 16);
 				}
 				break;
 			case 0xfa:
 				{
-					// TODO JEFF LD A, (a16)
+					var address = ReadNextPCUInt16();
+					SetTo(Register8.A, new Address(address, ToHex(address)), clockOffset: 16);
 				}
 				break;
 
@@ -1727,8 +1730,7 @@ public class CPU
 			case 0xfc:
 			case 0xfd:
 				{
-					logger.LogWarning($"INVALID OPCODE {ToHex(instruction)}");
-					Clock += 4;
+					InvalidInstruction(instruction);
 				}
 				break;
 
@@ -1775,6 +1777,13 @@ public class CPU
 		logger.LogTrace($"JP {ToHex(address)}");
 		RegisterPC = address;
 		Clock += 16;
+	}
+
+	private void Jump(Register16 address)
+	{
+		logger.LogTrace($"JP {address}");
+		RegisterPC = GetRegister(address);
+		Clock += 4;
 	}
 
 	private void ConditionalReturn(bool condition, string conditionString)
@@ -1858,18 +1867,18 @@ public class CPU
 		Clock += 12;
 	}
 
-	private void SetTo(Address destination, Register8 source)
+	private void SetTo(Address destination, Register8 source, int clockOffset = 8)
 	{
 		logger.LogTrace($"LD {destination}, {source}");
 		memory.WriteUInt8(destination.Value, GetRegister(source));
-		Clock += 8;
+		Clock = (UInt16)((Int64)Clock + clockOffset);
 	}
 
-	private void SetTo(Register8 destination, Address source)
+	private void SetTo(Register8 destination, Address source, int clockOffset = 8)
 	{
 		logger.LogTrace($"LD {destination}, {source}");
 		SetRegister(destination, memory.ReadUInt8(source.Value));
-		Clock += 8;
+		Clock = (UInt16)((Int64)Clock + clockOffset);
 	}
 
 	private void SetTo(Register8 destination, Register8 source)
@@ -2076,6 +2085,21 @@ public class CPU
 		HalfCarryFlag = (before & 0b0000_1111_1111_1111) + (sourceValue & 0b0000_1111_1111_1111) > 0b0000_1111_1111_1111;
 		CarryFlag = after32 > 0b1111_1111_1111_1111;
 		Clock += 8;
+	}
+
+	private void Add(Register16 destination, sbyte delta)
+	{
+		logger.LogTrace($"ADD {destination}, {delta}");
+		var before = GetRegister(destination);
+		var delta16 = (Int16)delta;
+		var after32 = (UInt32)(before + delta16);
+		var after16 = (UInt16)after32;
+		SetRegister(destination, after16);
+		ZeroFlag = false;
+		SubtractFlag = false;
+		HalfCarryFlag = (before & 0b0000_1111_1111_1111) + (delta16 & 0b0000_1111_1111_1111) > 0b0000_1111_1111_1111;
+		CarryFlag = after32 > 0b1111_1111_1111_1111;
+		Clock += 16;
 	}
 
 	private void Subtract(Register8 destination, Register8 source)
@@ -2322,6 +2346,12 @@ public class CPU
 		HalfCarryFlag = false;
 		CarryFlag = false;
 		Clock += 8;
+	}
+
+	private void InvalidInstruction(byte instruction)
+	{
+		logger.LogWarning($"INVALID {ToHex(instruction)}");
+		Clock += 4;
 	}
 
 	private byte GetRegister(Register8 r)

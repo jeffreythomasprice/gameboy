@@ -266,7 +266,7 @@ public class CPU
 		isHalted = false;
 	}
 
-	public void ExecuteInstruction()
+	public void Step()
 	{
 		if (IsStopped)
 		{
@@ -278,7 +278,11 @@ public class CPU
 			logger.LogTrace("skipping instruction, previous HALT");
 			return;
 		}
+		ExecuteInstruction();
+	}
 
+	private void ExecuteInstruction()
+	{
 		var instruction = ReadNextPCUInt8();
 		switch (instruction)
 		{
@@ -1547,11 +1551,74 @@ public class CPU
 				}
 				break;
 
-			// TODO JEFF 0xc7 and higher
+			case 0xc7:
+				{
+					RestartCall(0x00);
+				}
+				break;
+			case 0xcf:
+				{
+					RestartCall(0x08);
+				}
+				break;
+			case 0xd7:
+				{
+					RestartCall(0x10);
+				}
+				break;
+			case 0xdf:
+				{
+					RestartCall(0x18);
+				}
+				break;
+			case 0xe7:
+				{
+					RestartCall(0x20);
+				}
+				break;
+			case 0xef:
+				{
+					RestartCall(0x28);
+				}
+				break;
+			case 0xf7:
+				{
+					RestartCall(0x30);
+				}
+				break;
+			case 0xff:
+				{
+					RestartCall(0x38);
+				}
+				break;
+
+			case 0xc9:
+				{
+					// TODO JEFF RET
+				}
+				break;
+			case 0xd9:
+				{
+					// TODO JEFF RETI
+				}
+				break;
+
+			case 0xcb:
+				{
+					ExecutePrefixInstruction();
+				}
+				break;
+
+			// TODO 0xcd and higher
 
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
 		}
+	}
+
+	private void ExecutePrefixInstruction()
+	{
+		// TODO implement the 0xcb prefix instructions
 	}
 
 	private void ConditionalJumpInt8(bool condition, string conditionString, sbyte delta)
@@ -1616,6 +1683,14 @@ public class CPU
 		{
 			Clock += 12;
 		}
+	}
+
+	private void RestartCall(byte address)
+	{
+		logger.LogTrace($"RST {ToHex(address)}");
+		PushUInt16(RegisterPC);
+		RegisterPC = address;
+		Clock += 16;
 	}
 
 	private void SetTo(Register8 destination, byte source)

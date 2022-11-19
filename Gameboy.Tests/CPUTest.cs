@@ -7225,6 +7225,127 @@ public class CPUTest
 		}
 	}
 
+	[Theory]
+	[MemberData(nameof(InstructionData_c7_cf_d7_df_e7_ef_f7_ff))]
+	public void Instruction_c7_cf_d7_df_e7_ef_f7_ff(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(16)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_c7_cf_d7_df_e7_ef_f7_ff
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xc7 }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[] {
+					// CPU initial PC + size of this intruction
+					new(0x0ffe, new byte[] { 0x01, 0x01 }),
+				},
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x0000)
+					.RegisterSP(0x0ffe),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcf }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[] {
+					// CPU initial PC + size of this intruction
+					new(0x0ffe, new byte[] { 0x01, 0x01 }),
+				},
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x0008)
+					.RegisterSP(0x0ffe),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xd7 }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[] {
+					// CPU initial PC + size of this intruction
+					new(0x0ffe, new byte[] { 0x01, 0x01 }),
+				},
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x0010)
+					.RegisterSP(0x0ffe),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xdf }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[] {
+					// CPU initial PC + size of this intruction
+					new(0x0ffe, new byte[] { 0x01, 0x01 }),
+				},
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x0018)
+					.RegisterSP(0x0ffe),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xe7 }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[] {
+					// CPU initial PC + size of this intruction
+					new(0x0ffe, new byte[] { 0x01, 0x01 }),
+				},
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x0020)
+					.RegisterSP(0x0ffe),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xef }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[] {
+					// CPU initial PC + size of this intruction
+					new(0x0ffe, new byte[] { 0x01, 0x01 }),
+				},
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x0028)
+					.RegisterSP(0x0ffe),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xf7 }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[] {
+					// CPU initial PC + size of this intruction
+					new(0x0ffe, new byte[] { 0x01, 0x01 }),
+				},
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x0030)
+					.RegisterSP(0x0ffe),
+			};
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xff }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[] {
+					// CPU initial PC + size of this intruction
+					new(0x0ffe, new byte[] { 0x01, 0x01 }),
+				},
+				(CPUBuilder expected) => expected
+					.RegisterPC(0x0038)
+					.RegisterSP(0x0ffe),
+			};
+		}
+	}
+
 	private void PerformTest(
 		MemoryData[] actualMemory,
 		Func<CPUBuilder, CPUBuilder> actualBuilder,
@@ -7240,7 +7361,7 @@ public class CPUTest
 		}
 		var actual = actualBuilder(new CPUBuilder(loggerFactory, memory)).CPU;
 		var expected = expectedBuilder(new CPUBuilder(loggerFactory, memory).Copy(actual)).CPU;
-		actual.ExecuteInstruction();
+		actual.Step();
 		AssertEqual(expected, actual);
 		foreach (var expectedMemoryValue in expectedMemory)
 		{

@@ -56,6 +56,14 @@ public class CPU
 		public UInt16 Value => (UInt16)(BaseValue + OffsetValue);
 	}
 
+	// interrupts get enabled or disabled after the instruction that follows is executed
+	// so keep track of a desired clock value, as long as the current clock is at least that value we execute the delta
+	private record struct InterruptEnableDelta(
+		bool Value,
+		UInt64 Clock
+	)
+	{ }
+
 	public const UInt16 InitialPC = 0x0100;
 
 	private const byte ZeroFlagMask = 0b1000_0000;
@@ -80,6 +88,7 @@ public class CPU
 	private bool isStopped;
 	private bool isHalted;
 	private bool interruptsEnabled;
+	private readonly Queue<InterruptEnableDelta> interruptEnableDeltas = new();
 
 	public CPU(ILoggerFactory loggerFactory, IMemory memory)
 	{
@@ -293,6 +302,7 @@ public class CPU
 		isStopped = false;
 		isHalted = false;
 		interruptsEnabled = true;
+		interruptEnableDeltas.Clear();
 	}
 
 	public void Step()
@@ -308,6 +318,11 @@ public class CPU
 			return;
 		}
 		ExecuteInstruction();
+		if (interruptEnableDeltas.TryPeek(out var next) && Clock > next.Clock)
+		{
+			InterruptsEnabled = interruptEnableDeltas.Dequeue().Value;
+			logger.LogTrace($"interrupts enabled = {InterruptsEnabled}");
+		}
 	}
 
 	private void ExecuteInstruction()
@@ -1697,12 +1712,12 @@ public class CPU
 
 			case 0xf3:
 				{
-					// TODO JEFF DI
+					EnqueueInterruptsEnabled(false);
 				}
 				break;
 			case 0xfb:
 				{
-					// TODO JEFF EI
+					EnqueueInterruptsEnabled(true);
 				}
 				break;
 
@@ -2458,6 +2473,22 @@ public class CPU
 			default:
 				throw new ArgumentException($"unhandled {r}");
 		}
+	}
+
+	private void EnqueueInterruptsEnabled(bool value)
+	{
+		if (value)
+		{
+			logger.LogTrace("EI");
+		}
+		else
+		{
+			logger.LogTrace("DI");
+		}
+		// executes after the next instruction, so put the clock just after the end of this instruction, presumably in the middle of the next one
+		// by the time the clock is at least that value then ext instruction must have completed
+		interruptEnableDeltas.Enqueue(new(value, Clock + 5));
+		Clock += 4;
 	}
 
 	private void Pop(Register16 destination)

@@ -7674,6 +7674,80 @@ public class CPUTest
 		}
 	}
 
+	[Fact]
+	public void Instruction_f3_fb()
+	{
+		// special case for testing several steps, testing the value after each step
+		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
+		var memory = new SimpleMemory();
+		memory.WriteArray(CPU.InitialPC, new byte[] {
+			// DI
+			0xf3,
+			// NOP
+			0x00,
+			// EI
+			0xfb,
+			// EI
+			0xfb,
+			// DI
+			0xf3,
+			// EI
+			0xfb,
+			// NOP,
+			0x00,
+			// NOP,
+			0x00,
+		});
+		var actual = new CPUBuilder(loggerFactory, memory).CPU;
+		var expected = new CPUBuilder(loggerFactory, memory).Copy(actual);
+		AssertEqual(expected.CPU, actual);
+
+		// should be about to execute DI
+		actual.Step();
+		expected.AddPC(1).AddClock(4);
+		AssertEqual(expected.CPU, actual);
+
+		// should be about to execute NOP
+		actual.Step();
+		expected.AddPC(1).AddClock(4);
+		expected.InterruptsEnabled(false);
+		AssertEqual(expected.CPU, actual);
+
+		// should be about to execute EI
+		actual.Step();
+		expected.AddPC(1).AddClock(4);
+		AssertEqual(expected.CPU, actual);
+
+		// should be about to execute EI
+		actual.Step();
+		expected.AddPC(1).AddClock(4);
+		expected.InterruptsEnabled(true);
+		AssertEqual(expected.CPU, actual);
+
+		// should be about to execute DI
+		actual.Step();
+		expected.AddPC(1).AddClock(4);
+		expected.InterruptsEnabled(true);
+		AssertEqual(expected.CPU, actual);
+
+		// should be about to execute EI
+		actual.Step();
+		expected.AddPC(1).AddClock(4);
+		expected.InterruptsEnabled(false);
+		AssertEqual(expected.CPU, actual);
+
+		// should be about to execute NOP
+		actual.Step();
+		expected.AddPC(1).AddClock(4);
+		expected.InterruptsEnabled(true);
+		AssertEqual(expected.CPU, actual);
+
+		// should be about to execute NOP
+		actual.Step();
+		expected.AddPC(1).AddClock(4);
+		AssertEqual(expected.CPU, actual);
+	}
+
 	private void PerformTest(
 		MemoryData[] actualMemory,
 		Func<CPUBuilder, CPUBuilder> actualBuilder,
@@ -7721,6 +7795,7 @@ public class CPUTest
 		AssertEqual("clock", expected.Clock, actual.Clock);
 		AssertEqual("is halted", expected.IsHalted, actual.IsHalted);
 		AssertEqual("is stopped", expected.IsStopped, actual.IsStopped);
+		AssertEqual("interrupts enabled", expected.InterruptsEnabled, actual.InterruptsEnabled);
 	}
 
 	private void AssertEqual<T>(string name, T expected, T actual) where T : IEquatable<T>

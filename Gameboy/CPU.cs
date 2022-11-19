@@ -58,6 +58,7 @@ public class CPU
 	private UInt64 clock;
 	private bool isStopped;
 	private bool isHalted;
+	private bool interruptsEnabled;
 
 	public CPU(ILoggerFactory loggerFactory, IMemory memory)
 	{
@@ -69,67 +70,67 @@ public class CPU
 	public byte RegisterA
 	{
 		get => registerA;
-		set => registerA = value;
+		internal set => registerA = value;
 	}
 
 	public byte RegisterB
 	{
 		get => registerB;
-		set => registerB = value;
+		internal set => registerB = value;
 	}
 
 	public byte RegisterC
 	{
 		get => registerC;
-		set => registerC = value;
+		internal set => registerC = value;
 	}
 
 	public byte RegisterD
 	{
 		get => registerD;
-		set => registerD = value;
+		internal set => registerD = value;
 	}
 
 	public byte RegisterE
 	{
 		get => registerE;
-		set => registerE = value;
+		internal set => registerE = value;
 	}
 
 	public byte RegisterF
 	{
 		get => registerF;
-		set => registerF = value;
+		internal set => registerF = value;
 	}
 
 	public byte RegisterH
 	{
 		get => registerH;
-		set => registerH = value;
+		internal set => registerH = value;
 	}
 
 	public byte RegisterL
 	{
 		get => registerL;
-		set => registerL = value;
+		internal set => registerL = value;
 	}
 
 	public UInt16 RegisterSP
 	{
 		get => registerSP;
-		set => registerSP = value;
+		internal set => registerSP = value;
 	}
 
 	public UInt16 RegisterPC
 	{
 		get => registerPC;
-		set => registerPC = value;
+		internal set => registerPC = value;
 	}
 
 	public UInt16 RegisterAF
 	{
 		get => (UInt16)((((UInt16)registerA) << 8) | (UInt16)registerF);
-		set
+		internal set
 		{
 			registerA = (byte)((value & 0xff00) >> 8);
 			registerF = (byte)(value & 0xff);
@@ -139,7 +140,7 @@ public class CPU
 	public UInt16 RegisterBC
 	{
 		get => (UInt16)((((UInt16)registerB) << 8) | (UInt16)registerC);
-		set
+		internal set
 		{
 			registerB = (byte)((value & 0xff00) >> 8);
 			registerC = (byte)(value & 0xff);
@@ -149,7 +150,7 @@ public class CPU
 	public UInt16 RegisterDE
 	{
 		get => (UInt16)((((UInt16)registerD) << 8) | (UInt16)registerE);
-		set
+		internal set
 		{
 			registerD = (byte)((value & 0xff00) >> 8);
 			registerE = (byte)(value & 0xff);
@@ -159,7 +160,7 @@ public class CPU
 	public UInt16 RegisterHL
 	{
 		get => (UInt16)((((UInt16)registerH) << 8) | (UInt16)registerL);
-		set
+		internal set
 		{
 			registerH = (byte)((value & 0xff00) >> 8);
 			registerL = (byte)(value & 0xff);
@@ -169,7 +170,7 @@ public class CPU
 	public bool ZeroFlag
 	{
 		get => (registerF & ZeroFlagMask) != 0;
-		set
+		internal set
 		{
 			if (value)
 			{
@@ -185,7 +186,7 @@ public class CPU
 	public bool SubtractFlag
 	{
 		get => (registerF & SubtractFlagMask) != 0;
-		set
+		internal set
 		{
 			if (value)
 			{
@@ -201,7 +202,7 @@ public class CPU
 	public bool HalfCarryFlag
 	{
 		get => (registerF & HalfCarryFlagMask) != 0;
-		set
+		internal set
 		{
 			if (value)
 			{
@@ -217,7 +218,7 @@ public class CPU
 	public bool CarryFlag
 	{
 		get => (registerF & CarryFlagMask) != 0;
-		set
+		internal set
 		{
 			if (value)
 			{
@@ -233,19 +234,25 @@ public class CPU
 	public UInt64 Clock
 	{
 		get => clock;
-		set => clock = value;
+		internal set => clock = value;
 	}
 
 	public bool IsStopped
 	{
 		get => isStopped;
-		set => isStopped = value;
+		internal set => isStopped = value;
 	}
 
 	public bool IsHalted
 	{
 		get => isHalted;
-		set => isHalted = value;
+		internal set => isHalted = value;
+	}
+
+	public bool InterruptsEnabled
+	{
+		get => interruptsEnabled;
+		internal set => interruptsEnabled = value;
 	}
 
 	public void Reset()
@@ -264,6 +271,7 @@ public class CPU
 		clock = 0;
 		isStopped = false;
 		isHalted = false;
+		interruptsEnabled = true;
 	}
 
 	public void Step()
@@ -1594,12 +1602,12 @@ public class CPU
 
 			case 0xc9:
 				{
-					// TODO JEFF RET
+					Return();
 				}
 				break;
 			case 0xd9:
 				{
-					// TODO JEFF RETI
+					ReturnAndEnableInterrupts();
 				}
 				break;
 
@@ -1609,7 +1617,97 @@ public class CPU
 				}
 				break;
 
-			// TODO 0xcd and higher
+			case 0xcd:
+				{
+					var address = ReadNextPCUInt16();
+					Call(address);
+				}
+				break;
+
+			case 0xe0:
+				{
+					// TODO JEFF LDH (a8), A
+				}
+				break;
+			case 0xf0:
+				{
+					// TODO JEFF LDH A, (a8)
+				}
+				break;
+
+			case 0xe2:
+				{
+					// TODO JEFF LC (C), A
+				}
+				break;
+			case 0xf2:
+				{
+					// TODO JEFF LC A, (C)
+				}
+				break;
+
+			case 0xe8:
+				{
+					// TODO JEFF ADD SP, r8
+				}
+				break;
+
+			case 0xe9:
+				{
+					// TODO JEFF ADD SP, r8
+				}
+				break;
+
+			case 0xea:
+				{
+					// TODO JEFF LD (a16), A
+				}
+				break;
+			case 0xfa:
+				{
+					// TODO JEFF LD A, (a16)
+				}
+				break;
+
+			case 0xf3:
+				{
+					// TODO JEFF DI
+				}
+				break;
+			case 0xfb:
+				{
+					// TODO JEFF EI
+				}
+				break;
+
+			case 0xf8:
+				{
+					// TODO JEFF LD HL, SP + r8
+				}
+				break;
+			case 0xf9:
+				{
+					// TODO JEFF LD SP, HL
+				}
+				break;
+
+
+			case 0xd3:
+			case 0xdb:
+			case 0xdd:
+			case 0xe3:
+			case 0xe4:
+			case 0xeb:
+			case 0xec:
+			case 0xed:
+			case 0xf4:
+			case 0xfc:
+			case 0xfd:
+				{
+					logger.LogWarning($"INVALID OPCODE {ToHex(instruction)}");
+					Clock += 4;
+				}
+				break;
 
 			default:
 				throw new NotImplementedException($"unhandled instruction {ToHex(instruction)}");
@@ -1670,6 +1768,21 @@ public class CPU
 		}
 	}
 
+	private void Return()
+	{
+		logger.LogTrace("RET");
+		RegisterPC = PopUInt16();
+		Clock += 16;
+	}
+
+	private void ReturnAndEnableInterrupts()
+	{
+		logger.LogTrace("RETI");
+		RegisterPC = PopUInt16();
+		interruptsEnabled = true;
+		Clock += 16;
+	}
+
 	private void ConditionalCallUInt16(bool condition, string conditionString, UInt16 address)
 	{
 		logger.LogTrace($"CALL {conditionString}, {ToHex(address)}");
@@ -1683,6 +1796,14 @@ public class CPU
 		{
 			Clock += 12;
 		}
+	}
+
+	private void Call(UInt16 address)
+	{
+		logger.LogTrace($"CALL {ToHex(address)}");
+		PushUInt16(RegisterPC);
+		RegisterPC = address;
+		Clock += 24;
 	}
 
 	private void RestartCall(byte address)

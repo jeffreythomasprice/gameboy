@@ -26,6 +26,9 @@ public class CPUBuilder
 		cpu.RegisterSP = source.RegisterSP;
 		cpu.RegisterPC = source.RegisterPC;
 		cpu.Clock = source.Clock;
+		cpu.IsStopped = source.IsStopped;
+		cpu.IsHalted = source.IsHalted;
+		cpu.InterruptsEnabled = source.InterruptsEnabled;
 		return this;
 	}
 
@@ -158,6 +161,12 @@ public class CPUBuilder
 	public CPUBuilder IsStopped(bool value)
 	{
 		cpu.IsStopped = value;
+		return this;
+	}
+
+	public CPUBuilder InterruptsEnabled(bool value)
+	{
+		cpu.InterruptsEnabled = value;
 		return this;
 	}
 }

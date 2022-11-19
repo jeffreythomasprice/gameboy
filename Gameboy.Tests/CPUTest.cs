@@ -7346,6 +7346,108 @@ public class CPUTest
 		}
 	}
 
+	[Theory]
+	[MemberData(nameof(InstructionData_c9_d9))]
+	public void Instruction_c9_d9(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(16)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_c9_d9
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xc9 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterPC(0x3412),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xd9 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000)
+					.InterruptsEnabled(true),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterPC(0x3412)
+					.InterruptsEnabled(true),
+			};
+			yield return new object?[] {
+				new MemoryData[] {
+					new(CPU.InitialPC, new byte[] { 0xd9 }),
+					new(0x1000, new byte[] { 0x12, 0x34 }),
+				},
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000)
+					.InterruptsEnabled(false),
+				new MemoryData[0],
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x1002)
+					.RegisterPC(0x3412)
+					.InterruptsEnabled(true),
+			};
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_cd))]
+	public void Instruction_cd(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(24)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_cd
+	{
+		get
+		{
+			yield return new object?[] {
+				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcd, 0x12, 0x34 }), },
+				(CPUBuilder actual) => actual
+					.RegisterSP(0x1000),
+				new MemoryData[] {
+					// CPU initial PC + size of this intruction
+					new(0x0ffe, new byte[]{ 0x03, 0x01 }),
+				},
+				(CPUBuilder expected) => expected
+					.RegisterSP(0x0ffe)
+					.RegisterPC(0x3412),
+			};
+		}
+	}
+
 	private void PerformTest(
 		MemoryData[] actualMemory,
 		Func<CPUBuilder, CPUBuilder> actualBuilder,

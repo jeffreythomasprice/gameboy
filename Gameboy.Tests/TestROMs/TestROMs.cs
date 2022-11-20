@@ -23,9 +23,10 @@ public class TestROMs
 		var memory = cart.CreateMemory();
 		var cpu = new CPU(loggerFactory, memory);
 
-		for (var i = 0; i < 10; i++)
+		while (!cpu.IsHalted && !cpu.IsStopped)
 		{
 			cpu.Step();
 		}
+		Console.WriteLine($"TODO JEFF final clock = {cpu.Clock}");
 	}
 }

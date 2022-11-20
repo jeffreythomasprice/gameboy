@@ -296,7 +296,11 @@ public class CPU
 			logger.LogTrace("skipping instruction, previous HALT");
 			return;
 		}
+
+		// TODO check for interrupts
+
 		ExecuteInstruction();
+
 		if (interruptEnableDeltas.TryPeek(out var next) && Clock > next.Clock)
 		{
 			InterruptsEnabled = interruptEnableDeltas.Dequeue().Value;

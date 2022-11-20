@@ -1924,11 +1924,175 @@ public class CPU
 				}
 				break;
 
+			case 0x20:
+				{
+					ShiftLeftIntoCarryResetLsb(Register8.B);
+				}
+				break;
+			case 0x21:
+				{
+					ShiftLeftIntoCarryResetLsb(Register8.C);
+				}
+				break;
+			case 0x22:
+				{
+					ShiftLeftIntoCarryResetLsb(Register8.D);
+				}
+				break;
+			case 0x23:
+				{
+					ShiftLeftIntoCarryResetLsb(Register8.E);
+				}
+				break;
+			case 0x24:
+				{
+					ShiftLeftIntoCarryResetLsb(Register8.H);
+				}
+				break;
+			case 0x25:
+				{
+					ShiftLeftIntoCarryResetLsb(Register8.L);
+				}
+				break;
+			case 0x26:
+				{
+					ShiftLeftIntoCarryResetLsb(new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0x27:
+				{
+					ShiftLeftIntoCarryResetLsb(Register8.A);
+				}
+				break;
+
+			case 0x28:
+				{
+					ShiftRightIntoCarryKeepMsb(Register8.B);
+				}
+				break;
+			case 0x29:
+				{
+					ShiftRightIntoCarryKeepMsb(Register8.C);
+				}
+				break;
+			case 0x2a:
+				{
+					ShiftRightIntoCarryKeepMsb(Register8.D);
+				}
+				break;
+			case 0x2b:
+				{
+					ShiftRightIntoCarryKeepMsb(Register8.E);
+				}
+				break;
+			case 0x2c:
+				{
+					ShiftRightIntoCarryKeepMsb(Register8.H);
+				}
+				break;
+			case 0x2d:
+				{
+					ShiftRightIntoCarryKeepMsb(Register8.L);
+				}
+				break;
+			case 0x2e:
+				{
+					ShiftRightIntoCarryKeepMsb(new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0x2f:
+				{
+					ShiftRightIntoCarryKeepMsb(Register8.A);
+				}
+				break;
+
+			case 0x30:
+				{
+					SwapUpperAndLowerNibbles(Register8.B);
+				}
+				break;
+			case 0x31:
+				{
+					SwapUpperAndLowerNibbles(Register8.C);
+				}
+				break;
+			case 0x32:
+				{
+					SwapUpperAndLowerNibbles(Register8.D);
+				}
+				break;
+			case 0x33:
+				{
+					SwapUpperAndLowerNibbles(Register8.E);
+				}
+				break;
+			case 0x34:
+				{
+					SwapUpperAndLowerNibbles(Register8.H);
+				}
+				break;
+			case 0x35:
+				{
+					SwapUpperAndLowerNibbles(Register8.L);
+				}
+				break;
+			case 0x36:
+				{
+					SwapUpperAndLowerNibbles(new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0x37:
+				{
+					SwapUpperAndLowerNibbles(Register8.A);
+				}
+				break;
+
+			case 0x38:
+				{
+					ShiftRightIntoCarryResetMsb(Register8.B);
+				}
+				break;
+			case 0x39:
+				{
+					ShiftRightIntoCarryResetMsb(Register8.C);
+				}
+				break;
+			case 0x3a:
+				{
+					ShiftRightIntoCarryResetMsb(Register8.D);
+				}
+				break;
+			case 0x3b:
+				{
+					ShiftRightIntoCarryResetMsb(Register8.E);
+				}
+				break;
+			case 0x3c:
+				{
+					ShiftRightIntoCarryResetMsb(Register8.H);
+				}
+				break;
+			case 0x3d:
+				{
+					ShiftRightIntoCarryResetMsb(Register8.L);
+				}
+				break;
+			case 0x3e:
+				{
+					ShiftRightIntoCarryResetMsb(new Address(RegisterHL, Register16.HL.ToString()));
+				}
+				break;
+			case 0x3f:
+				{
+					ShiftRightIntoCarryResetMsb(Register8.A);
+				}
+				break;
+
 			default:
 				throw new NotImplementedException($"unhandled prefix instruction {ToHex(instruction)}");
 		}
 
-		// TODO JEFF implement the 0xcb prefix instructions, remaining is everything >= 0x20
+		// TODO JEFF implement the 0xcb prefix instructions, remaining is everything >= 0x40
 	}
 
 	private void ConditionalJumpInt8(bool condition, string conditionString, sbyte delta)
@@ -2710,7 +2874,7 @@ public class CPU
 		SubtractFlag = false;
 		HalfCarryFlag = false;
 		CarryFlag = (before & 0b0000_0001) != 0;
-		Clock += 8;
+		Clock += 16;
 	}
 
 	private void RotateRightThroughCarry(Register8 register)
@@ -2723,7 +2887,7 @@ public class CPU
 		SubtractFlag = false;
 		HalfCarryFlag = false;
 		CarryFlag = (before & 0b0000_0001) != 0;
-		Clock += 16;
+		Clock += 8;
 	}
 
 	private void RotateRightThroughCarry(Address address)
@@ -2731,6 +2895,84 @@ public class CPU
 		logger.LogTrace($"RR {address}");
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before >> 1) | (CarryFlag ? 0b1000_0000 : 0));
+		memory.WriteUInt8(address.Value, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b0000_0001) != 0;
+		Clock += 16;
+	}
+
+	private void ShiftLeftIntoCarryResetLsb(Register8 register)
+	{
+		logger.LogTrace($"SLA {register}");
+		var before = GetRegister(register);
+		var after = (byte)(before << 1);
+		SetRegister(register, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b1000_0000) != 0;
+		Clock += 8;
+	}
+
+	private void ShiftLeftIntoCarryResetLsb(Address address)
+	{
+		logger.LogTrace($"SLA {address}");
+		var before = memory.ReadUInt8(address.Value);
+		var after = (byte)(before << 1);
+		memory.WriteUInt8(address.Value, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b1000_0000) != 0;
+		Clock += 16;
+	}
+
+	private void ShiftRightIntoCarryResetMsb(Register8 register)
+	{
+		logger.LogTrace($"SRL {register}");
+		var before = GetRegister(register);
+		var after = (byte)(before >> 1);
+		SetRegister(register, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b0000_0001) != 0;
+		Clock += 8;
+	}
+
+	private void ShiftRightIntoCarryResetMsb(Address address)
+	{
+		logger.LogTrace($"SRL {address}");
+		var before = memory.ReadUInt8(address.Value);
+		var after = (byte)(before >> 1);
+		memory.WriteUInt8(address.Value, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b0000_0001) != 0;
+		Clock += 16;
+	}
+
+	private void ShiftRightIntoCarryKeepMsb(Register8 register)
+	{
+		logger.LogTrace($"SRA {register}");
+		var before = GetRegister(register);
+		var after = (byte)(before >> 1);
+		SetRegister(register, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = (before & 0b0000_0001) != 0;
+		Clock += 8;
+	}
+
+	private void ShiftRightIntoCarryKeepMsb(Address address)
+	{
+		logger.LogTrace($"SRA {address}");
+		var before = memory.ReadUInt8(address.Value);
+		var after = (byte)(before >> 1);
 		memory.WriteUInt8(address.Value, after);
 		ZeroFlag = after == 0;
 		SubtractFlag = false;
@@ -2751,6 +2993,32 @@ public class CPU
 		logger.LogTrace($"PUSH {source}");
 		PushUInt16(GetRegister(source));
 		clock += 16;
+	}
+
+	private void SwapUpperAndLowerNibbles(Register8 register)
+	{
+		logger.LogTrace($"SWAP {register}");
+		var before = GetRegister(register);
+		var after = (byte)(((before & 0b1111_0000) >> 4) | ((before & 0b0000_1111) << 4));
+		SetRegister(register, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = false;
+		Clock += 8;
+	}
+
+	private void SwapUpperAndLowerNibbles(Address address)
+	{
+		logger.LogTrace($"SWAP {address}");
+		var before = memory.ReadUInt8(address.Value);
+		var after = (byte)(((before & 0b1111_0000) >> 4) | ((before & 0b0000_1111) << 4));
+		memory.WriteUInt8(address.Value, after);
+		ZeroFlag = after == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = false;
+		CarryFlag = false;
+		Clock += 16;
 	}
 
 	private byte ReadNextPCUInt8()

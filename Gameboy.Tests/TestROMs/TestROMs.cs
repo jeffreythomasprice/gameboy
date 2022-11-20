@@ -12,11 +12,20 @@ public class TestROMs
 		var cart = new Cartridge(stream);
 
 		Console.WriteLine($"TODO JEFF cart = {cart}");
+		Console.WriteLine($"TODO JEFF total size of cart = {cart.Length}");
 		Console.WriteLine($"TODO JEFF title = {cart.Title}");
 		Console.WriteLine($"TODO JEFF is color? {cart.IsColorGameboy}");
 		Console.WriteLine($"TODO JEFF is super? {cart.IsSuperGameboy}");
 		Console.WriteLine($"TODO JEFF type = {cart.CartridgeType}");
 		Console.WriteLine($"TODO JEFF ROM = {cart.ROMBanks}");
 		Console.WriteLine($"TODO JEFF RAM = {cart.RAMBanks}");
+
+		var memory = cart.CreateMemory();
+		var cpu = new CPU(loggerFactory, memory);
+
+		for (var i = 0; i < 10; i++)
+		{
+			cpu.Step();
+		}
 	}
 }

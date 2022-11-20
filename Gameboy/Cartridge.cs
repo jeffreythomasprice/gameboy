@@ -6,7 +6,7 @@ public class Cartridge
 {
 	public enum Type
 	{
-		ROMOnly = 0x00,
+		ROM = 0x00,
 		ROM_MBC1 = 0x01,
 		ROM_MBC1_RAM = 0x02,
 		ROM_MBC1_RAM_BATTERY = 0x03,
@@ -34,7 +34,7 @@ public class Cartridge
 		HUDSON_HUC_1 = 0xff,
 	}
 
-	public record Bank(int Count, int Length);
+	public record BankInfo(int Count, int Length);
 
 	private readonly byte[] data;
 
@@ -47,11 +47,11 @@ public class Cartridge
 
 	public int Length => data.Length;
 
-	public ReadOnlySpan<byte> GetSpan(int start, int length) => data.AsSpan(start, length);
+	public ReadOnlySpan<byte> GetBytes(int start, int length) => data.AsSpan(start, length);
 
-	public ReadOnlySpan<byte> GetSpan(Range range) => data.AsSpan(range);
+	public ReadOnlySpan<byte> GetBytes(Range range) => data.AsSpan(range);
 
-	public string Title => Encoding.ASCII.GetString(GetSpan(new Range(0x0134, 0x0142 + 1)));
+	public string Title => Encoding.ASCII.GetString(GetBytes(new Range(0x0134, 0x0142 + 1)));
 
 	public bool IsColorGameboy => data[0x0143] == 0x80;
 
@@ -59,7 +59,7 @@ public class Cartridge
 
 	public Type CartridgeType => Enum.GetValues<Type>().First(x => ((byte)x) == data[0x0147]);
 
-	public Bank ROMBanks
+	public BankInfo ROMBanks
 	{
 		get
 		{
@@ -82,7 +82,7 @@ public class Cartridge
 		}
 	}
 
-	public Bank RAMBanks
+	public BankInfo RAMBanks
 	{
 		get
 		{
@@ -100,4 +100,13 @@ public class Cartridge
 			};
 		}
 	}
+
+	public ReadOnlySpan<byte> GetROMBankBytes(int i) => GetBytes(i * ROMBanks.Length, ROMBanks.Length);
+
+	public IMemory CreateMemory() =>
+		CartridgeType switch
+		{
+			Type.ROM_MBC1 or Type.ROM_MBC1_RAM or Type.ROM_MBC1_RAM_BATTERY => new MemoryMBC1(this),
+			_ => throw new NotImplementedException($"unimplemented cartridge type {CartridgeType}"),
+		};
 }

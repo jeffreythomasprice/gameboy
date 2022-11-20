@@ -26,6 +26,10 @@ public class TestROMs
 		while (!cpu.IsHalted && !cpu.IsStopped)
 		{
 			cpu.Step();
+			if (cpu.Clock % 1000 == 0)
+			{
+				Console.WriteLine($"TODO JEFF clock = {cpu.Clock}");
+			}
 		}
 		Console.WriteLine($"TODO JEFF final clock = {cpu.Clock}");
 	}

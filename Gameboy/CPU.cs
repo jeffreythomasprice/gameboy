@@ -297,7 +297,37 @@ public class CPU
 			return;
 		}
 
-		// TODO check for interrupts
+		// interrupts fire if the relevant flag in the IO register is set AND the master enable flag on the CPU is set
+		if (InterruptsEnabled)
+		{
+			var interruptEnableRegister = memory.ReadUInt8(Memory.INTERRUPT_ENABLE_REGISTER);
+			/*
+			TODO implement interrupts
+			the actual checks need to also account for actually raising the interrupts
+
+			v-blank is 59.7 times per second
+			mask = 0b0000_0001
+
+			LCDC is weird, see page 52
+			file:///home/jeff/workspaces/personal/gameboy/references/GBCPUman.pdf
+			mask = 0b0000_0010
+
+			timer is when TIMA overflows from 0xff to 0x00
+			mask = 0b0000_0100
+
+			serial is when a transfer is copmlete
+			mask = 0b0000_1000
+
+			P10-P13 is keypad input, when they go from high to low
+			mask = 0b0001_0000
+
+			if one of the above fires:
+			- reset the flag on the interrupt enable IO register
+			- reset master enable flag on the CPU
+			- push PC
+			- jump to interrupt
+			*/
+		}
 
 		ExecuteInstruction();
 

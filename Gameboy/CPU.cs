@@ -2088,11 +2088,973 @@ public class CPU
 				}
 				break;
 
+			case 0x40:
+				{
+					GetBit(Register8.B, 0);
+				}
+				break;
+			case 0x41:
+				{
+					GetBit(Register8.C, 0);
+				}
+				break;
+			case 0x42:
+				{
+					GetBit(Register8.D, 0);
+				}
+				break;
+			case 0x43:
+				{
+					GetBit(Register8.E, 0);
+				}
+				break;
+			case 0x44:
+				{
+					GetBit(Register8.H, 0);
+				}
+				break;
+			case 0x45:
+				{
+					GetBit(Register8.L, 0);
+				}
+				break;
+			case 0x46:
+				{
+					GetBit(new Address(RegisterHL, Register16.HL.ToString()), 0);
+				}
+				break;
+			case 0x47:
+				{
+					GetBit(Register8.A, 0);
+				}
+				break;
+			case 0x48:
+				{
+					GetBit(Register8.B, 1);
+				}
+				break;
+			case 0x49:
+				{
+					GetBit(Register8.C, 1);
+				}
+				break;
+			case 0x4a:
+				{
+					GetBit(Register8.D, 1);
+				}
+				break;
+			case 0x4b:
+				{
+					GetBit(Register8.E, 1);
+				}
+				break;
+			case 0x4c:
+				{
+					GetBit(Register8.H, 1);
+				}
+				break;
+			case 0x4d:
+				{
+					GetBit(Register8.L, 1);
+				}
+				break;
+			case 0x4e:
+				{
+					GetBit(new Address(RegisterHL, Register16.HL.ToString()), 1);
+				}
+				break;
+			case 0x4f:
+				{
+					GetBit(Register8.A, 1);
+				}
+				break;
+			case 0x50:
+				{
+					GetBit(Register8.B, 2);
+				}
+				break;
+			case 0x51:
+				{
+					GetBit(Register8.C, 2);
+				}
+				break;
+			case 0x52:
+				{
+					GetBit(Register8.D, 2);
+				}
+				break;
+			case 0x53:
+				{
+					GetBit(Register8.E, 2);
+				}
+				break;
+			case 0x54:
+				{
+					GetBit(Register8.H, 2);
+				}
+				break;
+			case 0x55:
+				{
+					GetBit(Register8.L, 2);
+				}
+				break;
+			case 0x56:
+				{
+					GetBit(new Address(RegisterHL, Register16.HL.ToString()), 2);
+				}
+				break;
+			case 0x57:
+				{
+					GetBit(Register8.A, 2);
+				}
+				break;
+			case 0x58:
+				{
+					GetBit(Register8.B, 3);
+				}
+				break;
+			case 0x59:
+				{
+					GetBit(Register8.C, 3);
+				}
+				break;
+			case 0x5a:
+				{
+					GetBit(Register8.D, 3);
+				}
+				break;
+			case 0x5b:
+				{
+					GetBit(Register8.E, 3);
+				}
+				break;
+			case 0x5c:
+				{
+					GetBit(Register8.H, 3);
+				}
+				break;
+			case 0x5d:
+				{
+					GetBit(Register8.L, 3);
+				}
+				break;
+			case 0x5e:
+				{
+					GetBit(new Address(RegisterHL, Register16.HL.ToString()), 3);
+				}
+				break;
+			case 0x5f:
+				{
+					GetBit(Register8.A, 3);
+				}
+				break;
+			case 0x60:
+				{
+					GetBit(Register8.B, 4);
+				}
+				break;
+			case 0x61:
+				{
+					GetBit(Register8.C, 4);
+				}
+				break;
+			case 0x62:
+				{
+					GetBit(Register8.D, 4);
+				}
+				break;
+			case 0x63:
+				{
+					GetBit(Register8.E, 4);
+				}
+				break;
+			case 0x64:
+				{
+					GetBit(Register8.H, 4);
+				}
+				break;
+			case 0x65:
+				{
+					GetBit(Register8.L, 4);
+				}
+				break;
+			case 0x66:
+				{
+					GetBit(new Address(RegisterHL, Register16.HL.ToString()), 4);
+				}
+				break;
+			case 0x67:
+				{
+					GetBit(Register8.A, 4);
+				}
+				break;
+			case 0x68:
+				{
+					GetBit(Register8.B, 5);
+				}
+				break;
+			case 0x69:
+				{
+					GetBit(Register8.C, 5);
+				}
+				break;
+			case 0x6a:
+				{
+					GetBit(Register8.D, 5);
+				}
+				break;
+			case 0x6b:
+				{
+					GetBit(Register8.E, 5);
+				}
+				break;
+			case 0x6c:
+				{
+					GetBit(Register8.H, 5);
+				}
+				break;
+			case 0x6d:
+				{
+					GetBit(Register8.L, 5);
+				}
+				break;
+			case 0x6e:
+				{
+					GetBit(new Address(RegisterHL, Register16.HL.ToString()), 5);
+				}
+				break;
+			case 0x6f:
+				{
+					GetBit(Register8.A, 5);
+				}
+				break;
+			case 0x70:
+				{
+					GetBit(Register8.B, 6);
+				}
+				break;
+			case 0x71:
+				{
+					GetBit(Register8.C, 6);
+				}
+				break;
+			case 0x72:
+				{
+					GetBit(Register8.D, 6);
+				}
+				break;
+			case 0x73:
+				{
+					GetBit(Register8.E, 6);
+				}
+				break;
+			case 0x74:
+				{
+					GetBit(Register8.H, 6);
+				}
+				break;
+			case 0x75:
+				{
+					GetBit(Register8.L, 6);
+				}
+				break;
+			case 0x76:
+				{
+					GetBit(new Address(RegisterHL, Register16.HL.ToString()), 6);
+				}
+				break;
+			case 0x77:
+				{
+					GetBit(Register8.A, 6);
+				}
+				break;
+			case 0x78:
+				{
+					GetBit(Register8.B, 7);
+				}
+				break;
+			case 0x79:
+				{
+					GetBit(Register8.C, 7);
+				}
+				break;
+			case 0x7a:
+				{
+					GetBit(Register8.D, 7);
+				}
+				break;
+			case 0x7b:
+				{
+					GetBit(Register8.E, 7);
+				}
+				break;
+			case 0x7c:
+				{
+					GetBit(Register8.H, 7);
+				}
+				break;
+			case 0x7d:
+				{
+					GetBit(Register8.L, 7);
+				}
+				break;
+			case 0x7e:
+				{
+					GetBit(new Address(RegisterHL, Register16.HL.ToString()), 7);
+				}
+				break;
+			case 0x7f:
+				{
+					GetBit(Register8.A, 7);
+				}
+				break;
+
+			case 0x80:
+				{
+					ResetBit(Register8.B, 0);
+				}
+				break;
+			case 0x81:
+				{
+					ResetBit(Register8.C, 0);
+				}
+				break;
+			case 0x82:
+				{
+					ResetBit(Register8.D, 0);
+				}
+				break;
+			case 0x83:
+				{
+					ResetBit(Register8.E, 0);
+				}
+				break;
+			case 0x84:
+				{
+					ResetBit(Register8.H, 0);
+				}
+				break;
+			case 0x85:
+				{
+					ResetBit(Register8.L, 0);
+				}
+				break;
+			case 0x86:
+				{
+					ResetBit(new Address(RegisterHL, Register16.HL.ToString()), 0);
+				}
+				break;
+			case 0x87:
+				{
+					ResetBit(Register8.A, 0);
+				}
+				break;
+			case 0x88:
+				{
+					ResetBit(Register8.B, 1);
+				}
+				break;
+			case 0x89:
+				{
+					ResetBit(Register8.C, 1);
+				}
+				break;
+			case 0x8a:
+				{
+					ResetBit(Register8.D, 1);
+				}
+				break;
+			case 0x8b:
+				{
+					ResetBit(Register8.E, 1);
+				}
+				break;
+			case 0x8c:
+				{
+					ResetBit(Register8.H, 1);
+				}
+				break;
+			case 0x8d:
+				{
+					ResetBit(Register8.L, 1);
+				}
+				break;
+			case 0x8e:
+				{
+					ResetBit(new Address(RegisterHL, Register16.HL.ToString()), 1);
+				}
+				break;
+			case 0x8f:
+				{
+					ResetBit(Register8.A, 1);
+				}
+				break;
+			case 0x90:
+				{
+					ResetBit(Register8.B, 2);
+				}
+				break;
+			case 0x91:
+				{
+					ResetBit(Register8.C, 2);
+				}
+				break;
+			case 0x92:
+				{
+					ResetBit(Register8.D, 2);
+				}
+				break;
+			case 0x93:
+				{
+					ResetBit(Register8.E, 2);
+				}
+				break;
+			case 0x94:
+				{
+					ResetBit(Register8.H, 2);
+				}
+				break;
+			case 0x95:
+				{
+					ResetBit(Register8.L, 2);
+				}
+				break;
+			case 0x96:
+				{
+					ResetBit(new Address(RegisterHL, Register16.HL.ToString()), 2);
+				}
+				break;
+			case 0x97:
+				{
+					ResetBit(Register8.A, 2);
+				}
+				break;
+			case 0x98:
+				{
+					ResetBit(Register8.B, 3);
+				}
+				break;
+			case 0x99:
+				{
+					ResetBit(Register8.C, 3);
+				}
+				break;
+			case 0x9a:
+				{
+					ResetBit(Register8.D, 3);
+				}
+				break;
+			case 0x9b:
+				{
+					ResetBit(Register8.E, 3);
+				}
+				break;
+			case 0x9c:
+				{
+					ResetBit(Register8.H, 3);
+				}
+				break;
+			case 0x9d:
+				{
+					ResetBit(Register8.L, 3);
+				}
+				break;
+			case 0x9e:
+				{
+					ResetBit(new Address(RegisterHL, Register16.HL.ToString()), 3);
+				}
+				break;
+			case 0x9f:
+				{
+					ResetBit(Register8.A, 3);
+				}
+				break;
+			case 0xa0:
+				{
+					ResetBit(Register8.B, 4);
+				}
+				break;
+			case 0xa1:
+				{
+					ResetBit(Register8.C, 4);
+				}
+				break;
+			case 0xa2:
+				{
+					ResetBit(Register8.D, 4);
+				}
+				break;
+			case 0xa3:
+				{
+					ResetBit(Register8.E, 4);
+				}
+				break;
+			case 0xa4:
+				{
+					ResetBit(Register8.H, 4);
+				}
+				break;
+			case 0xa5:
+				{
+					ResetBit(Register8.L, 4);
+				}
+				break;
+			case 0xa6:
+				{
+					ResetBit(new Address(RegisterHL, Register16.HL.ToString()), 4);
+				}
+				break;
+			case 0xa7:
+				{
+					ResetBit(Register8.A, 4);
+				}
+				break;
+			case 0xa8:
+				{
+					ResetBit(Register8.B, 5);
+				}
+				break;
+			case 0xa9:
+				{
+					ResetBit(Register8.C, 5);
+				}
+				break;
+			case 0xaa:
+				{
+					ResetBit(Register8.D, 5);
+				}
+				break;
+			case 0xab:
+				{
+					ResetBit(Register8.E, 5);
+				}
+				break;
+			case 0xac:
+				{
+					ResetBit(Register8.H, 5);
+				}
+				break;
+			case 0xad:
+				{
+					ResetBit(Register8.L, 5);
+				}
+				break;
+			case 0xae:
+				{
+					ResetBit(new Address(RegisterHL, Register16.HL.ToString()), 5);
+				}
+				break;
+			case 0xaf:
+				{
+					ResetBit(Register8.A, 5);
+				}
+				break;
+			case 0xb0:
+				{
+					ResetBit(Register8.B, 6);
+				}
+				break;
+			case 0xb1:
+				{
+					ResetBit(Register8.C, 6);
+				}
+				break;
+			case 0xb2:
+				{
+					ResetBit(Register8.D, 6);
+				}
+				break;
+			case 0xb3:
+				{
+					ResetBit(Register8.E, 6);
+				}
+				break;
+			case 0xb4:
+				{
+					ResetBit(Register8.H, 6);
+				}
+				break;
+			case 0xb5:
+				{
+					ResetBit(Register8.L, 6);
+				}
+				break;
+			case 0xb6:
+				{
+					ResetBit(new Address(RegisterHL, Register16.HL.ToString()), 6);
+				}
+				break;
+			case 0xb7:
+				{
+					ResetBit(Register8.A, 6);
+				}
+				break;
+			case 0xb8:
+				{
+					ResetBit(Register8.B, 7);
+				}
+				break;
+			case 0xb9:
+				{
+					ResetBit(Register8.C, 7);
+				}
+				break;
+			case 0xba:
+				{
+					ResetBit(Register8.D, 7);
+				}
+				break;
+			case 0xbb:
+				{
+					ResetBit(Register8.E, 7);
+				}
+				break;
+			case 0xbc:
+				{
+					ResetBit(Register8.H, 7);
+				}
+				break;
+			case 0xbd:
+				{
+					ResetBit(Register8.L, 7);
+				}
+				break;
+			case 0xbe:
+				{
+					ResetBit(new Address(RegisterHL, Register16.HL.ToString()), 7);
+				}
+				break;
+			case 0xbf:
+				{
+					ResetBit(Register8.A, 7);
+				}
+				break;
+
+			case 0xc0:
+				{
+					SetBit(Register8.B, 0);
+				}
+				break;
+			case 0xc1:
+				{
+					SetBit(Register8.C, 0);
+				}
+				break;
+			case 0xc2:
+				{
+					SetBit(Register8.D, 0);
+				}
+				break;
+			case 0xc3:
+				{
+					SetBit(Register8.E, 0);
+				}
+				break;
+			case 0xc4:
+				{
+					SetBit(Register8.H, 0);
+				}
+				break;
+			case 0xc5:
+				{
+					SetBit(Register8.L, 0);
+				}
+				break;
+			case 0xc6:
+				{
+					SetBit(new Address(RegisterHL, Register16.HL.ToString()), 0);
+				}
+				break;
+			case 0xc7:
+				{
+					SetBit(Register8.A, 0);
+				}
+				break;
+			case 0xc8:
+				{
+					SetBit(Register8.B, 1);
+				}
+				break;
+			case 0xc9:
+				{
+					SetBit(Register8.C, 1);
+				}
+				break;
+			case 0xca:
+				{
+					SetBit(Register8.D, 1);
+				}
+				break;
+			case 0xcb:
+				{
+					SetBit(Register8.E, 1);
+				}
+				break;
+			case 0xcc:
+				{
+					SetBit(Register8.H, 1);
+				}
+				break;
+			case 0xcd:
+				{
+					SetBit(Register8.L, 1);
+				}
+				break;
+			case 0xce:
+				{
+					SetBit(new Address(RegisterHL, Register16.HL.ToString()), 1);
+				}
+				break;
+			case 0xcf:
+				{
+					SetBit(Register8.A, 1);
+				}
+				break;
+			case 0xd0:
+				{
+					SetBit(Register8.B, 2);
+				}
+				break;
+			case 0xd1:
+				{
+					SetBit(Register8.C, 2);
+				}
+				break;
+			case 0xd2:
+				{
+					SetBit(Register8.D, 2);
+				}
+				break;
+			case 0xd3:
+				{
+					SetBit(Register8.E, 2);
+				}
+				break;
+			case 0xd4:
+				{
+					SetBit(Register8.H, 2);
+				}
+				break;
+			case 0xd5:
+				{
+					SetBit(Register8.L, 2);
+				}
+				break;
+			case 0xd6:
+				{
+					SetBit(new Address(RegisterHL, Register16.HL.ToString()), 2);
+				}
+				break;
+			case 0xd7:
+				{
+					SetBit(Register8.A, 2);
+				}
+				break;
+			case 0xd8:
+				{
+					SetBit(Register8.B, 3);
+				}
+				break;
+			case 0xd9:
+				{
+					SetBit(Register8.C, 3);
+				}
+				break;
+			case 0xda:
+				{
+					SetBit(Register8.D, 3);
+				}
+				break;
+			case 0xdb:
+				{
+					SetBit(Register8.E, 3);
+				}
+				break;
+			case 0xdc:
+				{
+					SetBit(Register8.H, 3);
+				}
+				break;
+			case 0xdd:
+				{
+					SetBit(Register8.L, 3);
+				}
+				break;
+			case 0xde:
+				{
+					SetBit(new Address(RegisterHL, Register16.HL.ToString()), 3);
+				}
+				break;
+			case 0xdf:
+				{
+					SetBit(Register8.A, 3);
+				}
+				break;
+			case 0xe0:
+				{
+					SetBit(Register8.B, 4);
+				}
+				break;
+			case 0xe1:
+				{
+					SetBit(Register8.C, 4);
+				}
+				break;
+			case 0xe2:
+				{
+					SetBit(Register8.D, 4);
+				}
+				break;
+			case 0xe3:
+				{
+					SetBit(Register8.E, 4);
+				}
+				break;
+			case 0xe4:
+				{
+					SetBit(Register8.H, 4);
+				}
+				break;
+			case 0xe5:
+				{
+					SetBit(Register8.L, 4);
+				}
+				break;
+			case 0xe6:
+				{
+					SetBit(new Address(RegisterHL, Register16.HL.ToString()), 4);
+				}
+				break;
+			case 0xe7:
+				{
+					SetBit(Register8.A, 4);
+				}
+				break;
+			case 0xe8:
+				{
+					SetBit(Register8.B, 5);
+				}
+				break;
+			case 0xe9:
+				{
+					SetBit(Register8.C, 5);
+				}
+				break;
+			case 0xea:
+				{
+					SetBit(Register8.D, 5);
+				}
+				break;
+			case 0xeb:
+				{
+					SetBit(Register8.E, 5);
+				}
+				break;
+			case 0xec:
+				{
+					SetBit(Register8.H, 5);
+				}
+				break;
+			case 0xed:
+				{
+					SetBit(Register8.L, 5);
+				}
+				break;
+			case 0xee:
+				{
+					SetBit(new Address(RegisterHL, Register16.HL.ToString()), 5);
+				}
+				break;
+			case 0xef:
+				{
+					SetBit(Register8.A, 5);
+				}
+				break;
+			case 0xf0:
+				{
+					SetBit(Register8.B, 6);
+				}
+				break;
+			case 0xf1:
+				{
+					SetBit(Register8.C, 6);
+				}
+				break;
+			case 0xf2:
+				{
+					SetBit(Register8.D, 6);
+				}
+				break;
+			case 0xf3:
+				{
+					SetBit(Register8.E, 6);
+				}
+				break;
+			case 0xf4:
+				{
+					SetBit(Register8.H, 6);
+				}
+				break;
+			case 0xf5:
+				{
+					SetBit(Register8.L, 6);
+				}
+				break;
+			case 0xf6:
+				{
+					SetBit(new Address(RegisterHL, Register16.HL.ToString()), 6);
+				}
+				break;
+			case 0xf7:
+				{
+					SetBit(Register8.A, 6);
+				}
+				break;
+			case 0xf8:
+				{
+					SetBit(Register8.B, 7);
+				}
+				break;
+			case 0xf9:
+				{
+					SetBit(Register8.C, 7);
+				}
+				break;
+			case 0xfa:
+				{
+					SetBit(Register8.D, 7);
+				}
+				break;
+			case 0xfb:
+				{
+					SetBit(Register8.E, 7);
+				}
+				break;
+			case 0xfc:
+				{
+					SetBit(Register8.H, 7);
+				}
+				break;
+			case 0xfd:
+				{
+					SetBit(Register8.L, 7);
+				}
+				break;
+			case 0xfe:
+				{
+					SetBit(new Address(RegisterHL, Register16.HL.ToString()), 7);
+				}
+				break;
+			case 0xff:
+				{
+					SetBit(Register8.A, 7);
+				}
+				break;
+
 			default:
 				throw new NotImplementedException($"unhandled prefix instruction {ToHex(instruction)}");
 		}
 
-		// TODO JEFF implement the 0xcb prefix instructions, remaining is everything >= 0x40
 	}
 
 	private void ConditionalJumpInt8(bool condition, string conditionString, sbyte delta)
@@ -2671,118 +3633,6 @@ public class CPU
 		Clock += 8;
 	}
 
-	private void InvalidInstruction(byte instruction)
-	{
-		logger.LogWarning($"INVALID {ToHex(instruction)}");
-		Clock += 4;
-	}
-
-	private byte GetRegister(Register8 r)
-	{
-		switch (r)
-		{
-			case Register8.A:
-				return RegisterA;
-			case Register8.B:
-				return RegisterB;
-			case Register8.C:
-				return RegisterC;
-			case Register8.D:
-				return RegisterD;
-			case Register8.E:
-				return RegisterE;
-			case Register8.F:
-				return RegisterF;
-			case Register8.H:
-				return RegisterH;
-			case Register8.L:
-				return RegisterL;
-			default:
-				throw new ArgumentException($"unhandled {r}");
-		}
-	}
-
-	private void SetRegister(Register8 r, byte value)
-	{
-		switch (r)
-		{
-			case Register8.A:
-				RegisterA = value;
-				break;
-			case Register8.B:
-				RegisterB = value;
-				break;
-			case Register8.C:
-				RegisterC = value;
-				break;
-			case Register8.D:
-				RegisterD = value;
-				break;
-			case Register8.E:
-				RegisterE = value;
-				break;
-			case Register8.F:
-				RegisterF = value;
-				break;
-			case Register8.H:
-				RegisterH = value;
-				break;
-			case Register8.L:
-				RegisterL = value;
-				break;
-			default:
-				throw new ArgumentException($"unhandled {r}");
-		}
-	}
-
-	private UInt16 GetRegister(Register16 r)
-	{
-		switch (r)
-		{
-			case Register16.AF:
-				return RegisterAF;
-			case Register16.BC:
-				return RegisterBC;
-			case Register16.DE:
-				return RegisterDE;
-			case Register16.HL:
-				return RegisterHL;
-			case Register16.SP:
-				return RegisterSP;
-			case Register16.PC:
-				return RegisterPC;
-			default:
-				throw new ArgumentException($"unhandled {r}");
-		}
-	}
-
-	private void SetRegister(Register16 r, UInt16 value)
-	{
-		switch (r)
-		{
-			case Register16.AF:
-				RegisterAF = value;
-				break;
-			case Register16.BC:
-				RegisterBC = value;
-				break;
-			case Register16.DE:
-				RegisterDE = value;
-				break;
-			case Register16.HL:
-				RegisterHL = value;
-				break;
-			case Register16.SP:
-				RegisterSP = value;
-				break;
-			case Register16.PC:
-				RegisterPC = value;
-				break;
-			default:
-				throw new ArgumentException($"unhandled {r}");
-		}
-	}
-
 	private void EnqueueInterruptsEnabled(bool value)
 	{
 		if (value)
@@ -3019,6 +3869,174 @@ public class CPU
 		HalfCarryFlag = false;
 		CarryFlag = false;
 		Clock += 16;
+	}
+
+	private void GetBit(Register8 register, int bit)
+	{
+		logger.LogTrace($"BIT {bit}, {register}");
+		var value = GetRegister(register);
+		ZeroFlag = (value & (1 << bit)) == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = true;
+		Clock += 8;
+	}
+
+	private void GetBit(Address address, int bit)
+	{
+		logger.LogTrace($"BIT {bit}, {address}");
+		var value = memory.ReadUInt8(address.Value);
+		ZeroFlag = (value & (1 << bit)) == 0;
+		SubtractFlag = false;
+		HalfCarryFlag = true;
+		Clock += 16;
+	}
+
+	private void ResetBit(Register8 register, int bit)
+	{
+		logger.LogTrace($"RES {bit}, {register}");
+		var before = GetRegister(register);
+		var after = (byte)(before & (~(1 << bit)));
+		SetRegister(register, after);
+		Clock += 8;
+	}
+
+	private void ResetBit(Address address, int bit)
+	{
+		logger.LogTrace($"RES {bit}, {address}");
+		var before = memory.ReadUInt8(address.Value);
+		var after = (byte)(before & (~(1 << bit)));
+		memory.WriteUInt8(address.Value, after);
+		Clock += 16;
+	}
+
+	private void SetBit(Register8 register, int bit)
+	{
+		logger.LogTrace($"SET {bit}, {register}");
+		var before = GetRegister(register);
+		var after = (byte)(before | (1 << bit));
+		SetRegister(register, after);
+		Clock += 8;
+	}
+
+	private void SetBit(Address address, int bit)
+	{
+		logger.LogTrace($"SET {bit}, {address}");
+		var before = memory.ReadUInt8(address.Value);
+		var after = (byte)(before | (1 << bit));
+		memory.WriteUInt8(address.Value, after);
+		Clock += 16;
+	}
+
+	private void InvalidInstruction(byte instruction)
+	{
+		logger.LogWarning($"INVALID {ToHex(instruction)}");
+		Clock += 4;
+	}
+
+	private byte GetRegister(Register8 r)
+	{
+		switch (r)
+		{
+			case Register8.A:
+				return RegisterA;
+			case Register8.B:
+				return RegisterB;
+			case Register8.C:
+				return RegisterC;
+			case Register8.D:
+				return RegisterD;
+			case Register8.E:
+				return RegisterE;
+			case Register8.F:
+				return RegisterF;
+			case Register8.H:
+				return RegisterH;
+			case Register8.L:
+				return RegisterL;
+			default:
+				throw new ArgumentException($"unhandled {r}");
+		}
+	}
+
+	private void SetRegister(Register8 r, byte value)
+	{
+		switch (r)
+		{
+			case Register8.A:
+				RegisterA = value;
+				break;
+			case Register8.B:
+				RegisterB = value;
+				break;
+			case Register8.C:
+				RegisterC = value;
+				break;
+			case Register8.D:
+				RegisterD = value;
+				break;
+			case Register8.E:
+				RegisterE = value;
+				break;
+			case Register8.F:
+				RegisterF = value;
+				break;
+			case Register8.H:
+				RegisterH = value;
+				break;
+			case Register8.L:
+				RegisterL = value;
+				break;
+			default:
+				throw new ArgumentException($"unhandled {r}");
+		}
+	}
+
+	private UInt16 GetRegister(Register16 r)
+	{
+		switch (r)
+		{
+			case Register16.AF:
+				return RegisterAF;
+			case Register16.BC:
+				return RegisterBC;
+			case Register16.DE:
+				return RegisterDE;
+			case Register16.HL:
+				return RegisterHL;
+			case Register16.SP:
+				return RegisterSP;
+			case Register16.PC:
+				return RegisterPC;
+			default:
+				throw new ArgumentException($"unhandled {r}");
+		}
+	}
+
+	private void SetRegister(Register16 r, UInt16 value)
+	{
+		switch (r)
+		{
+			case Register16.AF:
+				RegisterAF = value;
+				break;
+			case Register16.BC:
+				RegisterBC = value;
+				break;
+			case Register16.DE:
+				RegisterDE = value;
+				break;
+			case Register16.HL:
+				RegisterHL = value;
+				break;
+			case Register16.SP:
+				RegisterSP = value;
+				break;
+			case Register16.PC:
+				RegisterPC = value;
+				break;
+			default:
+				throw new ArgumentException($"unhandled {r}");
+		}
 	}
 
 	private byte ReadNextPCUInt8()

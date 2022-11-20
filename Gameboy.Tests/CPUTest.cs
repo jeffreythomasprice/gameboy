@@ -9172,6 +9172,392 @@ public class CPUTest
 		}
 	}
 
+	[Theory]
+	[MemberData(nameof(InstructionData_prefix_40_through_7f_registers))]
+	public void Instruction_prefix_40_through_7f_registers(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(8)
+				.AddPC(2)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_prefix_40_through_7f_registers
+	{
+		get
+		{
+			foreach (var (bit, oneInJustThatBit, instructionBase) in new (int, byte, int)[] {
+				(0, 0b0000_0001, 0x40),
+				(1, 0b0000_0010, 0x48),
+				(2, 0b0000_0100, 0x50),
+				(3, 0b0000_1000, 0x58),
+				(4, 0b0001_0000, 0x60),
+				(5, 0b0010_0000, 0x68),
+				(6, 0b0100_0000, 0x70),
+				(7, 0b1000_0000, 0x78),
+			})
+			{
+				foreach (var (instructionOffset, setter) in new (int, Func<CPUBuilder, byte, CPUBuilder>)[] {
+					(0x00, (builder, x) => builder.RegisterB(x)),
+					(0x01, (builder, x) => builder.RegisterC(x)),
+					(0x02, (builder, x) => builder.RegisterD(x)),
+					(0x03, (builder, x) => builder.RegisterE(x)),
+					(0x04, (builder, x) => builder.RegisterH(x)),
+					(0x05, (builder, x) => builder.RegisterL(x)),
+					(0x07, (builder, x) => builder.RegisterA(x)),
+				})
+				{
+					var instruction = (byte)(instructionBase + instructionOffset);
+					yield return new object?[] {
+						new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcb, instruction }), },
+						(CPUBuilder actual) => setter(actual, 0b0000_0000),
+						new MemoryData[0],
+						(CPUBuilder expected) => expected
+							.ZeroFlag(true)
+							.SubtractFlag(false)
+							.HalfCarryFlag(true),
+					};
+					yield return new object?[] {
+						new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcb, instruction }), },
+						(CPUBuilder actual) => setter(actual, oneInJustThatBit),
+						new MemoryData[0],
+						(CPUBuilder expected) => expected
+							.ZeroFlag(false)
+							.SubtractFlag(false)
+							.HalfCarryFlag(true),
+					};
+				}
+			}
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_prefix_40_through_7f_memory))]
+	public void Instruction_prefix_40_through_7f_memory(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(16)
+				.AddPC(2)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_prefix_40_through_7f_memory
+	{
+		get
+		{
+			var instructionOffset = 0x06;
+			foreach (var (bit, oneInJustThatBit, instructionBase) in new (int, byte, int)[] {
+				(0, 0b0000_0001, 0x40),
+				(1, 0b0000_0010, 0x48),
+				(2, 0b0000_0100, 0x50),
+				(3, 0b0000_1000, 0x58),
+				(4, 0b0001_0000, 0x60),
+				(5, 0b0010_0000, 0x68),
+				(6, 0b0100_0000, 0x70),
+				(7, 0b1000_0000, 0x78),
+			})
+			{
+				var instruction = (byte)(instructionBase + instructionOffset);
+				yield return new object?[] {
+					new MemoryData[] {
+						new(CPU.InitialPC, new byte[] { 0xcb, instruction }),
+						new(0x1234, new byte[] { 0b0000_0000 }),
+					},
+					(CPUBuilder actual) => actual
+						.RegisterHL(0x1234),
+					new MemoryData[0],
+					(CPUBuilder expected) => expected
+						.ZeroFlag(true)
+						.SubtractFlag(false)
+						.HalfCarryFlag(true),
+				};
+				yield return new object?[] {
+					new MemoryData[] {
+						new(CPU.InitialPC, new byte[] { 0xcb, instruction }),
+						new(0x1234, new byte[] { oneInJustThatBit }),
+					},
+					(CPUBuilder actual) => actual
+						.RegisterHL(0x1234),
+					new MemoryData[0],
+					(CPUBuilder expected) => expected
+						.ZeroFlag(false)
+						.SubtractFlag(false)
+						.HalfCarryFlag(true),
+				};
+			}
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_prefix_80_through_bf_registers))]
+	public void Instruction_prefix_80_through_bf_registers(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(8)
+				.AddPC(2)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_prefix_80_through_bf_registers
+	{
+		get
+		{
+			foreach (var (bit, oneInAllBitsButThat, instructionBase) in new (int, byte, int)[] {
+				(0, 0b1111_1110, 0x80),
+				(1, 0b1111_1101, 0x88),
+				(2, 0b1111_1011, 0x90),
+				(3, 0b1111_0111, 0x98),
+				(4, 0b1110_1111, 0xa0),
+				(5, 0b1101_1111, 0xa8),
+				(6, 0b1011_1111, 0xb0),
+				(7, 0b0111_1111, 0xb8),
+			})
+			{
+				foreach (var (instructionOffset, setter) in new (int, Func<CPUBuilder, byte, CPUBuilder>)[] {
+					(0x00, (builder, x) => builder.RegisterB(x)),
+					(0x01, (builder, x) => builder.RegisterC(x)),
+					(0x02, (builder, x) => builder.RegisterD(x)),
+					(0x03, (builder, x) => builder.RegisterE(x)),
+					(0x04, (builder, x) => builder.RegisterH(x)),
+					(0x05, (builder, x) => builder.RegisterL(x)),
+					(0x07, (builder, x) => builder.RegisterA(x)),
+				})
+				{
+					var instruction = (byte)(instructionBase + instructionOffset);
+					yield return new object?[] {
+						new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcb, instruction }), },
+						(CPUBuilder actual) => setter(actual, 0b0000_0000),
+						new MemoryData[0],
+						(CPUBuilder expected) => setter(expected, 0b0000_0000),
+					};
+					yield return new object?[] {
+						new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcb, instruction }), },
+						(CPUBuilder actual) => setter(actual, 0b1111_1111),
+						new MemoryData[0],
+						(CPUBuilder expected) => setter(expected, oneInAllBitsButThat),
+					};
+				}
+			}
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_prefix_80_through_bf_memory))]
+	public void Instruction_prefix_80_through_bf_memory(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(16)
+				.AddPC(2)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_prefix_80_through_bf_memory
+	{
+		get
+		{
+			var instructionOffset = 0x06;
+			foreach (var (bit, oneInAllBitsButThat, instructionBase) in new (int, byte, int)[] {
+				(0, 0b1111_1110, 0x80),
+				(1, 0b1111_1101, 0x88),
+				(2, 0b1111_1011, 0x90),
+				(3, 0b1111_0111, 0x98),
+				(4, 0b1110_1111, 0xa0),
+				(5, 0b1101_1111, 0xa8),
+				(6, 0b1011_1111, 0xb0),
+				(7, 0b0111_1111, 0xb8),
+			})
+			{
+				var instruction = (byte)(instructionBase + instructionOffset);
+				yield return new object?[] {
+					new MemoryData[] {
+						new(CPU.InitialPC, new byte[] { 0xcb, instruction }),
+						new(0x1234, new byte[] { 0b0000_0000 }),
+					},
+					(CPUBuilder actual) => actual
+						.RegisterHL(0x1234),
+					new MemoryData[] {
+						new(0x1234, new byte[] { 0b0000_0000 }),
+					},
+					(CPUBuilder expected) => expected,
+				};
+				yield return new object?[] {
+					new MemoryData[] {
+						new(CPU.InitialPC, new byte[] { 0xcb, instruction }),
+						new(0x1234, new byte[] { 0b1111_1111 }),
+					},
+					(CPUBuilder actual) => actual
+						.RegisterHL(0x1234),
+					new MemoryData[] {
+						new(0x1234, new byte[] { oneInAllBitsButThat }),
+					},
+					(CPUBuilder expected) => expected,
+				};
+			}
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_prefix_c0_through_ff_registers))]
+	public void Instruction_prefix_c0_through_ff_registers(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(8)
+				.AddPC(2)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_prefix_c0_through_ff_registers
+	{
+		get
+		{
+			foreach (var (bit, oneInJustThatBit, instructionBase) in new (int, byte, int)[] {
+				(0, 0b0000_0001, 0xc0),
+				(1, 0b0000_0010, 0xc8),
+				(2, 0b0000_0100, 0xd0),
+				(3, 0b0000_1000, 0xd8),
+				(4, 0b0001_0000, 0xe0),
+				(5, 0b0010_0000, 0xe8),
+				(6, 0b0100_0000, 0xf0),
+				(7, 0b1000_0000, 0xf8),
+			})
+			{
+				foreach (var (instructionOffset, setter) in new (int, Func<CPUBuilder, byte, CPUBuilder>)[] {
+					(0x00, (builder, x) => builder.RegisterB(x)),
+					(0x01, (builder, x) => builder.RegisterC(x)),
+					(0x02, (builder, x) => builder.RegisterD(x)),
+					(0x03, (builder, x) => builder.RegisterE(x)),
+					(0x04, (builder, x) => builder.RegisterH(x)),
+					(0x05, (builder, x) => builder.RegisterL(x)),
+					(0x07, (builder, x) => builder.RegisterA(x)),
+				})
+				{
+					var instruction = (byte)(instructionBase + instructionOffset);
+					yield return new object?[] {
+						new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcb, instruction }), },
+						(CPUBuilder actual) => setter(actual, 0b0000_0000),
+						new MemoryData[0],
+						(CPUBuilder expected) => setter(expected, oneInJustThatBit),
+					};
+					yield return new object?[] {
+						new MemoryData[] { new(CPU.InitialPC, new byte[] { 0xcb, instruction }), },
+						(CPUBuilder actual) => setter(actual, 0b1111_1111),
+						new MemoryData[0],
+						(CPUBuilder expected) => setter(expected, 0b1111_1111),
+					};
+				}
+			}
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(InstructionData_prefix_c0_through_ff_memory))]
+	public void Instruction_prefix_c0_through_ff_memory(
+		MemoryData[] actualMemory,
+		Func<CPUBuilder, CPUBuilder> actualBuilder,
+		MemoryData[] expectedMemory,
+		Func<CPUBuilder, CPUBuilder> expectedBuilder
+	)
+	{
+		PerformTest(
+			actualMemory,
+			actualBuilder,
+			expectedMemory,
+			expected => expectedBuilder(expected)
+				.AddClock(16)
+				.AddPC(2)
+		);
+	}
+
+	public static IEnumerable<object?[]> InstructionData_prefix_c0_through_ff_memory
+	{
+		get
+		{
+			var instructionOffset = 0x06;
+			foreach (var (bit, oneInJustThatBit, instructionBase) in new (int, byte, int)[] {
+				(0, 0b0000_0001, 0xc0),
+				(1, 0b0000_0010, 0xc8),
+				(2, 0b0000_0100, 0xd0),
+				(3, 0b0000_1000, 0xd8),
+				(4, 0b0001_0000, 0xe0),
+				(5, 0b0010_0000, 0xe8),
+				(6, 0b0100_0000, 0xf0),
+				(7, 0b1000_0000, 0xf8),
+			})
+			{
+				var instruction = (byte)(instructionBase + instructionOffset);
+				yield return new object?[] {
+					new MemoryData[] {
+						new(CPU.InitialPC, new byte[] { 0xcb, instruction }),
+						new(0x1234, new byte[] { 0b0000_0000 }),
+					},
+					(CPUBuilder actual) => actual
+						.RegisterHL(0x1234),
+					new MemoryData[] {
+						new(0x1234, new byte[] { oneInJustThatBit }),
+					},
+					(CPUBuilder expected) => expected,
+				};
+				yield return new object?[] {
+					new MemoryData[] {
+						new(CPU.InitialPC, new byte[] { 0xcb, instruction }),
+						new(0x1234, new byte[] { 0b1111_1111 }),
+					},
+					(CPUBuilder actual) => actual
+						.RegisterHL(0x1234),
+					new MemoryData[] {
+						new(0x1234, new byte[] { 0b1111_1111 }),
+					},
+					(CPUBuilder expected) => expected,
+				};
+			}
+		}
+	}
+
 	private void PerformTest(
 		MemoryData[] actualMemory,
 		Func<CPUBuilder, CPUBuilder> actualBuilder,

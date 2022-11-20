@@ -1,0 +1,22 @@
+namespace Gameboy.Tests.TestROMs;
+
+// TODO figure out how to do automated testing of the test roms, this is a placeholder
+
+public class TestROMs
+{
+	[Fact]
+	public void Placeholder()
+	{
+		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
+		using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
+		var cart = new Cartridge(stream);
+
+		Console.WriteLine($"TODO JEFF cart = {cart}");
+		Console.WriteLine($"TODO JEFF title = {cart.Title}");
+		Console.WriteLine($"TODO JEFF is color? {cart.IsColorGameboy}");
+		Console.WriteLine($"TODO JEFF is super? {cart.IsSuperGameboy}");
+		Console.WriteLine($"TODO JEFF type = {cart.CartridgeType}");
+		Console.WriteLine($"TODO JEFF ROM = {cart.ROMBanks}");
+		Console.WriteLine($"TODO JEFF RAM = {cart.RAMBanks}");
+	}
+}

@@ -266,22 +266,58 @@ public class CPU
 
 	public void Reset()
 	{
-		// TODO starting conditions
-		registerA = 0;
-		registerB = 0;
-		registerC = 0;
-		registerD = 0;
-		registerE = 0;
-		registerF = 0;
-		registerH = 0;
-		registerL = 0;
-		registerSP = 0;
+		// A would be 0x11 for color
+		registerA = 0x01;
+		registerB = 0x00;
+		registerC = 0x13;
+		registerD = 0x00;
+		registerE = 0xd8;
+		registerF = 0xb0;
+		registerH = 0x01;
+		registerL = 0x4d;
+		registerSP = 0xfffe;
 		registerPC = InitialPC;
 		clock = 0;
 		isStopped = false;
 		isHalted = false;
 		interruptsEnabled = true;
 		interruptEnableDeltas.Clear();
+
+		/*
+		TODO initial values for memory mapped registers
+
+		[$FF05] = $00 ; TIMA
+		[$FF06] = $00 ; TMA
+		[$FF07] = $00 ; TAC
+		[$FF10] = $80 ; NR10
+		[$FF11] = $BF ; NR11
+		[$FF12] = $F3 ; NR12
+		[$FF14] = $BF ; NR14
+		[$FF16] = $3F ; NR21
+		[$FF17] = $00 ; NR22
+		[$FF19] = $BF ; NR24
+		[$FF1A] = $7F ; NR30
+		[$FF1B] = $FF ; NR31
+		[$FF1C] = $9F ; NR32
+		[$FF1E] = $BF ; NR33
+		[$FF20] = $FF ; NR41
+		[$FF21] = $00 ; NR42
+		[$FF22] = $00 ; NR43
+		[$FF23] = $BF ; NR30
+		[$FF24] = $77 ; NR50
+		[$FF25] = $F3 ; NR51
+		[$FF26] = $F1-GB, $F0-SGB ; NR52
+		[$FF40] = $91 ; LCDC
+		[$FF42] = $00 ; SCY
+		[$FF43] = $00 ; SCX
+		[$FF45] = $00 ; LYC
+		[$FF47] = $FC ; BGP
+		[$FF48] = $FF ; OBP0
+		[$FF49] = $FF ; OBP1
+		[$FF4A] = $00 ; WY
+		[$FF4B] = $00 ; WX
+		[$FFFF] = $00 ; IE
+		*/
 	}
 
 	public void Step()

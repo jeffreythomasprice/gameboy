@@ -28,4 +28,8 @@
     <ProjectReference Include="..\Gameboy\Gameboy.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="$(SolutionDir)gb-test-roms/**" CopyToOutputDirectory="PreserveNewest" LinkBase="gb-test-roms" />
+  </ItemGroup>
+
 </Project>

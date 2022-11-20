@@ -9,28 +9,26 @@ public class TestROMs
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
-		var cart = new Cartridge(stream);
+		var cartridge = new Cartridge(stream);
 
-		Console.WriteLine($"TODO JEFF cart = {cart}");
-		Console.WriteLine($"TODO JEFF total size of cart = {cart.Length}");
-		Console.WriteLine($"TODO JEFF title = {cart.Title}");
-		Console.WriteLine($"TODO JEFF is color? {cart.IsColorGameboy}");
-		Console.WriteLine($"TODO JEFF is super? {cart.IsSuperGameboy}");
-		Console.WriteLine($"TODO JEFF type = {cart.CartridgeType}");
-		Console.WriteLine($"TODO JEFF ROM = {cart.ROMBanks}");
-		Console.WriteLine($"TODO JEFF RAM = {cart.RAMBanks}");
+		Console.WriteLine($"TODO JEFF cart = {cartridge}");
+		Console.WriteLine($"TODO JEFF total size of cart = {cartridge.Length}");
+		Console.WriteLine($"TODO JEFF title = {cartridge.Title}");
+		Console.WriteLine($"TODO JEFF is color? {cartridge.IsColorGameboy}");
+		Console.WriteLine($"TODO JEFF is super? {cartridge.IsSuperGameboy}");
+		Console.WriteLine($"TODO JEFF type = {cartridge.CartridgeType}");
+		Console.WriteLine($"TODO JEFF ROM = {cartridge.ROMBanks}");
+		Console.WriteLine($"TODO JEFF RAM = {cartridge.RAMBanks}");
 
-		var memory = cart.CreateMemory();
-		var cpu = new CPU(loggerFactory, memory);
-
-		while (!cpu.IsHalted && !cpu.IsStopped)
+		var emulator = new Emulator(loggerFactory, cartridge);
+		emulator.SerialIO.DataAvailable += (value) =>
 		{
-			cpu.Step();
-			if (cpu.Clock % 1000 == 0)
-			{
-				Console.WriteLine($"TODO JEFF clock = {cpu.Clock}");
-			}
+			Console.WriteLine($"TODO JEFF serial IO data: {NumberUtils.ToBinary(value)}");
+			throw new Exception();
+		};
+		for (var i = 0; i < 100000; i++)
+		{
+			emulator.Step();
 		}
-		Console.WriteLine($"TODO JEFF final clock = {cpu.Clock}");
 	}
 }

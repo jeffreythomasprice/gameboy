@@ -1,6 +1,6 @@
 namespace Gameboy;
 
-public abstract class Memory : IMemory
+public abstract class Memory : IMemory, ISteppable
 {
 	public const UInt16 ROM_BANK_0_START = 0x0000;
 	public const UInt16 ROM_BANK_0_END = SWITCHABLE_ROM_BANK_START - 1;
@@ -83,11 +83,19 @@ public abstract class Memory : IMemory
 	private readonly byte[] ioPorts = new byte[IO_PORTS_END + 1];
 	private readonly byte[,] switchableRAMBanks;
 	private byte interruptsEnabled;
+	private UInt64 clock;
 
 	public Memory(Cartridge cartridge)
 	{
 		this.cartridge = cartridge;
 		switchableRAMBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
+		Reset();
+	}
+
+	public UInt64 Clock
+	{
+		get => clock;
+		internal set => clock = value;
 	}
 
 	public byte ReadUInt8(ushort address) =>
@@ -197,6 +205,12 @@ public abstract class Memory : IMemory
 		ioPorts[IO_WX - IO_PORTS_START] = 0x00;
 		// 0xffff
 		interruptsEnabled = 0x00;
+	}
+
+	public void Step()
+	{
+		// minimum instruction size, no need to waste real time going tick by tick
+		Clock += 4;
 	}
 
 	/*

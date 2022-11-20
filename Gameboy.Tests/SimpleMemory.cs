@@ -2,7 +2,11 @@ namespace Gameboy.Tests;
 
 public class SimpleMemory : IMemory
 {
+	private UInt64 clock;
+
 	private byte[] data = new byte[0];
+
+	public ulong Clock => clock;
 
 	public byte ReadUInt8(UInt16 address)
 	{
@@ -11,6 +15,16 @@ public class SimpleMemory : IMemory
 			return data[address];
 		}
 		return 0;
+	}
+
+	public void Reset()
+	{
+		clock = 0;
+	}
+
+	public void Step()
+	{
+		clock++;
 	}
 
 	public void WriteUInt8(UInt16 address, byte value)

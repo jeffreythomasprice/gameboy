@@ -3,7 +3,7 @@ namespace Gameboy;
 using Microsoft.Extensions.Logging;
 using static NumberUtils;
 
-public class CPU
+public class CPU : ISteppable
 {
 	private enum Register8
 	{
@@ -68,6 +68,7 @@ public class CPU
 	private bool isHalted;
 	private bool interruptsEnabled;
 	private readonly Queue<InterruptEnableDelta> interruptEnableDeltas = new();
+	private bool serialIOInterruptTriggered;
 
 	public CPU(ILoggerFactory loggerFactory, IMemory memory)
 	{
@@ -282,6 +283,7 @@ public class CPU
 		isHalted = false;
 		interruptsEnabled = true;
 		interruptEnableDeltas.Clear();
+		serialIOInterruptTriggered = false;
 	}
 
 	public void Step()
@@ -320,13 +322,36 @@ public class CPU
 
 			P10-P13 is keypad input, when they go from high to low
 			mask = 0b0001_0000
-
-			if one of the above fires:
-			- reset the flag on the interrupt enable IO register
-			- reset master enable flag on the CPU
-			- push PC
-			- jump to interrupt
 			*/
+
+			// will be set to the address to jump to if an interrupt is being handled
+			UInt16? interruptHandlerAddress = null;
+
+			// TODO v-blank interrupt
+
+			// TODO LCDC interrupt
+
+			// TODO timer interrupt
+
+			// serial IO
+			{
+				var enabled = (interruptEnableRegister & 0b0000_1000) != 0;
+				if (enabled && serialIOInterruptTriggered)
+				{
+					logger.LogTrace("serial IO interrupt handled");
+					serialIOInterruptTriggered = false;
+					interruptHandlerAddress = 0x0058;
+				}
+			}
+
+			// TODO P10-P13 interrupt
+
+			if (interruptHandlerAddress.HasValue)
+			{
+				InterruptsEnabled = false;
+				PushUInt16(RegisterPC);
+				RegisterPC = interruptHandlerAddress.Value;
+			}
 		}
 
 		ExecuteInstruction();
@@ -336,6 +361,12 @@ public class CPU
 			InterruptsEnabled = interruptEnableDeltas.Dequeue().Value;
 			logger.LogTrace($"interrupts enabled = {InterruptsEnabled}");
 		}
+	}
+
+	public void SerialIOCompleteInterrupt()
+	{
+		logger.LogTrace("serial IO interrupt triggered");
+		serialIOInterruptTriggered = true;
 	}
 
 	private void ExecuteInstruction()

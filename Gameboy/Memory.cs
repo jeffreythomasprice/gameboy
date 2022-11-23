@@ -109,7 +109,7 @@ public abstract class Memory : IMemory, ISteppable
 			<= ECHO_INTERNAL_RAM_END => internalRAM1[address - ECHO_INTERNAL_RAM_START],
 			<= SPRITE_ATTRIBUTES_END => spriteAttributes[address - SPRITE_ATTRIBUTES_START],
 			<= UNUSED_1_END => 0,
-			<= IO_PORTS_END => ioPorts[address],
+			<= IO_PORTS_END => ioPorts[address - IO_PORTS_START],
 			<= UNUSED_2_END => 0,
 			<= INTERNAL_RAM_2_END => internalRAM2[address - INTERNAL_RAM_2_START],
 			INTERRUPT_ENABLE_REGISTER => interruptsEnabled,
@@ -121,37 +121,61 @@ public abstract class Memory : IMemory, ISteppable
 		{
 			case <= ROM_BANK_0_END:
 			case <= SWITCHABLE_ROM_BANK_END:
+				// throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+
 				ROMWrite(address, value);
 				break;
 			case <= VIDEO_RAM_END:
+				throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+
 				videoRAM[address - VIDEO_RAM_START] = value;
 				break;
 			case <= SWITCHABLE_RAM_BANK_END:
+				throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+
 				if (RAMBankEnabled)
 				{
 					switchableRAMBanks[ActiveRAMBank, address - SWITCHABLE_RAM_BANK_START] = value;
 				}
 				break;
 			case <= INTERNAL_RAM_1_END:
+				// throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+
 				internalRAM1[address - INTERNAL_RAM_1_START] = value;
 				break;
 			case <= ECHO_INTERNAL_RAM_END:
+				throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+
 				internalRAM1[address - ECHO_INTERNAL_RAM_START] = value;
 				break;
 			case <= SPRITE_ATTRIBUTES_END:
+				throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+
 				spriteAttributes[address - SPRITE_ATTRIBUTES_START] = value;
 				break;
 			case <= UNUSED_1_END:
+				throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+
 				break;
 			case <= IO_PORTS_END:
-				ioPorts[address] = value;
+				// if (address == IO_SB || address == IO_SC)
+				// {
+				throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+				// }
+				ioPorts[address - IO_PORTS_START] = value;
 				break;
 			case <= UNUSED_2_END:
+				throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+
 				break;
 			case <= INTERNAL_RAM_2_END:
+				throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+
 				internalRAM2[address - INTERNAL_RAM_2_START] = value;
 				break;
-			case <= INTERRUPT_ENABLE_REGISTER:
+			case INTERRUPT_ENABLE_REGISTER:
+				throw new Exception($"TODO JEFF testing write to {NumberUtils.ToHex(address)}, value = {value}");
+
 				interruptsEnabled = value;
 				break;
 		};

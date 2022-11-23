@@ -43,7 +43,10 @@ public class CPU : ISteppable
 	)
 	{ }
 
-	public const UInt16 InitialPC = 0x0100;
+	// execution will begin at 0x0000
+	// at one point this was 0x0100, which is where the standard gameboy program at address 0x0000 will just to when it's done displaying
+	// the startup graphic and calculating a checksum
+	public const UInt16 InitialPC = 0x0000;
 
 	private const byte ZeroFlagMask = 0b1000_0000;
 	private const byte SubtractFlagMask = 0b0100_0000;
@@ -288,6 +291,17 @@ public class CPU : ISteppable
 
 	public void Step()
 	{
+		/*
+		TODO STOP and HALT
+		file:///home/jeff/workspaces/personal/gameboy/references/GBCPUman.pdf
+		page 19
+
+		STOP = blank screen, single white line, stop processor, until key is pressed
+
+		HALT = stop processor until any interrupt occurs, then resumes at the instruction after the HALT
+		if DI was called first then HALT skips the next instruction and resumes operating one the one after that
+		*/
+
 		if (IsStopped)
 		{
 			logger.LogTrace("skipping instruction, previous STOP");

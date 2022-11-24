@@ -36,10 +36,12 @@ public class CPUTest
 		Assert.Equal(3, cpu.RegisterC);
 		Assert.Equal(4, cpu.RegisterD);
 		Assert.Equal(5, cpu.RegisterE);
-		Assert.Equal(6, cpu.RegisterF);
+		// note that value of F is 0x00 and not 0x06 because some bits of F aren't usable
+		Assert.Equal(0, cpu.RegisterF);
 		Assert.Equal(7, cpu.RegisterH);
 		Assert.Equal(8, cpu.RegisterL);
-		Assert.Equal(0x0106, cpu.RegisterAF);
+		// note that value of F is 0x00 and not 0x06 because some bits of F aren't usable
+		Assert.Equal(0x0100, cpu.RegisterAF);
 		Assert.Equal(0x0203, cpu.RegisterBC);
 		Assert.Equal(0x0405, cpu.RegisterDE);
 		Assert.Equal(0x0708, cpu.RegisterHL);
@@ -55,10 +57,12 @@ public class CPUTest
 		Assert.Equal(0x44, cpu.RegisterC);
 		Assert.Equal(0x55, cpu.RegisterD);
 		Assert.Equal(0x66, cpu.RegisterE);
-		Assert.Equal(0x22, cpu.RegisterF);
+		// note that value of F is 0x20 and not 0x22 because some bits of F aren't usable
+		Assert.Equal(0x20, cpu.RegisterF);
 		Assert.Equal(0x77, cpu.RegisterH);
 		Assert.Equal(0x88, cpu.RegisterL);
-		Assert.Equal(0x1122, cpu.RegisterAF);
+		// note that value of F is 0x20 and not 0x22 because some bits of F aren't usable
+		Assert.Equal(0x1120, cpu.RegisterAF);
 		Assert.Equal(0x3344, cpu.RegisterBC);
 		Assert.Equal(0x5566, cpu.RegisterDE);
 		Assert.Equal(0x7788, cpu.RegisterHL);
@@ -6868,7 +6872,8 @@ public class CPUTest
 				(CPUBuilder actual) => actual
 					.RegisterSP(0x1000)
 					.RegisterAF(0x1234),
-				new MemoryData[] { new(0x0ffe, new byte[] { 0x34, 0x12 }), },
+					// note the low byte is 0x30 and not 0x34, because some bits of F aren't usable
+				new MemoryData[] { new(0x0ffe, new byte[] { 0x30, 0x12 }), },
 				(CPUBuilder expected) => expected
 					.RegisterSP(0x0ffe),
 			};

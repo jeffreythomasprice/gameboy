@@ -12,8 +12,8 @@ public class TestROMs
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		// TODO JEFF not all CPU tests are passing
 		// using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
-		using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
-		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/02-interrupts.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
+		using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/02-interrupts.gb", FileMode.Open);
 		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb", FileMode.Open);
 		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/04-op r,imm.gb", FileMode.Open);
 		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/05-op rp.gb", FileMode.Open);
@@ -90,11 +90,10 @@ public class TestROMs
 				Console.Out.Flush();
 			}
 		}
-		logger.LogDebug($"final clock: {emulator.Clock}");
 		logger.LogDebug($"wrote {serialDataOutput.Length} bytes to serial IO");
 		if (serialDataOutput.Length > 0)
 		{
-			logger.LogDebug($"serial data as text: {System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray())}");
+			logger.LogDebug($"serial data as text:\n{System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray())}");
 		}
 		Console.Out.Flush();
 	}

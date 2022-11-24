@@ -49,6 +49,7 @@ public class CPU : ISteppable
 	private const byte SubtractFlagMask = 0b0100_0000;
 	private const byte HalfCarryFlagMask = 0b0010_0000;
 	private const byte CarryFlagMask = 0b0001_0000;
+	private const byte UsableBitsFlagMask = 0b1111_0000;
 
 	private ILogger logger;
 	private readonly IMemory memory;
@@ -111,7 +112,7 @@ public class CPU : ISteppable
 	public byte RegisterF
 	{
 		get => registerF;
-		internal set => registerF = value;
+		internal set => registerF = (byte)(value & UsableBitsFlagMask);
 	}
 
 	public byte RegisterH
@@ -140,41 +141,41 @@ public class CPU : ISteppable
 
 	public UInt16 RegisterAF
 	{
-		get => (UInt16)((((UInt16)registerA) << 8) | (UInt16)registerF);
+		get => (UInt16)((((UInt16)RegisterA) << 8) | (UInt16)RegisterF);
 		internal set
 		{
-			registerA = (byte)((value & 0xff00) >> 8);
-			registerF = (byte)(value & 0xff);
+			RegisterA = (byte)((value & 0xff00) >> 8);
+			RegisterF = (byte)(value & 0xff);
 		}
 	}
 
 	public UInt16 RegisterBC
 	{
-		get => (UInt16)((((UInt16)registerB) << 8) | (UInt16)registerC);
+		get => (UInt16)((((UInt16)RegisterB) << 8) | (UInt16)RegisterC);
 		internal set
 		{
-			registerB = (byte)((value & 0xff00) >> 8);
-			registerC = (byte)(value & 0xff);
+			RegisterB = (byte)((value & 0xff00) >> 8);
+			RegisterC = (byte)(value & 0xff);
 		}
 	}
 
 	public UInt16 RegisterDE
 	{
-		get => (UInt16)((((UInt16)registerD) << 8) | (UInt16)registerE);
+		get => (UInt16)((((UInt16)RegisterD) << 8) | (UInt16)RegisterE);
 		internal set
 		{
-			registerD = (byte)((value & 0xff00) >> 8);
-			registerE = (byte)(value & 0xff);
+			RegisterD = (byte)((value & 0xff00) >> 8);
+			RegisterE = (byte)(value & 0xff);
 		}
 	}
 
 	public UInt16 RegisterHL
 	{
-		get => (UInt16)((((UInt16)registerH) << 8) | (UInt16)registerL);
+		get => (UInt16)((((UInt16)RegisterH) << 8) | (UInt16)RegisterL);
 		internal set
 		{
-			registerH = (byte)((value & 0xff00) >> 8);
-			registerL = (byte)(value & 0xff);
+			RegisterH = (byte)((value & 0xff00) >> 8);
+			RegisterL = (byte)(value & 0xff);
 		}
 	}
 

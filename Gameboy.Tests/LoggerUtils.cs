@@ -10,7 +10,10 @@ public static class LoggerUtils
 		{
 			builder
 				.SetMinimumLevel(LogLevel.Trace)
-				.AddConsole();
+				.AddSimpleConsole(options =>
+				{
+					options.TimestampFormat = "o";
+				});
 		});
 	}
 }

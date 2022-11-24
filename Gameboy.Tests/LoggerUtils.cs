@@ -9,7 +9,7 @@ public static class LoggerUtils
 		return LoggerFactory.Create(builder =>
 		{
 			builder
-				.SetMinimumLevel(LogLevel.Trace)
+				.SetMinimumLevel(LogLevel.Debug)
 				.AddSimpleConsole(options =>
 				{
 					options.TimestampFormat = "o";

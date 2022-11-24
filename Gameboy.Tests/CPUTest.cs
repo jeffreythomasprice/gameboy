@@ -1310,7 +1310,7 @@ public class CPUTest
 				new MemoryData[0],
 				(CPUBuilder expected) => expected
 					.RegisterA(0b0000_0000)
-					.ZeroFlag(true)
+					.ZeroFlag(false)
 					.SubtractFlag(false)
 					.HalfCarryFlag(false)
 					.CarryFlag(false),
@@ -1388,7 +1388,7 @@ public class CPUTest
 				new MemoryData[0],
 				(CPUBuilder expected) => expected
 					.RegisterA(0b0000_0000)
-					.ZeroFlag(true)
+					.ZeroFlag(false)
 					.SubtractFlag(false)
 					.HalfCarryFlag(false)
 					.CarryFlag(false),
@@ -1466,7 +1466,7 @@ public class CPUTest
 				new MemoryData[0],
 				(CPUBuilder expected) => expected
 					.RegisterA(0b0000_0000)
-					.ZeroFlag(true)
+					.ZeroFlag(false)
 					.SubtractFlag(false)
 					.HalfCarryFlag(false)
 					.CarryFlag(false),
@@ -1544,7 +1544,7 @@ public class CPUTest
 				new MemoryData[0],
 				(CPUBuilder expected) => expected
 					.RegisterA(0b0000_0000)
-					.ZeroFlag(true)
+					.ZeroFlag(false)
 					.SubtractFlag(false)
 					.HalfCarryFlag(false)
 					.CarryFlag(false),
@@ -8750,7 +8750,7 @@ public class CPUTest
 					(CPUBuilder actual) => setter(actual, 0b1100_1010)
 						.CarryFlag(false),
 					new MemoryData[0],
-					(CPUBuilder expected) => setter(expected, 0b0110_0101)
+					(CPUBuilder expected) => setter(expected, 0b1110_0101)
 						.ZeroFlag(false)
 						.SubtractFlag(false)
 						.HalfCarryFlag(false)
@@ -8761,7 +8761,7 @@ public class CPUTest
 					(CPUBuilder actual) => setter(actual, 0b1100_1010)
 						.CarryFlag(true),
 					new MemoryData[0],
-					(CPUBuilder expected) => setter(expected, 0b0110_0101)
+					(CPUBuilder expected) => setter(expected, 0b1110_0101)
 						.ZeroFlag(false)
 						.SubtractFlag(false)
 						.HalfCarryFlag(false)
@@ -8772,7 +8772,7 @@ public class CPUTest
 					(CPUBuilder actual) => setter(actual, 0b1100_1011)
 						.CarryFlag(false),
 					new MemoryData[0],
-					(CPUBuilder expected) => setter(expected, 0b0110_0101)
+					(CPUBuilder expected) => setter(expected, 0b1110_0101)
 						.ZeroFlag(false)
 						.SubtractFlag(false)
 						.HalfCarryFlag(false)
@@ -8825,7 +8825,7 @@ public class CPUTest
 					.RegisterHL(0x1234)
 					.CarryFlag(false),
 				new MemoryData[] {
-					new(0x1234, new byte[] { 0b0110_0101 }),
+					new(0x1234, new byte[] { 0b1110_0101 }),
 				},
 				(CPUBuilder expected) => expected
 					.ZeroFlag(false)
@@ -8842,7 +8842,7 @@ public class CPUTest
 					.RegisterHL(0x1234)
 					.CarryFlag(true),
 				new MemoryData[] {
-					new(0x1234, new byte[] { 0b0110_0101 }),
+					new(0x1234, new byte[] { 0b1110_0101 }),
 				},
 				(CPUBuilder expected) => expected
 					.ZeroFlag(false)
@@ -8859,7 +8859,7 @@ public class CPUTest
 					.RegisterHL(0x1234)
 					.CarryFlag(false),
 				new MemoryData[] {
-					new(0x1234, new byte[] { 0b0110_0101 }),
+					new(0x1234, new byte[] { 0b1110_0101 }),
 				},
 				(CPUBuilder expected) => expected
 					.ZeroFlag(false)

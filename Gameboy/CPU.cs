@@ -646,7 +646,7 @@ public class CPU : ISteppable
 					var before = RegisterA;
 					var after = (byte)((before << 1) | ((before & 0b1000_0000) >> 7));
 					RegisterA = after;
-					ZeroFlag = after == 0;
+					ZeroFlag = false;
 					SubtractFlag = false;
 					HalfCarryFlag = false;
 					CarryFlag = (before & 0b1000_0000) != 0;
@@ -659,7 +659,7 @@ public class CPU : ISteppable
 					var before = RegisterA;
 					var after = (byte)((before >> 1) | ((before & 0b0000_0001) << 7));
 					RegisterA = after;
-					ZeroFlag = after == 0;
+					ZeroFlag = false;
 					SubtractFlag = false;
 					HalfCarryFlag = false;
 					CarryFlag = (before & 0b0000_0001) != 0;
@@ -672,7 +672,7 @@ public class CPU : ISteppable
 					var before = RegisterA;
 					var after = (byte)((before << 1) | (CarryFlag ? 0b0000_0001 : 0));
 					RegisterA = after;
-					ZeroFlag = after == 0;
+					ZeroFlag = false; ;
 					SubtractFlag = false;
 					HalfCarryFlag = false;
 					CarryFlag = (before & 0b1000_0000) != 0;
@@ -685,7 +685,7 @@ public class CPU : ISteppable
 					var before = RegisterA;
 					var after = (byte)((before >> 1) | (CarryFlag ? 0b1000_0000 : 0));
 					RegisterA = after;
-					ZeroFlag = after == 0;
+					ZeroFlag = false;
 					SubtractFlag = false;
 					HalfCarryFlag = false;
 					CarryFlag = (before & 0b0000_0001) != 0;
@@ -3900,7 +3900,7 @@ public class CPU : ISteppable
 	{
 		logger.LogTrace($"SRA {register}");
 		var before = GetRegister(register);
-		var after = (byte)(before >> 1);
+		var after = (byte)((before >> 1) | (before & 0b1000_0000));
 		SetRegister(register, after);
 		ZeroFlag = after == 0;
 		SubtractFlag = false;
@@ -3913,7 +3913,7 @@ public class CPU : ISteppable
 	{
 		logger.LogTrace($"SRA {address}");
 		var before = memory.ReadUInt8(address.Value);
-		var after = (byte)(before >> 1);
+		var after = (byte)((before >> 1) | (before & 0b1000_0000));
 		memory.WriteUInt8(address.Value, after);
 		ZeroFlag = after == 0;
 		SubtractFlag = false;

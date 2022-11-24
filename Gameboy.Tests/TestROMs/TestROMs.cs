@@ -10,20 +10,31 @@ public class TestROMs
 	public void Placeholder()
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
-		using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
+		// TODO JEFF not all CPU tests are passing
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
+		using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/02-interrupts.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/04-op r,imm.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/05-op rp.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/06-ld r,r.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/08-misc instrs.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/09-op r,r.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/10-bit ops.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb", FileMode.Open);
 		var cartridge = new Cartridge(stream);
 
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
 
-		logger.LogDebug($"TODO JEFF cart = {cartridge}");
-		logger.LogDebug($"TODO JEFF total size of cart = {cartridge.Length}");
-		logger.LogDebug($"TODO JEFF title = {cartridge.Title}");
-		logger.LogDebug($"TODO JEFF is color? {cartridge.IsColorGameboy}");
-		logger.LogDebug($"TODO JEFF is super? {cartridge.IsSuperGameboy}");
-		logger.LogDebug($"TODO JEFF type = {cartridge.CartridgeType}");
-		logger.LogDebug($"TODO JEFF ROM = {cartridge.ROMBanks}");
-		logger.LogDebug($"TODO JEFF RAM = {cartridge.RAMBanks}");
+		logger.LogDebug($"cart = {cartridge}");
+		logger.LogDebug($"total size of cart = {cartridge.Length}");
+		logger.LogDebug($"title = {cartridge.Title}");
+		logger.LogDebug($"is color? {cartridge.IsColorGameboy}");
+		logger.LogDebug($"is super? {cartridge.IsSuperGameboy}");
+		logger.LogDebug($"type = {cartridge.CartridgeType}");
+		logger.LogDebug($"ROM = {cartridge.ROMBanks}");
+		logger.LogDebug($"RAM = {cartridge.RAMBanks}");
 
 		var emulator = new Emulator(loggerFactory, cartridge);
 		var serialDataOutput = new MemoryStream();
@@ -31,26 +42,59 @@ public class TestROMs
 		{
 			serialDataOutput.WriteByte(value);
 		};
-		// TODO don't guess how many key presses needed, run until serial IO stops getting added to
-		for (var i = 0; i < 10; i++)
+		// keep track of the last values of the program counter to try to detect CPU cycles
+		long lastSerialIOLength = 0;
+		var registerPCHistoryLastTimeWePressedAKey = new List<UInt16>();
+		var registerPCHistory = new List<UInt16>();
+		while (true)
 		{
-			while (!emulator.CPU.IsStopped && !emulator.CPU.IsHalted)
+			emulator.Step();
+			Console.Out.Flush();
+
+			// keep track of program counter, see if it stays on the same value for a while
+			registerPCHistory.Add(emulator.CPU.RegisterPC);
+			var pcIsStuck = false;
+			if (registerPCHistory.Count > 10)
 			{
-				emulator.Step();
-				Console.Out.Flush();
+				registerPCHistory.RemoveAt(0);
+				pcIsStuck = registerPCHistory.ToHashSet().Count == 1;
 			}
 
-			// press any key to continue the test
-			emulator.Keypad.SetPressed(Key.A, true);
-			emulator.Step();
-			emulator.Keypad.ClearKeys();
-			Console.Out.Flush();
+			// if we're waiting on keypad input, or the pc is just hung try pressing a key
+			if (emulator.CPU.IsStopped || emulator.CPU.IsHalted || pcIsStuck)
+			{
+				var makingProgress = false;
+				if (!registerPCHistory.SequenceEqual(registerPCHistoryLastTimeWePressedAKey))
+				{
+					logger.LogTrace("CPU is stuck, but PC is actively changing");
+					makingProgress = true;
+				}
+				else if (serialDataOutput.Length != lastSerialIOLength)
+				{
+					logger.LogTrace("CPU is stuck, but serial IO is being written to");
+					makingProgress = true;
+				}
+				if (!makingProgress)
+				{
+					logger.LogDebug("detected PC loop that key presses aren't fixing, aborting");
+					break;
+				}
+				logger.LogDebug("pressing key to try to unstick it");
+				lastSerialIOLength = serialDataOutput.Length;
+				registerPCHistoryLastTimeWePressedAKey.Clear();
+				registerPCHistoryLastTimeWePressedAKey.AddRange(registerPCHistory);
+				registerPCHistory.Clear();
+				emulator.Keypad.SetPressed(Key.A, true);
+				emulator.Step();
+				emulator.Keypad.ClearKeys();
+				Console.Out.Flush();
+			}
 		}
-		logger.LogDebug($"TODO JEFF final clock: {emulator.Clock}");
-		logger.LogDebug($"TODO JEFF wrote {serialDataOutput.Length} bytes to serial IO");
+		logger.LogDebug($"final clock: {emulator.Clock}");
+		logger.LogDebug($"wrote {serialDataOutput.Length} bytes to serial IO");
 		if (serialDataOutput.Length > 0)
 		{
-			logger.LogDebug($"TODO JEFF serial data as text: {System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray())}");
+			logger.LogDebug($"serial data as text: {System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray())}");
 		}
 		Console.Out.Flush();
 	}

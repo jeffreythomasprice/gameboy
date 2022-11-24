@@ -1808,12 +1808,13 @@ public class CPU : ISteppable
 					var offset = ReadNextPCInt8();
 					logger.LogTrace($"LD HL, SP+{offset}");
 					var before = RegisterSP;
-					var after32 = (UInt32)((Int32)before + offset);
-					RegisterHL = (UInt16)after32;
+					var after = (UInt16)(before + offset);
+					RegisterHL = after;
 					ZeroFlag = false;
 					SubtractFlag = false;
-					HalfCarryFlag = (before & 0b0000_1111_1111_1111) + (offset & 0b0000_1111_1111_1111) > 0b0000_1111_1111_1111;
-					CarryFlag = after32 > 0b1111_1111_1111_1111;
+					// this kind of add involves the carry bits determined from the low byte of the result
+					HalfCarryFlag = (before & 0b0000_0000_0000_1111) + (((byte)offset) & 0b0000_1111) > 0b0000_0000_0000_1111;
+					CarryFlag = (before & 0b0000_0000_1111_1111) + (((byte)offset) & 0b1111_1111) > 0b0000_0000_1111_1111;
 					Clock += 12;
 				}
 				break;
@@ -3458,6 +3459,7 @@ public class CPU : ISteppable
 		var after16 = (UInt16)after32;
 		SetRegister(destination, after16);
 		SubtractFlag = false;
+		// this kind of add involves carry bits determined from the high byte of the result
 		HalfCarryFlag = (before & 0b0000_1111_1111_1111) + (sourceValue & 0b0000_1111_1111_1111) > 0b0000_1111_1111_1111;
 		CarryFlag = after32 > 0b1111_1111_1111_1111;
 		Clock += 8;
@@ -3467,14 +3469,13 @@ public class CPU : ISteppable
 	{
 		logger.LogTrace($"ADD {destination}, {delta}");
 		var before = GetRegister(destination);
-		var delta16 = (Int16)delta;
-		var after32 = (UInt32)(before + delta16);
-		var after16 = (UInt16)after32;
-		SetRegister(destination, after16);
+		var after = (UInt16)(before + delta);
+		SetRegister(destination, after);
 		ZeroFlag = false;
 		SubtractFlag = false;
-		HalfCarryFlag = (before & 0b0000_1111_1111_1111) + (delta16 & 0b0000_1111_1111_1111) > 0b0000_1111_1111_1111;
-		CarryFlag = after32 > 0b1111_1111_1111_1111;
+		// this kind of add involves the carry bits determined from the low byte of the result
+		HalfCarryFlag = (before & 0b0000_0000_0000_1111) + (((byte)delta) & 0b0000_1111) > 0b0000_0000_0000_1111;
+		CarryFlag = (before & 0b0000_0000_1111_1111) + (((byte)delta) & 0b1111_1111) > 0b0000_0000_1111_1111;
 		Clock += 16;
 	}
 

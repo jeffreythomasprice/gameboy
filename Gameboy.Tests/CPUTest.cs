@@ -7798,7 +7798,7 @@ public class CPUTest
 					.ZeroFlag(false)
 					.SubtractFlag(false)
 					.HalfCarryFlag(true)
-					.CarryFlag(false),
+					.CarryFlag(true),
 			};
 		}
 	}

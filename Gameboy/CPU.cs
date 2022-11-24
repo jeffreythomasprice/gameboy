@@ -43,10 +43,12 @@ public class CPU : ISteppable
 	)
 	{ }
 
+	// TODO JEFF which start addr?
 	// execution will begin at 0x0000
 	// at one point this was 0x0100, which is where the standard gameboy program at address 0x0000 will just to when it's done displaying
 	// the startup graphic and calculating a checksum
-	public const UInt16 InitialPC = 0x0000;
+	// public const UInt16 InitialPC = 0x0000;
+	public const UInt16 InitialPC = 0x0100;
 
 	private const byte ZeroFlagMask = 0b1000_0000;
 	private const byte SubtractFlagMask = 0b0100_0000;

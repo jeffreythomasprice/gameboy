@@ -10,8 +10,8 @@ public class TestROMs
 	public void Placeholder()
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
-		// using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
+		// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
+		using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 		var cartridge = new Cartridge(stream);
 
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
@@ -26,20 +26,31 @@ public class TestROMs
 		logger.LogDebug($"TODO JEFF RAM = {cartridge.RAMBanks}");
 
 		var emulator = new Emulator(loggerFactory, cartridge);
+		var serialDataOutput = new MemoryStream();
 		emulator.SerialIO.DataAvailable += (value) =>
 		{
-			logger.LogDebug($"TODO JEFF serial IO data: {NumberUtils.ToBinary(value)}");
-			throw new Exception();
+			serialDataOutput.WriteByte(value);
 		};
-		for (var i = 0; i < 10000000; i++)
+		// TODO don't guess how many key presses needed, run until serial IO stops getting added to
+		for (var i = 0; i < 10; i++)
 		{
-			emulator.Step();
-			if (i % 100 == 0)
+			while (!emulator.CPU.IsStopped && !emulator.CPU.IsHalted)
 			{
-				logger.LogDebug($"TODO JEFF clock: {emulator.Clock}");
+				emulator.Step();
+				Console.Out.Flush();
 			}
-			Console.Out.Flush();
+
+			// TODO should be an actual simulated key press
+			// force the CPU back into action, like we pressed a key
+			emulator.CPU.IsHalted = false;
+			emulator.CPU.IsStopped = false;
 		}
 		logger.LogDebug($"TODO JEFF final clock: {emulator.Clock}");
+		logger.LogDebug($"TODO JEFF wrote {serialDataOutput.Length} bytes to serial IO");
+		if (serialDataOutput.Length > 0)
+		{
+			logger.LogDebug($"TODO JEFF serial data as text: {System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray())}");
+		}
+		Console.Out.Flush();
 	}
 }

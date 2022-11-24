@@ -836,7 +836,7 @@ public class CPUTest
 					.RegisterB(0b0000_0000)
 					.ZeroFlag(true)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x05, }), },
@@ -847,7 +847,7 @@ public class CPUTest
 					.RegisterB(0b1111_1110)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x05, }), },
@@ -858,7 +858,7 @@ public class CPUTest
 					.RegisterB(0b0010_1111)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(false),
+					.HalfCarryFlag(true),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x0d, }), },
@@ -869,7 +869,7 @@ public class CPUTest
 					.RegisterC(0b0000_0000)
 					.ZeroFlag(true)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x0d, }), },
@@ -880,7 +880,7 @@ public class CPUTest
 					.RegisterC(0b1111_1110)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x0d, }), },
@@ -891,7 +891,7 @@ public class CPUTest
 					.RegisterC(0b0010_1111)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(false),
+					.HalfCarryFlag(true),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x15, }), },
@@ -902,7 +902,7 @@ public class CPUTest
 					.RegisterD(0b0000_0000)
 					.ZeroFlag(true)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x15, }), },
@@ -913,7 +913,7 @@ public class CPUTest
 					.RegisterD(0b1111_1110)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x15, }), },
@@ -924,7 +924,7 @@ public class CPUTest
 					.RegisterD(0b0010_1111)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(false),
+					.HalfCarryFlag(true),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x1d, }), },
@@ -935,7 +935,7 @@ public class CPUTest
 					.RegisterE(0b0000_0000)
 					.ZeroFlag(true)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x1d, }), },
@@ -946,7 +946,7 @@ public class CPUTest
 					.RegisterE(0b1111_1110)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x1d, }), },
@@ -957,7 +957,7 @@ public class CPUTest
 					.RegisterE(0b0010_1111)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(false),
+					.HalfCarryFlag(true),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x25, }), },
@@ -968,7 +968,7 @@ public class CPUTest
 					.RegisterH(0b0000_0000)
 					.ZeroFlag(true)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x25, }), },
@@ -979,7 +979,7 @@ public class CPUTest
 					.RegisterH(0b1111_1110)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x25, }), },
@@ -990,7 +990,7 @@ public class CPUTest
 					.RegisterH(0b0010_1111)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(false),
+					.HalfCarryFlag(true),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x2d, }), },
@@ -1001,7 +1001,7 @@ public class CPUTest
 					.RegisterL(0b0000_0000)
 					.ZeroFlag(true)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x2d, }), },
@@ -1012,7 +1012,7 @@ public class CPUTest
 					.RegisterL(0b1111_1110)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x2d, }), },
@@ -1023,7 +1023,7 @@ public class CPUTest
 					.RegisterL(0b0010_1111)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(false),
+					.HalfCarryFlag(true),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x3d, }), },
@@ -1034,7 +1034,7 @@ public class CPUTest
 					.RegisterA(0b0000_0000)
 					.ZeroFlag(true)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x3d, }), },
@@ -1045,7 +1045,7 @@ public class CPUTest
 					.RegisterA(0b1111_1110)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x3d, }), },
@@ -1056,7 +1056,7 @@ public class CPUTest
 					.RegisterA(0b0010_1111)
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(false),
+					.HalfCarryFlag(true),
 			};
 		}
 	}
@@ -1097,7 +1097,7 @@ public class CPUTest
 				(CPUBuilder expected) => expected
 					.ZeroFlag(true)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] {
@@ -1112,7 +1112,7 @@ public class CPUTest
 				(CPUBuilder expected) => expected
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(true),
+					.HalfCarryFlag(false),
 			};
 			yield return new object?[] {
 				new MemoryData[] {
@@ -1127,7 +1127,7 @@ public class CPUTest
 				(CPUBuilder expected) => expected
 					.ZeroFlag(false)
 					.SubtractFlag(true)
-					.HalfCarryFlag(false),
+					.HalfCarryFlag(true),
 			};
 		}
 	}

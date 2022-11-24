@@ -3334,7 +3334,7 @@ public class CPU : ISteppable
 		Clock += 4;
 		ZeroFlag = after == 0;
 		SubtractFlag = true;
-		HalfCarryFlag = (after & 0b1111_0000) == (before & 0b1111_0000);
+		HalfCarryFlag = (after & 0b1111_0000) != (before & 0b1111_0000);
 	}
 
 	private void Decrement(Register16 destinationAndSource)
@@ -3355,7 +3355,7 @@ public class CPU : ISteppable
 		Clock += 12;
 		ZeroFlag = after == 0;
 		SubtractFlag = true;
-		HalfCarryFlag = (after & 0b1111_0000) == (before & 0b1111_0000);
+		HalfCarryFlag = (after & 0b1111_0000) != (before & 0b1111_0000);
 	}
 
 	private void Add(Register8 destination, Register8 source)

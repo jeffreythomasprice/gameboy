@@ -43,11 +43,6 @@ public class CPU : ISteppable
 	)
 	{ }
 
-	// TODO JEFF which start addr?
-	// execution will begin at 0x0000
-	// at one point this was 0x0100, which is where the standard gameboy program at address 0x0000 will just to when it's done displaying
-	// the startup graphic and calculating a checksum
-	// public const UInt16 InitialPC = 0x0000;
 	public const UInt16 InitialPC = 0x0100;
 
 	private const byte ZeroFlagMask = 0b1000_0000;
@@ -74,6 +69,7 @@ public class CPU : ISteppable
 	private bool interruptsEnabled;
 	private readonly Queue<InterruptEnableDelta> interruptEnableDeltas = new();
 	private bool serialIOInterruptTriggered;
+	private bool keypadInterruptTriggered;
 
 	public CPU(ILoggerFactory loggerFactory, IMemory memory)
 	{
@@ -289,21 +285,11 @@ public class CPU : ISteppable
 		interruptsEnabled = true;
 		interruptEnableDeltas.Clear();
 		serialIOInterruptTriggered = false;
+		keypadInterruptTriggered = false;
 	}
 
 	public void Step()
 	{
-		/*
-		TODO STOP and HALT
-		file:///home/jeff/workspaces/personal/gameboy/references/GBCPUman.pdf
-		page 19
-
-		STOP = blank screen, single white line, stop processor, until key is pressed
-
-		HALT = stop processor until any interrupt occurs, then resumes at the instruction after the HALT
-		if DI was called first then HALT skips the next instruction and resumes operating one the one after that
-		*/
-
 		if (IsStopped)
 		{
 			logger.LogTrace("skipping instruction, previous STOP");
@@ -319,35 +305,28 @@ public class CPU : ISteppable
 		if (InterruptsEnabled)
 		{
 			var interruptEnableRegister = memory.ReadUInt8(Memory.INTERRUPT_ENABLE_REGISTER);
-			/*
-			TODO implement interrupts
-			the actual checks need to also account for actually raising the interrupts
-
-			v-blank is 59.7 times per second
-			mask = 0b0000_0001
-
-			LCDC is weird, see page 52
-			file:///home/jeff/workspaces/personal/gameboy/references/GBCPUman.pdf
-			mask = 0b0000_0010
-
-			timer is when TIMA overflows from 0xff to 0x00
-			mask = 0b0000_0100
-
-			serial is when a transfer is copmlete
-			mask = 0b0000_1000
-
-			P10-P13 is keypad input, when they go from high to low
-			mask = 0b0001_0000
-			*/
 
 			// will be set to the address to jump to if an interrupt is being handled
 			UInt16? interruptHandlerAddress = null;
 
-			// TODO v-blank interrupt
+			/*
+			TODO v-blank interrupt
+			v-blank is 59.7 times per second
+			mask = 0b0000_0001
+			*/
 
-			// TODO LCDC interrupt
+			/*
+			TODO LCDC interrupt
+			LCDC is weird, see page 52
+			file:///home/jeff/workspaces/personal/gameboy/references/GBCPUman.pdf
+			mask = 0b0000_0010
+			*/
 
-			// TODO timer interrupt
+			/*
+			TODO timer interrupt
+			timer is when TIMA overflows from 0xff to 0x00
+			mask = 0b0000_0100
+			*/
 
 			// serial IO
 			{
@@ -360,7 +339,16 @@ public class CPU : ISteppable
 				}
 			}
 
-			// TODO P10-P13 interrupt
+			// keypad interrupt
+			{
+				var enabled = (interruptEnableRegister & 0b0001_0000) != 0;
+				if (enabled && keypadInterruptTriggered)
+				{
+					logger.LogTrace("keypad interrupt handled");
+					keypadInterruptTriggered = false;
+					interruptHandlerAddress = 0x0060;
+				}
+			}
 
 			if (interruptHandlerAddress.HasValue)
 			{
@@ -383,6 +371,14 @@ public class CPU : ISteppable
 	{
 		logger.LogTrace("serial IO interrupt triggered");
 		serialIOInterruptTriggered = true;
+	}
+
+	public void KeypadInterrupt()
+	{
+		logger.LogTrace("keypad interrupt triggered");
+		keypadInterruptTriggered = true;
+		IsStopped = false;
+		IsHalted = false;
 	}
 
 	private void ExecuteInstruction()
@@ -1153,7 +1149,20 @@ public class CPU : ISteppable
 			case 0x76:
 				{
 					logger.LogTrace("HALT");
-					IsHalted = true;
+					if (InterruptsEnabled)
+					{
+						IsHalted = true;
+					}
+					else
+					{
+						/*
+						TODO special case HALT behavior for when interrupts are disabled
+						confusing language in reference material
+						sounds like it duplicates the next byte, which can cause multi-byte instructions to be real weird
+						and another halt duplicate can hang the cpu forever
+						*/
+						throw new NotImplementedException();
+					}
 					Clock += 4;
 				}
 				break;

@@ -40,10 +40,11 @@ public class TestROMs
 				Console.Out.Flush();
 			}
 
-			// TODO should be an actual simulated key press that triggers the interrupt
-			// force the CPU back into action, like we pressed a key
-			emulator.CPU.IsHalted = false;
-			emulator.CPU.IsStopped = false;
+			// press any key to continue the test
+			emulator.Keypad.SetPressed(Key.A, true);
+			emulator.Step();
+			emulator.Keypad.ClearKeys();
+			Console.Out.Flush();
 		}
 		logger.LogDebug($"TODO JEFF final clock: {emulator.Clock}");
 		logger.LogDebug($"TODO JEFF wrote {serialDataOutput.Length} bytes to serial IO");

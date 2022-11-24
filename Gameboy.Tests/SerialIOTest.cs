@@ -98,4 +98,6 @@ public class SerialIOTest
 		serialIO.Step();
 		Assert.Equal(0, outgoingByteStream.Length);
 	}
+
+	// TODO JEFF test that the CPU interrupt fires
 }

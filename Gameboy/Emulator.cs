@@ -7,16 +7,22 @@ public class Emulator : ISteppable
 	private readonly IMemory memory;
 	private readonly CPU cpu;
 	private readonly SerialIO serialIO;
+	private readonly Keypad keypad;
 
 	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge)
 	{
 		memory = cartridge.CreateMemory();
 		cpu = new CPU(loggerFactory, memory);
 		serialIO = new SerialIO(loggerFactory, memory);
+		keypad = new Keypad(loggerFactory, memory);
 
 		serialIO.DataAvailable += (value) =>
 		{
 			cpu.SerialIOCompleteInterrupt();
+		};
+		keypad.KeypadRegisterDelta += (oldValue, newValue) =>
+		{
+			cpu.KeypadInterrupt();
 		};
 	}
 
@@ -26,6 +32,8 @@ public class Emulator : ISteppable
 
 	public SerialIO SerialIO => serialIO;
 
+	public Keypad Keypad => keypad;
+
 	public ulong Clock => cpu.Clock;
 
 	public void Reset()
@@ -33,6 +41,7 @@ public class Emulator : ISteppable
 		memory.Reset();
 		cpu.Reset();
 		serialIO.Reset();
+		keypad.Reset();
 	}
 
 	public void Step()
@@ -44,6 +53,10 @@ public class Emulator : ISteppable
 		while (serialIO.Clock < cpu.Clock)
 		{
 			serialIO.Step();
+		}
+		while (keypad.Clock < cpu.Clock)
+		{
+			keypad.Step();
 		}
 		cpu.Step();
 	}

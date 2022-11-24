@@ -40,7 +40,7 @@ public class TestROMs
 				Console.Out.Flush();
 			}
 
-			// TODO should be an actual simulated key press
+			// TODO should be an actual simulated key press that triggers the interrupt
 			// force the CPU back into action, like we pressed a key
 			emulator.CPU.IsHalted = false;
 			emulator.CPU.IsStopped = false;

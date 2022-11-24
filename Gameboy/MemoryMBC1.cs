@@ -26,7 +26,14 @@ public class MemoryMBC1 : Memory
 		memoryModelSelector = 0x00;
 	}
 
-	protected override int ActiveROMBank => (romBankHigh << 5) | romBankLow;
+	protected override int ActiveROMBank
+	{
+		get
+		{
+			var result = (romBankHigh << 5) | romBankLow;
+			return result == 0 ? 1 : result;
+		}
+	}
 
 	protected override int ActiveRAMBank => ramBank;
 
@@ -41,10 +48,6 @@ public class MemoryMBC1 : Memory
 				break;
 			case <= ROM_BANK_SELECTOR_END:
 				romBankLow = (byte)(value & 0b0001_1111);
-				if (romBankLow == 0)
-				{
-					romBankLow = 1;
-				}
 				break;
 			case <= RAM_BANK_SELECTOR_END:
 				// "16/8 mode"

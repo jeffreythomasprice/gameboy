@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Gameboy;
 
@@ -34,7 +35,7 @@ public class Cartridge
 		HUDSON_HUC_1 = 0xff,
 	}
 
-	public record BankInfo(int Count, int Length);
+	public record BankInfo(int Count, int Length) { }
 
 	private readonly byte[] data;
 
@@ -103,10 +104,10 @@ public class Cartridge
 
 	public ReadOnlySpan<byte> GetROMBankBytes(int i) => GetBytes(i * ROMBanks.Length, ROMBanks.Length);
 
-	public Memory CreateMemory() =>
+	public Memory CreateMemory(ILoggerFactory loggerFactory) =>
 		CartridgeType switch
 		{
-			Type.ROM_MBC1 or Type.ROM_MBC1_RAM or Type.ROM_MBC1_RAM_BATTERY => new MemoryMBC1(this),
+			Type.ROM_MBC1 or Type.ROM_MBC1_RAM or Type.ROM_MBC1_RAM_BATTERY => new MemoryMBC1(loggerFactory, this),
 			_ => throw new NotImplementedException($"unimplemented cartridge type {CartridgeType}"),
 		};
 }

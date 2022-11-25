@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Gameboy;
 
 public class MemoryMBC1 : Memory
@@ -17,7 +19,7 @@ public class MemoryMBC1 : Memory
 	private byte ramBank;
 	private byte memoryModelSelector;
 
-	public MemoryMBC1(Cartridge cartridge) : base(cartridge) { }
+	public MemoryMBC1(ILoggerFactory loggerFactory, Cartridge cartridge) : base(loggerFactory, cartridge) { }
 
 	public override void Reset()
 	{

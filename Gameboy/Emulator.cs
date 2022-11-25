@@ -13,7 +13,7 @@ public class Emulator : ISteppable
 
 	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge)
 	{
-		memory = cartridge.CreateMemory();
+		memory = cartridge.CreateMemory(loggerFactory);
 		cpu = new CPU(loggerFactory, memory);
 		serialIO = new SerialIO(loggerFactory, memory);
 		keypad = new Keypad(loggerFactory, memory);
@@ -29,6 +29,15 @@ public class Emulator : ISteppable
 		{
 			video.ResetLY();
 			newValue = 0;
+		};
+
+		video.SetVideoMemoryEnabled += (enabled) =>
+		{
+			memory.VideoMemoryEnabled = enabled;
+		};
+		video.SetSpriteAttributeMemoryEnabled += (enabled) =>
+		{
+			memory.SpriteAttributeMemoryEnabled = enabled;
 		};
 	}
 

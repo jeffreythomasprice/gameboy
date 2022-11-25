@@ -4,6 +4,8 @@ namespace Gameboy;
 
 public class Video : ISteppable
 {
+	public delegate void SetMemoryRegionEnabledDelegate(bool enabled);
+
 	/*
 	state machine:
 
@@ -26,6 +28,9 @@ public class Video : ISteppable
 
 	public const int ScreenWidth = 160;
 	public const int ScreenHeight = 144;
+
+	public event SetMemoryRegionEnabledDelegate? SetVideoMemoryEnabled;
+	public event SetMemoryRegionEnabledDelegate? SetSpriteAttributeMemoryEnabled;
 
 	private readonly ILogger logger;
 	private readonly IMemory memory;
@@ -64,51 +69,7 @@ public class Video : ISteppable
 		Clock += advance;
 		ticksRemainingInCurrentState -= advance;
 
-		// control registers
-		var registerLCDC = memory.ReadUInt8(Memory.IO_LCDC);
-		var registerSTAT = memory.ReadUInt8(Memory.IO_STAT);
-
-		void triggerVBlankInterrupt()
-		{
-			// TODO trigger v blank interrupt
-		}
-
-		void triggerSTATInterrupt()
-		{
-			// TODO trigger STAT interrupt
-		}
-
-		void triggerSTATInterruptIfMaskSet(byte mask)
-		{
-			if ((registerSTAT & mask) != 0)
-			{
-				triggerSTATInterrupt();
-			}
-		}
-
-		void triggerSTATInterruptBasedOnLYAndLYC()
-		{
-			// trigger interrupt based on which scan line we're on
-			if ((registerSTAT & 0b0100_0000) != 0)
-			{
-				var statConditionFlag = (registerSTAT & 0b0000_0100) != 0;
-				var registerLYC = memory.ReadUInt8(Memory.IO_LYC);
-				if (
-					(statConditionFlag && registerLY == registerLYC) ||
-					(!statConditionFlag && registerLY != registerLYC)
-				)
-				{
-					triggerSTATInterrupt();
-				}
-			}
-		}
-
-		void setStatMode(byte mode)
-		{
-			memory.WriteUInt8(Memory.IO_STAT, (byte)((registerSTAT & 0b1111_1100) | (mode & 0b0000_0011)));
-		}
-
-		// handle the state machine
+		// advance state machine if enough time has passed
 		const UInt64 HBlankTime = 201;
 		const UInt64 SpriteAttrCopyTime = 77;
 		const UInt64 AllVideoMemCopyTime = 169;
@@ -116,6 +77,10 @@ public class Video : ISteppable
 		const int ScreenHeightPlusExtra = ScreenHeight + 10;
 		if (ticksRemainingInCurrentState == 0)
 		{
+			// control registers
+			var registerLCDC = memory.ReadUInt8(Memory.IO_LCDC);
+			var registerSTAT = memory.ReadUInt8(Memory.IO_STAT);
+
 			switch (state)
 			{
 				case State.HBlank:
@@ -125,11 +90,7 @@ public class Video : ISteppable
 					logger.LogTrace($"state={state}, ticks={ticksRemainingInCurrentState}");
 					setStatMode(0b10);
 					triggerSTATInterruptIfMaskSet(0b0010_0000);
-
-					// TODO disable sprite attribute memory
-
-					// TODO make a copy of sprite attribute memory, because writing should be disabled
-
+					disableSpriteAttributeMemory();
 					break;
 
 				case State.SpriteAttrCopy:
@@ -138,31 +99,14 @@ public class Video : ISteppable
 					ticksRemainingInCurrentState = AllVideoMemCopyTime;
 					logger.LogTrace($"state={state}, ticks={ticksRemainingInCurrentState}");
 					setStatMode(0b11);
-
-					// TODO disable video memory
-
-					/*
-					TODO JEFF get a copy of relevant video memory, because writing should be disabled
-					find all sprites at current LY
-					find all background tiles and window tiles that sohuld be drawn
-					*/
+					disableVideoMemory();
 					break;
 
 				case State.AllVideoMemCopy:
 					// actually draw some stuff
 					if (registerLY < ScreenHeight)
 					{
-						/*
-						TODO actually draw scan line
-
-						find all the sprites that will be shown here
-						draw background color 0
-						draw window color 0
-						draw all sprites with priority bit 0 set
-						draw background colors 1-3
-						draw window colors 1-3
-						draw all sprites with priority bit 0 reset
-						*/
+						drawScanLine();
 					}
 
 					// end of mode 11, either transition to mode 00 for a new scan line, or to mode 01 V blank
@@ -187,7 +131,8 @@ public class Video : ISteppable
 						triggerSTATInterruptIfMaskSet(0b0001_0000);
 					}
 					triggerSTATInterruptBasedOnLYAndLYC();
-					// TODO enable video memory and sprite attribute memory
+					enableSpriteAttributeMemory();
+					enableVideoMemory();
 					break;
 
 				case State.VBlank:
@@ -201,10 +146,92 @@ public class Video : ISteppable
 					triggerSTATInterruptBasedOnLYAndLYC();
 					break;
 			}
+
+			void triggerVBlankInterrupt()
+			{
+				memory.WriteUInt8(Memory.IO_IF, (byte)(memory.ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_VBLANK));
+			}
+
+			void triggerLCDCInterrupt()
+			{
+				memory.WriteUInt8(Memory.IO_IF, (byte)(memory.ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_LCDC));
+			}
+
+			void triggerSTATInterruptIfMaskSet(byte mask)
+			{
+				if ((registerSTAT & mask) != 0)
+				{
+					triggerLCDCInterrupt();
+				}
+			}
+
+			void triggerSTATInterruptBasedOnLYAndLYC()
+			{
+				// trigger interrupt based on which scan line we're on
+				if ((registerSTAT & 0b0100_0000) != 0)
+				{
+					var statConditionFlag = (registerSTAT & 0b0000_0100) != 0;
+					var registerLYC = memory.ReadUInt8(Memory.IO_LYC);
+					if (
+						(statConditionFlag && registerLY == registerLYC) ||
+						(!statConditionFlag && registerLY != registerLYC)
+					)
+					{
+						triggerLCDCInterrupt();
+					}
+				}
+			}
+
+			void setStatMode(byte mode)
+			{
+				memory.WriteUInt8(Memory.IO_STAT, (byte)((registerSTAT & 0b1111_1100) | (mode & 0b0000_0011)));
+			}
+
+			void enableVideoMemory()
+			{
+				logger.LogTrace("enabling video memory");
+				SetVideoMemoryEnabled?.Invoke(true);
+			}
+
+			void disableVideoMemory()
+			{
+				logger.LogTrace("disabling video memory");
+				SetVideoMemoryEnabled?.Invoke(false);
+			}
+
+			void enableSpriteAttributeMemory()
+			{
+				logger.LogTrace("enabling sprite attribute memory");
+				SetSpriteAttributeMemoryEnabled?.Invoke(true);
+			}
+
+			void disableSpriteAttributeMemory()
+			{
+				logger.LogTrace("disabling sprite attribute memory");
+				SetSpriteAttributeMemoryEnabled?.Invoke(false);
+			}
+
+			void drawScanLine()
+			{
+				/*
+				TODO JEFF actually draw scan line
+
+				find all the sprites that will be shown here
+				draw background color 0
+				draw window color 0
+				draw all sprites with priority bit 0 set
+				draw background colors 1-3
+				draw window colors 1-3
+				draw all sprites with priority bit 0 reset
+				*/
+
+				var spriteAttributes = memory.ReadArray(Memory.SPRITE_ATTRIBUTES_START, Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1);
+				// TODO struct to help parsing array?
+			}
 		}
 
 		/*
-		TODO JEFF VIDEO!
+		TODO JEFF clean up docs
 
 		summary of docs
 
@@ -352,16 +379,6 @@ public class Video : ISteppable
 
 		LYC
 			LY compare, used depending on STAT to trigger interrupts based on what line we're on
-
-		DMA
-			writing a value here triggers a hardware memory copy starting from the address written here, left shift 8 bits
-			i.e. write 0x12 here and it starts copying from 0x1200
-			while a copy is in progress everything except high RAM (INTERNAL_RAM_2_START) is unavailable
-			a copy transfers 0x8c = 140 bytes
-			40 sprites * 28 bits = 1120 bits = 140 bytes
-			writing to sprite attribute memory is possible during H blank and V blank, but not otherwise
-			DMA always works regardless of mode
-			copies 1 byte per instruction or 1 byte per 4 ticks, or 0x8c * 4 = 560 clock ticks
 
 		BGP
 			palette data for background and window

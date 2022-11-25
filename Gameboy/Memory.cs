@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Gameboy;
 
 public abstract class Memory : IMemory, ISteppable
@@ -87,6 +89,7 @@ public abstract class Memory : IMemory, ISteppable
 	public event MemoryWriteDelegate? IORegisterDIVWrite;
 	public event MemoryWriteDelegate? IORegisterLYWrite;
 
+	private readonly ILogger logger;
 	private readonly Cartridge cartridge;
 
 	private readonly byte[] videoRAM = new byte[VIDEO_RAM_END - VIDEO_RAM_START + 1];
@@ -96,10 +99,19 @@ public abstract class Memory : IMemory, ISteppable
 	private readonly byte[] ioPorts = new byte[IO_PORTS_END + 1];
 	private readonly byte[,] switchableRAMBanks;
 	private byte interruptsEnabled;
+
 	private UInt64 clock;
 
-	public Memory(Cartridge cartridge)
+	private bool videoMemoryEnabled;
+	private bool spriteAttributeMemoryEnabled;
+
+	private UInt16 dmaSourceAddress;
+	private int dmaDestinationIndex;
+	private int dmaCopiesRemaining;
+
+	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge)
 	{
+		logger = loggerFactory.CreateLogger<Memory>();
 		this.cartridge = cartridge;
 		switchableRAMBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
 		Reset();
@@ -137,7 +149,10 @@ public abstract class Memory : IMemory, ISteppable
 				ROMWrite(address, value);
 				break;
 			case <= VIDEO_RAM_END:
-				videoRAM[address - VIDEO_RAM_START] = value;
+				if (VideoMemoryEnabled)
+				{
+					videoRAM[address - VIDEO_RAM_START] = value;
+				}
 				break;
 			case <= SWITCHABLE_RAM_BANK_END:
 				if (RAMBankEnabled)
@@ -152,7 +167,10 @@ public abstract class Memory : IMemory, ISteppable
 				internalRAM1[address - ECHO_INTERNAL_RAM_START] = value;
 				break;
 			case <= SPRITE_ATTRIBUTES_END:
-				spriteAttributes[address - SPRITE_ATTRIBUTES_START] = value;
+				if (SpriteAttributeMemoryEnabled)
+				{
+					spriteAttributes[address - SPRITE_ATTRIBUTES_START] = value;
+				}
 				break;
 			case <= UNUSED_1_END:
 				break;
@@ -167,6 +185,21 @@ public abstract class Memory : IMemory, ISteppable
 							break;
 						case IO_LY:
 							IORegisterLYWrite?.Invoke(oldValue, ref value);
+							break;
+						case IO_DMA:
+							// the value written here is used to pick the high byte of the address to start reading from
+							// only actually start a new DMA transfer if one is not in progress
+							if (dmaCopiesRemaining == 0)
+							{
+								dmaSourceAddress = (UInt16)(value << 8);
+								dmaDestinationIndex = 0;
+								// docs seem to indicate that it copies only the 28 used bits from the 32-bit sprite values
+								// 28 bits * 40 sprites = 140 bytes, where the whole sprite attrib area is 160 bytes
+								// other docs and code samples make no mention of having to pack or unpack data though, so I'm assuming that's nonsense
+								dmaCopiesRemaining = 160;
+							}
+							// always clear it
+							value = 0;
 							break;
 					}
 					ioPorts[address - IO_PORTS_START] = value;
@@ -232,12 +265,45 @@ public abstract class Memory : IMemory, ISteppable
 		ioPorts[IO_WX - IO_PORTS_START] = 0x00;
 		// 0xffff
 		interruptsEnabled = 0x00;
+
+		clock = 0;
+
+		videoMemoryEnabled = true;
+		spriteAttributeMemoryEnabled = true;
+
+		dmaSourceAddress = 0x0000;
+		dmaDestinationIndex = 0;
+		dmaCopiesRemaining = 0;
 	}
 
 	public void Step()
 	{
 		// minimum instruction size, no need to waste real time going tick by tick
 		Clock += 4;
+
+		if (dmaCopiesRemaining > 0)
+		{
+			spriteAttributes[dmaDestinationIndex] = ReadUInt8(dmaSourceAddress);
+			dmaSourceAddress++;
+			dmaDestinationIndex++;
+			dmaCopiesRemaining--;
+			if (dmaCopiesRemaining == 0)
+			{
+				logger.LogTrace("DMA complete");
+			}
+		}
+	}
+
+	public bool VideoMemoryEnabled
+	{
+		get => videoMemoryEnabled;
+		set => videoMemoryEnabled = value;
+	}
+
+	public bool SpriteAttributeMemoryEnabled
+	{
+		get => spriteAttributeMemoryEnabled;
+		set => spriteAttributeMemoryEnabled = value;
 	}
 
 	/// <summary>

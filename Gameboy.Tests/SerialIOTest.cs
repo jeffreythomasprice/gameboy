@@ -108,7 +108,7 @@ public class SerialIOTest
 		var cpu = new CPU(loggerFactory, memory);
 		serialIO.DataAvailable += (value) =>
 		{
-			cpu.SerialIOCompleteInterrupt();
+			cpu.TriggerSerialIOCompleteInterrupt();
 		};
 
 		// bit 0 = 1 = internal clock

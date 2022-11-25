@@ -368,13 +368,13 @@ public class CPU : ISteppable
 		}
 	}
 
-	public void SerialIOCompleteInterrupt()
+	public void TriggerSerialIOCompleteInterrupt()
 	{
 		logger.LogTrace("serial IO interrupt triggered");
 		serialIOInterruptTriggered = true;
 	}
 
-	public void KeypadInterrupt()
+	public void TriggerKeypadInterrupt()
 	{
 		logger.LogTrace("keypad interrupt triggered");
 		keypadInterruptTriggered = true;

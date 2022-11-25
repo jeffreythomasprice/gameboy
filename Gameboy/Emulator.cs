@@ -18,11 +18,11 @@ public class Emulator : ISteppable
 
 		serialIO.DataAvailable += (value) =>
 		{
-			cpu.SerialIOCompleteInterrupt();
+			cpu.TriggerSerialIOCompleteInterrupt();
 		};
 		keypad.KeypadRegisterDelta += (oldValue, newValue) =>
 		{
-			cpu.KeypadInterrupt();
+			cpu.TriggerKeypadInterrupt();
 		};
 	}
 

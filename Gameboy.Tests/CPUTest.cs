@@ -1785,6 +1785,23 @@ public class CPUTest
 		}
 	}
 
+	[Fact]
+	public void Instruction_10_KeypadResumes()
+	{
+		var actual = PerformTest(
+			new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x10, 0x00 }), },
+			(CPUBuilder actual) => actual,
+			new MemoryData[0],
+			(CPUBuilder expected) => expected
+				.IsStopped(true)
+				.AddClock(4)
+				.AddPC(2)
+		);
+		actual.TriggerKeypadInterrupt();
+		actual.Step();
+		Assert.False(actual.IsStopped);
+	}
+
 	[Theory]
 	[MemberData(nameof(InstructionData_18_20_28_30_38))]
 	public void Instruction_18_20_28_30_38(
@@ -3173,6 +3190,23 @@ public class CPUTest
 					.IsHalted(true),
 			};
 		}
+	}
+
+	[Fact]
+	public void Instruction_76_KeypadResumes()
+	{
+		var actual = PerformTest(
+			new MemoryData[] { new(CPU.InitialPC, new byte[] { 0x76, }), },
+			(CPUBuilder actual) => actual,
+			new MemoryData[0],
+			(CPUBuilder expected) => expected
+				.IsHalted(true)
+				.AddClock(4)
+				.AddPC(1)
+		);
+		actual.TriggerKeypadInterrupt();
+		actual.Step();
+		Assert.False(actual.IsHalted);
 	}
 
 	[Theory]
@@ -9563,7 +9597,7 @@ public class CPUTest
 		}
 	}
 
-	private void PerformTest(
+	private CPU PerformTest(
 		MemoryData[] actualMemory,
 		Func<CPUBuilder, CPUBuilder> actualBuilder,
 		MemoryData[] expectedMemory,
@@ -9584,6 +9618,7 @@ public class CPUTest
 		{
 			expectedMemoryValue.AssertEquals(memory);
 		}
+		return actual;
 	}
 
 	private void AssertEqual(CPU expected, CPU actual)

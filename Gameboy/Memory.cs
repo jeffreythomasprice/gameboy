@@ -23,8 +23,8 @@ public abstract class Memory : IMemory, ISteppable
 	public const UInt16 UNUSED_2_START = 0xff4c;
 	public const UInt16 UNUSED_2_END = INTERNAL_RAM_2_START - 1;
 	public const UInt16 INTERNAL_RAM_2_START = 0xff80;
-	public const UInt16 INTERNAL_RAM_2_END = INTERRUPT_ENABLE_REGISTER - 1;
-	public const UInt16 INTERRUPT_ENABLE_REGISTER = 0xffff;
+	public const UInt16 INTERNAL_RAM_2_END = IO_IE - 1;
+	public const UInt16 IO_IE = 0xffff;
 
 	public const UInt16 IO_P1 = 0xff00;
 	public const int IO_SB = 0xff01;
@@ -120,7 +120,7 @@ public abstract class Memory : IMemory, ISteppable
 			<= IO_PORTS_END => ioPorts[address - IO_PORTS_START],
 			<= UNUSED_2_END => 0,
 			<= INTERNAL_RAM_2_END => internalRAM2[address - INTERNAL_RAM_2_START],
-			INTERRUPT_ENABLE_REGISTER => interruptsEnabled,
+			IO_IE => interruptsEnabled,
 		};
 
 	public void WriteUInt8(ushort address, byte value)
@@ -159,7 +159,7 @@ public abstract class Memory : IMemory, ISteppable
 			case <= INTERNAL_RAM_2_END:
 				internalRAM2[address - INTERNAL_RAM_2_START] = value;
 				break;
-			case INTERRUPT_ENABLE_REGISTER:
+			case IO_IE:
 				interruptsEnabled = value;
 				break;
 		};

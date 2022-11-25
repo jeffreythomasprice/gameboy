@@ -16,7 +16,7 @@ public class TimerTest
 		};
 
 		// enable interrupts
-		memory.WriteUInt8(Memory.INTERRUPT_ENABLE_REGISTER, Memory.IF_MASK_TIMER);
+		memory.WriteUInt8(Memory.IO_IE, Memory.IF_MASK_TIMER);
 
 		memory.WriteUInt8(Memory.IO_TAC, tac);
 		memory.WriteUInt8(Memory.IO_TMA, tma);

@@ -118,7 +118,7 @@ public class SerialIOTest
 		// data byte
 		memory.WriteUInt8(Memory.IO_SB, 0b1010_1100);
 		// enable interrupts
-		memory.WriteUInt8(Memory.INTERRUPT_ENABLE_REGISTER, 0b0000_1000);
+		memory.WriteUInt8(Memory.IO_IE, 0b0000_1000);
 
 		// 8 ticks for each bit of the output, on the 8th tick it should emit the byte
 		serialIO.Step();

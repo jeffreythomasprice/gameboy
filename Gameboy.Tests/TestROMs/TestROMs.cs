@@ -9,11 +9,11 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/cpu_instrs.gb",
+			1000000000,
 			"""
 			cpu_instrs
 
-			01:ok  02:ok  03:ok  04:ok  05:ok  06:ok  07:ok  08:ok  98:ok  10:ok  11:ok
-
+			01:ok  02:ok  03:ok  04:ok  05:ok  06:ok  07:ok  08:ok  09:ok  10:ok  11:ok
 			"""
 		);
 	}
@@ -23,6 +23,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/01-special.gb",
+			10000000,
 			"""
 			01-special
 
@@ -38,6 +39,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/02-interrupts.gb",
+			10000000,
 			"""
 			02-interrupts
 
@@ -53,6 +55,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb",
+			100000000,
 			"""
 			03-op sp,hl
 
@@ -68,6 +71,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/04-op r,imm.gb",
+			100000000,
 			"""
 			04-op r,imm
 
@@ -83,6 +87,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/05-op rp.gb",
+			100000000,
 			"""
 			05-op rp
 
@@ -98,6 +103,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/06-ld r,r.gb",
+			10000000,
 			"""
 			06-ld r,r
 
@@ -113,6 +119,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb",
+			10000000,
 			"""
 			07-jr,jp,call,ret,rst
 
@@ -128,6 +135,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/08-misc instrs.gb",
+			10000000,
 			"""
 			08-misc instrs
 
@@ -143,6 +151,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/09-op r,r.gb",
+			100000000,
 			"""
 			09-op r,r
 
@@ -158,6 +167,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/10-bit ops.gb",
+			100000000,
 			"""
 			10-bit ops
 
@@ -173,6 +183,7 @@ public class TestROMs
 	{
 		PerformTest(
 			"gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb",
+			100000000,
 			"""
 			11-op a,(hl)
 
@@ -183,13 +194,13 @@ public class TestROMs
 		);
 	}
 
-	private void PerformTest(string path, string expectedSerialOutput)
+	private void PerformTest(string path, UInt64 maxClock, string expectedSerialOutput)
 	{
 		using var stream = new FileStream(path, FileMode.Open);
-		PerformTest(stream, expectedSerialOutput);
+		PerformTest(stream, maxClock, expectedSerialOutput);
 	}
 
-	private void PerformTest(Stream stream, string expectedSerialOutput)
+	private void PerformTest(Stream stream, UInt64 maxClock, string expectedSerialOutput)
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
@@ -200,60 +211,46 @@ public class TestROMs
 		{
 			serialDataOutput.WriteByte(value);
 		};
-		// keep track of the last values of the program counter to try to detect CPU cycles
-		long lastSerialIOLength = 0;
-		var registerPCHistoryLastTimeWePressedAKey = new List<UInt16>();
-		var registerPCHistory = new List<UInt16>();
-		while (true)
+		string serialIOAsText() => System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray());
+		var foundSerialIOExitCondition = false;
+		while (emulator.Clock < maxClock)
 		{
+			emulator.Keypad.ClearKeys();
+
 			emulator.Step();
 			Console.Out.Flush();
 
-			// keep track of program counter, see if it stays on the same value for a while
-			registerPCHistory.Add(emulator.CPU.RegisterPC);
-			var pcIsStuck = false;
-			if (registerPCHistory.Count > 10)
+			// if we've output exactly the right thing, or the wrong charcters, or too many characters we can stop executing
+			if (
+				// first time only, that starts the final countdown until we time out
+				!foundSerialIOExitCondition &&
+				(
+					// found exactly the right number of characters, or too many
+					serialIOAsText().Length >= expectedSerialOutput.Length ||
+					// found the wrong characters
+					serialIOAsText() != expectedSerialOutput.Substring(0, serialIOAsText().Length)
+				)
+			)
 			{
-				registerPCHistory.RemoveAt(0);
-				pcIsStuck = registerPCHistory.ToHashSet().Count == 1;
+				foundSerialIOExitCondition = true;
+				// keep executing a short time to see if we output any extra spurrious characters
+				maxClock = emulator.Clock + 10000;
 			}
 
-			// if we're waiting on keypad input, or the pc is just hung try pressing a key
-			if (emulator.CPU.IsStopped || emulator.CPU.IsHalted || pcIsStuck)
+			// test programs tend to HALT when they're testing interrupts like timer
+			// STOP can only be resumed with a key press
+			if (emulator.CPU.IsStopped)
 			{
-				var makingProgress = false;
-				if (!registerPCHistory.SequenceEqual(registerPCHistoryLastTimeWePressedAKey))
-				{
-					logger.LogTrace("CPU is stuck, but PC is actively changing");
-					makingProgress = true;
-				}
-				else if (serialDataOutput.Length != lastSerialIOLength)
-				{
-					logger.LogTrace("CPU is stuck, but serial IO is being written to");
-					makingProgress = true;
-				}
-				if (!makingProgress)
-				{
-					logger.LogDebug("detected PC loop that key presses aren't fixing, aborting");
-					break;
-				}
-				logger.LogTrace("pressing key to try to unstick it");
-				lastSerialIOLength = serialDataOutput.Length;
-				registerPCHistoryLastTimeWePressedAKey.Clear();
-				registerPCHistoryLastTimeWePressedAKey.AddRange(registerPCHistory);
-				registerPCHistory.Clear();
-				emulator.Keypad.SetPressed(Key.A, true);
+				emulator.Keypad.SetPressed(Key.Start, true);
 				emulator.Step();
-				emulator.Keypad.ClearKeys();
-				Console.Out.Flush();
 			}
 		}
 		logger.LogTrace($"wrote {serialDataOutput.Length} bytes to serial IO");
 		if (serialDataOutput.Length > 0)
 		{
-			logger.LogTrace($"serial data as text:\n{System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray())}");
+			logger.LogTrace($"serial data as text:\n{serialIOAsText()}");
 		}
 		Console.Out.Flush();
-		Assert.Equal(expectedSerialOutput, System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray()));
+		Assert.Equal(expectedSerialOutput, serialIOAsText());
 	}
 }

@@ -17,11 +17,6 @@ public class Emulator : ISteppable
 		serialIO = new SerialIO(loggerFactory, memory);
 		keypad = new Keypad(loggerFactory, memory);
 		timer = new Timer(loggerFactory, memory);
-
-		keypad.KeypadRegisterDelta += (oldValue, newValue) =>
-		{
-			cpu.Resume();
-		};
 	}
 
 	public IMemory Memory => memory;

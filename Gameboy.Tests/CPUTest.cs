@@ -1797,9 +1797,11 @@ public class CPUTest
 				.AddClock(4)
 				.AddPC(2)
 		);
-		actual.Resume();
+		var expectedPC = actual.RegisterPC + 1;
+		actual.IsStopped = false;
 		actual.Step();
 		Assert.False(actual.IsStopped);
+		Assert.Equal(expectedPC, actual.RegisterPC);
 	}
 
 	[Theory]
@@ -3204,9 +3206,11 @@ public class CPUTest
 				.AddClock(4)
 				.AddPC(1)
 		);
-		actual.Resume();
+		var expectedPC = actual.RegisterPC + 1;
+		actual.IsHalted = false;
 		actual.Step();
 		Assert.False(actual.IsHalted);
+		Assert.Equal(expectedPC, actual.RegisterPC);
 	}
 
 	[Theory]
@@ -9645,7 +9649,7 @@ public class CPUTest
 		AssertEqual("clock", expected.Clock, actual.Clock);
 		AssertEqual("is halted", expected.IsHalted, actual.IsHalted);
 		AssertEqual("is stopped", expected.IsStopped, actual.IsStopped);
-		AssertEqual("interrupts enabled", expected.InterruptsEnabled, actual.InterruptsEnabled);
+		AssertEqual("interrupts enabled", expected.IME, actual.IME);
 	}
 
 	private void AssertEqual<T>(string name, T expected, T actual) where T : IEquatable<T>

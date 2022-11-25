@@ -67,7 +67,7 @@ public class CPU : ISteppable
 	private UInt64 clock;
 	private bool isStopped;
 	private bool isHalted;
-	private bool interruptsEnabled;
+	private bool ime;
 	private readonly Queue<InterruptEnableDelta> interruptEnableDeltas = new();
 
 	public CPU(ILoggerFactory loggerFactory, IMemory memory)
@@ -259,10 +259,13 @@ public class CPU : ISteppable
 		internal set => isHalted = value;
 	}
 
-	public bool InterruptsEnabled
+	/// <summary>
+	/// Interrupt Master Enable
+	/// </summary>
+	public bool IME
 	{
-		get => interruptsEnabled;
-		internal set => interruptsEnabled = value;
+		get => ime;
+		internal set => ime = value;
 	}
 
 	public void Reset()
@@ -281,27 +284,26 @@ public class CPU : ISteppable
 		clock = 0;
 		isStopped = false;
 		isHalted = false;
-		interruptsEnabled = true;
+		ime = true;
 		interruptEnableDeltas.Clear();
 	}
 
 	public void Step()
 	{
-		if (IsStopped)
+		var registerPCBefore = RegisterPC;
+		var shouldResetPC = false;
+
+		// special case for STOP, resumes on any key press
+		if (IsStopped && (memory.ReadUInt8(Memory.IO_IF) & Memory.IF_MASK_KEYPAD) != 0)
 		{
-			logger.LogTrace("skipping instruction, previous STOP");
-			return;
-		}
-		if (IsHalted)
-		{
-			logger.LogTrace("skipping instruction, previous HALT");
-			return;
+			logger.LogTrace("resuming from state STOP, keyboard interrupt flag set");
+			IsStopped = false;
 		}
 
 		// interrupts fire if the relevant flag in the IO register is set AND the master enable flag on the CPU is set
-		if (InterruptsEnabled)
+		if (IME || IsHalted)
 		{
-			var interruptEnableRegister = memory.ReadUInt8(Memory.INTERRUPT_ENABLE_REGISTER);
+			var interruptEnableRegister = memory.ReadUInt8(Memory.IO_IE);
 			var interruptFlag = memory.ReadUInt8(Memory.IO_IF);
 			foreach (var (log, mask, address) in new[] {
 				("v-blank", Memory.IF_MASK_VBLANK, (UInt16)0x0040),
@@ -315,30 +317,55 @@ public class CPU : ISteppable
 				var triggered = (interruptFlag & mask) != 0;
 				if (enabled && triggered)
 				{
-					logger.LogTrace($"{log} interrupt handled");
-					memory.WriteUInt8(Memory.IO_IF, (byte)(interruptFlag & (~mask)));
-					InterruptsEnabled = false;
-					PushUInt16(RegisterPC);
-					RegisterPC = address;
+					if (IsHalted)
+					{
+						logger.LogTrace($"resuming from HALT because of {log} interrupt");
+						IsHalted = false;
+						if (!IME)
+						{
+							shouldResetPC = true;
+						}
+					}
+					else
+					{
+						logger.LogTrace($"{log} interrupt handled");
+						memory.WriteUInt8(Memory.IO_IF, (byte)(interruptFlag & (~mask)));
+						IME = false;
+						PushUInt16(RegisterPC);
+						RegisterPC = address;
+					}
 					break;
 				}
 			}
 		}
 
-		ExecuteInstruction();
+		if (IsStopped)
+		{
+			logger.LogTrace("CPU is in state STOP");
+			// stopped CPU has no clock running, only keypad will break out of this
+		}
+		else if (IsHalted)
+		{
+			logger.LogTrace("CPU is in state HALT");
+			// stop does advance time, because we might be jumped out by a timer interrupt
+			Clock += 4;
+		}
+		else
+		{
+			ExecuteInstruction();
+		}
 
 		if (interruptEnableDeltas.TryPeek(out var next) && Clock > next.Clock)
 		{
-			InterruptsEnabled = interruptEnableDeltas.Dequeue().Value;
-			logger.LogTrace($"interrupts enabled = {InterruptsEnabled}");
+			IME = interruptEnableDeltas.Dequeue().Value;
+			logger.LogTrace($"interrupts enabled = {IME}");
 		}
-	}
 
-	public void Resume()
-	{
-		logger.LogTrace("resume");
-		IsStopped = false;
-		IsHalted = false;
+		if (shouldResetPC)
+		{
+			logger.LogTrace($"PC stuck, resetting back to {ToHex(registerPCBefore)}");
+			RegisterPC = registerPCBefore;
+		}
 	}
 
 	private void ExecuteInstruction()
@@ -1109,20 +1136,7 @@ public class CPU : ISteppable
 			case 0x76:
 				{
 					logger.LogTrace("HALT");
-					if (InterruptsEnabled)
-					{
-						IsHalted = true;
-					}
-					else
-					{
-						/*
-						TODO special case HALT behavior for when interrupts are disabled
-						confusing language in reference material
-						sounds like it duplicates the next byte, which can cause multi-byte instructions to be real weird
-						and another halt duplicate can hang the cpu forever
-						*/
-						throw new NotImplementedException();
-					}
+					IsHalted = true;
 					Clock += 4;
 				}
 				break;
@@ -3175,7 +3189,7 @@ public class CPU : ISteppable
 	{
 		logger.LogTrace("RETI");
 		RegisterPC = PopUInt16();
-		interruptsEnabled = true;
+		ime = true;
 		Clock += 16;
 	}
 

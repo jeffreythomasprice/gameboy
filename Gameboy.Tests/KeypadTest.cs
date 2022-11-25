@@ -242,7 +242,7 @@ public class KeypadTest
 		var cpu = new CPU(loggerFactory, memory);
 
 		// enable interrupts
-		memory.WriteUInt8(Memory.INTERRUPT_ENABLE_REGISTER, Memory.IF_MASK_KEYPAD);
+		memory.WriteUInt8(Memory.IO_IE, Memory.IF_MASK_KEYPAD);
 
 		var interruptFired = false;
 		keypad.KeypadRegisterDelta += (oldValue, newValue) =>

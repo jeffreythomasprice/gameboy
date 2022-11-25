@@ -28,7 +28,7 @@ public class CPUBuilder
 		cpu.Clock = source.Clock;
 		cpu.IsStopped = source.IsStopped;
 		cpu.IsHalted = source.IsHalted;
-		cpu.InterruptsEnabled = source.InterruptsEnabled;
+		cpu.IME = source.IME;
 		return this;
 	}
 
@@ -166,7 +166,7 @@ public class CPUBuilder
 
 	public CPUBuilder InterruptsEnabled(bool value)
 	{
-		cpu.InterruptsEnabled = value;
+		cpu.IME = value;
 		return this;
 	}
 }

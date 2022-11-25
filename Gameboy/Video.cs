@@ -4,10 +4,43 @@ namespace Gameboy;
 
 public class Video : ISteppable
 {
+	/*
+	state machine:
+
+	LY tracks the current scan line, with an extra 10 invisible scan lines outside the screen
+	for LY=0; LY<=153; LY++ {
+		mode = 00 = H blank, lasts 201 ticks
+		mode = 10 = sprite attr memory is disabled, lasts 77 ticks
+		mode = 11 = sprite and video is disabled, lasts 169 ticks
+	}
+	mode = 01 = V blank, lasts 1386 ticks, i.e. until this total operation has taken 70224 total ticks
+	*/
+
+	private enum State
+	{
+		ScanLines,
+		VBlank
+	}
+
+	private enum ScanLineState
+	{
+		HBlank,
+		SpriteAttrCopy,
+		AllVideoMemCopy
+	}
+
+	public const int ScreenWidth = 160;
+	public const int ScreenHeight = 144;
+
 	private readonly ILogger logger;
 	private readonly IMemory memory;
 
 	private UInt64 clock;
+
+	private State state;
+	private ScanLineState scanLineState;
+	private byte registerLY;
+	private UInt64 ticksRemainingInCurrentState;
 
 	public Video(ILoggerFactory loggerFactory, IMemory memory)
 	{
@@ -24,12 +57,172 @@ public class Video : ISteppable
 	public void Reset()
 	{
 		Clock = 0;
+
+		state = State.VBlank;
+		scanLineState = ScanLineState.HBlank;
+		registerLY = 0;
+		ticksRemainingInCurrentState = 0;
 	}
 
 	public void Step()
 	{
-		// minimum instruction size, no need to waste real time going tick by tick
-		Clock += 4;
+		// if LY is written to reset it
+		if (memory.ReadUInt8(Memory.IO_LY) != registerLY)
+		{
+			logger.LogTrace("LY reset");
+			// docs are unclear about what this does to the video state machine, just says
+			// "Writing will reset the counter."
+			registerLY = 0;
+			memory.WriteUInt8(Memory.IO_LY, 0);
+		}
+
+		// advance time
+		var advance = Math.Min(ticksRemainingInCurrentState, 4);
+		Clock += advance;
+		ticksRemainingInCurrentState -= advance;
+
+		// control registers
+		var registerLCDC = memory.ReadUInt8(Memory.IO_LCDC);
+		var registerSTAT = memory.ReadUInt8(Memory.IO_STAT);
+
+		void triggerVBlankInterrupt()
+		{
+			// TODO trigger v blank interrupt
+		}
+
+		void triggerSTATInterrupt()
+		{
+			// TODO trigger STAT interrupt
+		}
+
+		void triggerSTATInterruptIfMaskSet(byte mask)
+		{
+			if ((registerSTAT & mask) != 0)
+			{
+				triggerSTATInterrupt();
+			}
+		}
+
+		void triggerSTATInterruptBasedOnLYAndLYC()
+		{
+			// trigger interrupt based on which scan line we're on
+			if ((registerSTAT & 0b0100_0000) != 0)
+			{
+				var statConditionFlag = (registerSTAT & 0b0000_0100) != 0;
+				var registerLYC = memory.ReadUInt8(Memory.IO_LYC);
+				if (
+					(statConditionFlag && registerLY == registerLYC) ||
+					(!statConditionFlag && registerLY != registerLYC)
+				)
+				{
+					triggerSTATInterrupt();
+				}
+			}
+		}
+
+		void setStatMode(byte mode)
+		{
+			memory.WriteUInt8(Memory.IO_STAT, (byte)((registerSTAT & 0b1111_1100) | (mode & 0b0000_0011)));
+		}
+
+		// handle the state machine
+		const UInt64 HBlankTime = 201;
+		const UInt64 SpriteAttrCopyTime = 77;
+		const UInt64 AllVideoMemCopyTime = 169;
+		const UInt64 VBlankTime = 1386;
+		const int ScreenHeightPlusExtra = ScreenHeight + 10;
+		if (ticksRemainingInCurrentState == 0)
+		{
+			switch (state)
+			{
+				case State.ScanLines:
+					switch (scanLineState)
+					{
+						case ScanLineState.HBlank:
+							// end of mode 00, transition to mode 10, copy sprite attributes
+							scanLineState = ScanLineState.SpriteAttrCopy;
+							ticksRemainingInCurrentState = SpriteAttrCopyTime;
+							setStatMode(0b10);
+							triggerSTATInterruptIfMaskSet(0b0010_0000);
+
+							// TODO disable sprite attribute memory
+
+							// TODO make a copy of sprite attribute memory, because writing should be disabled
+
+							break;
+
+						case ScanLineState.SpriteAttrCopy:
+							// end of mode 10, transition to mode 11, copy video memory
+							scanLineState = ScanLineState.AllVideoMemCopy;
+							ticksRemainingInCurrentState = AllVideoMemCopyTime;
+							setStatMode(0b11);
+
+							// TODO disable video memory
+
+							/*
+							TODO JEFF get a copy of relevant video memory, because writing should be disabled
+							find all sprites at current LY
+							find all background tiles and window tiles that sohuld be drawn
+							*/
+							break;
+
+						case ScanLineState.AllVideoMemCopy:
+							// actually draw some stuff
+							if (registerLY < ScreenHeight)
+							{
+								/*
+								TODO actually draw scan line
+
+								find all the sprites that will be shown here
+								draw background color 0
+								draw window color 0
+								draw all sprites with priority bit 0 set
+								draw background colors 1-3
+								draw window colors 1-3
+								draw all sprites with priority bit 0 reset
+								*/
+							}
+
+							// end of mode 11, either transition to mode 00 for a new scan line, or to mode 01 V blank
+							registerLY++;
+							if (registerLY < ScreenHeightPlusExtra)
+							{
+								// more scan lines remaining, back to mode 00, H blank
+								scanLineState = ScanLineState.HBlank;
+								ticksRemainingInCurrentState = HBlankTime;
+								setStatMode(0b00);
+								triggerSTATInterruptIfMaskSet(0b0000_1000);
+							}
+							else
+							{
+								// no scan lines remain, to mode 01, V blank
+								state = State.VBlank;
+								ticksRemainingInCurrentState = VBlankTime;
+								setStatMode(0b10);
+								triggerVBlankInterrupt();
+								triggerSTATInterruptIfMaskSet(0b0001_0000);
+							}
+							triggerSTATInterruptBasedOnLYAndLYC();
+
+							// TODO enable video memory and sprite attribute memory
+
+							break;
+					}
+					break;
+
+				case State.VBlank:
+					state = State.ScanLines;
+					scanLineState = ScanLineState.HBlank;
+					registerLY = 0;
+					ticksRemainingInCurrentState = HBlankTime;
+					setStatMode(0b00);
+
+					triggerSTATInterruptIfMaskSet(0b0000_1000);
+					triggerSTATInterruptBasedOnLYAndLYC();
+
+					break;
+			}
+		}
 
 		/*
 		TODO JEFF VIDEO!
@@ -165,6 +358,8 @@ public class Video : ISteppable
 			mode 11 (copy) lasts 169-175 clock ticks
 
 			worst case 144 scan lines * (207 + 83 + 175) = 66960 clock ticks < 70224 clock ticks that we want per frame
+			except LY actually goes up to 153, so 154 * (207 + 83 + 175) = 71610, which is > 70224
+			best case for the full LY range is 154*(201+77+169) = 68838, which is again < 70224
 			at 60 fps 70224*60 = 4213440 ~= 4.02 MHz
 		
 		SCY, SCX
@@ -172,6 +367,9 @@ public class Video : ISteppable
 
 		LY
 			scan line that is actively being displayed
+			actually runs from 0 to 153 then loops back to 0, even though the screen is 144 pixels tall
+			so 10 "empty" scan lines?
+			writing sets to 0? "Writing will reset the counter."
 		
 		LYC
 			LY compare, used depending on STAT to trigger interrupts based on what line we're on
@@ -204,6 +402,14 @@ public class Video : ISteppable
 		WX, WY
 			window position
 			window is actually drawn at WX-7, WY
+		
+
+		expected timing:
+			for LY=0 to <= 153:
+				mode = 00 = H blank, lasts 201 ticks
+				mode = 10 = sprite attr memory is disabled, lasts 77 ticks
+				mode = 11 = sprite and video is disabled, lasts 169 ticks
+			mode = 01 = V blank, lasts 1386 ticks, i.e. until this total operation has taken 70224 total ticks
 		*/
 	}
 }

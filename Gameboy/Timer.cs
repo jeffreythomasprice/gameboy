@@ -50,7 +50,7 @@ public class Timer : ISteppable
 		DIV isn't controllable, it just always goes up
 		*/
 		var divHigh = memory.ReadUInt8(Memory.IO_DIV);
-		// if divHigh is not zero, but we last wrote zero, that means it got written to and should be reset to zero
+		// if div was written to reset it
 		if (divHigh != lastDivHigh)
 		{
 			divHigh = 0;

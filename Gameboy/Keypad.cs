@@ -15,6 +15,8 @@ public class Keypad : ISteppable
 
 	private UInt64 clock;
 	private Dictionary<Key, bool> state = new();
+	private byte arrowKeyMask;
+	private byte otherKeyMask;
 
 	public Keypad(ILoggerFactory loggerFactory, IMemory memory)
 	{
@@ -55,45 +57,14 @@ public class Keypad : ISteppable
 		var oldValue = memory.ReadUInt8(Memory.IO_P1);
 		var p14 = (oldValue & 0b0001_0000) != 0;
 		var p15 = (oldValue & 0b0010_0000) != 0;
-		// TODO precalculate the key masks so we don't do dictionary lookup every step
 		byte newValue = (byte)(0b0000_1111 | (oldValue & 0b1111_0000));
 		if (!p14 || p15)
 		{
-			if (IsPressed(Key.Right))
-			{
-				newValue &= 0b1111_1110;
-			}
-			if (IsPressed(Key.Left))
-			{
-				newValue &= 0b1111_1101;
-			}
-			if (IsPressed(Key.Up))
-			{
-				newValue &= 0b1111_1011;
-			}
-			if (IsPressed(Key.Down))
-			{
-				newValue &= 0b1111_0111;
-			}
+			newValue &= arrowKeyMask;
 		}
 		if (p14 || !p15)
 		{
-			if (IsPressed(Key.A))
-			{
-				newValue &= 0b1111_1110;
-			}
-			if (IsPressed(Key.B))
-			{
-				newValue &= 0b1111_1101;
-			}
-			if (IsPressed(Key.Select))
-			{
-				newValue &= 0b1111_1011;
-			}
-			if (IsPressed(Key.Start))
-			{
-				newValue &= 0b1111_0111;
-			}
+			newValue &= otherKeyMask;
 		}
 		memory.WriteUInt8(Memory.IO_P1, newValue);
 
@@ -115,6 +86,8 @@ public class Keypad : ISteppable
 	public void ClearKeys()
 	{
 		state.Clear();
+		arrowKeyMask = 0b1111_1111;
+		otherKeyMask = 0b1111_1111;
 	}
 
 	public bool IsPressed(Key key) =>
@@ -123,5 +96,44 @@ public class Keypad : ISteppable
 	public void SetPressed(Key key, bool value)
 	{
 		state[key] = value;
+
+		// low means key is pressed, so mask will ANDed with P1 to determine new P1
+		// only low nibble is used, one or the other or both masks are set
+
+		arrowKeyMask = 0b1111_1111;
+		if (IsPressed(Key.Right))
+		{
+			arrowKeyMask &= 0b1111_1110;
+		}
+		if (IsPressed(Key.Left))
+		{
+			arrowKeyMask &= 0b1111_1101;
+		}
+		if (IsPressed(Key.Up))
+		{
+			arrowKeyMask &= 0b1111_1011;
+		}
+		if (IsPressed(Key.Down))
+		{
+			arrowKeyMask &= 0b1111_0111;
+		}
+
+		otherKeyMask = 0b1111_1111;
+		if (IsPressed(Key.A))
+		{
+			otherKeyMask &= 0b1111_1110;
+		}
+		if (IsPressed(Key.B))
+		{
+			otherKeyMask &= 0b1111_1101;
+		}
+		if (IsPressed(Key.Select))
+		{
+			otherKeyMask &= 0b1111_1011;
+		}
+		if (IsPressed(Key.Start))
+		{
+			otherKeyMask &= 0b1111_0111;
+		}
 	}
 }

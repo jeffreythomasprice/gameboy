@@ -34,7 +34,9 @@ public abstract class Memory : IMemory, ISteppable
 	public const int IO_TIMA = 0xff05;
 	public const int IO_TMA = 0xff06;
 	public const int IO_TAC = 0xff07;
-	// 0xff08 through 0xff0f unused
+	// 0xff08 unused
+	// 0xff09 unused
+	public const int IO_IF = 0xff0f;
 	public const int IO_NR10 = 0xff10;
 	public const int IO_NR11 = 0xff11;
 	public const int IO_NR12 = 0xff12;
@@ -73,6 +75,12 @@ public abstract class Memory : IMemory, ISteppable
 	public const UInt16 IO_OBP1 = 0xff49;
 	public const UInt16 IO_WY = 0xff4a;
 	public const UInt16 IO_WX = 0xff4b;
+
+	public const byte IF_MASK_VBLANK = 0b0000_0001;
+	public const byte IF_MASK_LCDC = 0b0000_0010;
+	public const byte IF_MASK_TIMER = 0b0000_0100;
+	public const byte IF_MASK_SERIAL = 0b0000_1000;
+	public const byte IF_MASK_KEYPAD = 0b0001_0000;
 
 	private readonly Cartridge cartridge;
 
@@ -166,6 +174,7 @@ public abstract class Memory : IMemory, ISteppable
 		ioPorts[IO_TIMA - IO_PORTS_START] = 0x00;
 		ioPorts[IO_TMA - IO_PORTS_START] = 0x00;
 		ioPorts[IO_TAC - IO_PORTS_START] = 0x00;
+		ioPorts[IO_IF - IO_PORTS_START] = 0x00;
 		ioPorts[IO_NR10 - IO_PORTS_START] = 0x80;
 		ioPorts[IO_NR11 - IO_PORTS_START] = 0xbf;
 		ioPorts[IO_NR12 - IO_PORTS_START] = 0xf3;

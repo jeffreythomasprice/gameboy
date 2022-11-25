@@ -106,9 +106,10 @@ public class SerialIOTest
 		var memory = new SimpleMemory();
 		var serialIO = new SerialIO(loggerFactory, memory);
 		var cpu = new CPU(loggerFactory, memory);
+		var interruptTriggered = false;
 		serialIO.DataAvailable += (value) =>
 		{
-			cpu.TriggerSerialIOCompleteInterrupt();
+			interruptTriggered = true;
 		};
 
 		// bit 0 = 1 = internal clock
@@ -121,18 +122,31 @@ public class SerialIOTest
 
 		// 8 ticks for each bit of the output, on the 8th tick it should emit the byte
 		serialIO.Step();
+		Assert.False(interruptTriggered);
 		serialIO.Step();
+		Assert.False(interruptTriggered);
 		serialIO.Step();
+		Assert.False(interruptTriggered);
 		serialIO.Step();
+		Assert.False(interruptTriggered);
 		cpu.Step();
+		Assert.False(interruptTriggered);
 		// should have executed 4 of 8 ticks worth of serial IO, and one NOP
 		Assert.Equal((UInt64)4, serialIO.Clock);
 		Assert.Equal((UInt64)4, cpu.Clock);
 		serialIO.Step();
+		Assert.False(interruptTriggered);
 		serialIO.Step();
+		Assert.False(interruptTriggered);
 		serialIO.Step();
+		Assert.False(interruptTriggered);
 		serialIO.Step();
+		Assert.True(interruptTriggered);
+		// flag has been set
+		Assert.Equal(Memory.IF_MASK_SERIAL, memory.ReadUInt8(Memory.IO_IF));
 		cpu.Step();
+		// flag has been reset
+		Assert.Equal(0b0000_0000, memory.ReadUInt8(Memory.IO_IF));
 		// the full byte should have been output, and we've executed 2 NOP
 		Assert.Equal((UInt64)8, serialIO.Clock);
 		Assert.Equal((UInt64)8, cpu.Clock);

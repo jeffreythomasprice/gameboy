@@ -107,6 +107,8 @@ public class Keypad : ISteppable
 		{
 			logger.LogTrace($"keypad register delta {ToBinary(oldValue)} -> {ToBinary(newValue)}");
 			KeypadRegisterDelta?.Invoke(oldValue, newValue);
+			// set interrupt flag
+			memory.WriteUInt8(Memory.IO_IF, (byte)(memory.ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_KEYPAD));
 		}
 	}
 

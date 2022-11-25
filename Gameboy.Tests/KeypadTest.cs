@@ -239,6 +239,10 @@ public class KeypadTest
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var memory = new SimpleMemory();
 		var keypad = new Keypad(loggerFactory, memory);
+		var cpu = new CPU(loggerFactory, memory);
+
+		// enable interrupts
+		memory.WriteUInt8(Memory.INTERRUPT_ENABLE_REGISTER, Memory.IF_MASK_KEYPAD);
 
 		var interruptFired = false;
 		keypad.KeypadRegisterDelta += (oldValue, newValue) =>
@@ -254,6 +258,19 @@ public class KeypadTest
 		memory.WriteUInt8(Memory.IO_P1, input);
 		keypad.Step();
 		Assert.Equal(expectedInterruptToFire, interruptFired);
+		if (expectedInterruptToFire)
+		{
+			// flag has been set
+			Assert.Equal(Memory.IF_MASK_KEYPAD, memory.ReadUInt8(Memory.IO_IF));
+		}
+		else
+		{
+			// flag has been reset
+			Assert.Equal(0b0000_0000, memory.ReadUInt8(Memory.IO_IF));
+		}
+		cpu.Step();
+		// flag has been reset
+		Assert.Equal(0b0000_0000, memory.ReadUInt8(Memory.IO_IF));
 	}
 
 	public static IEnumerable<object?[]> InterruptData

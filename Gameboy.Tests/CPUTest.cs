@@ -1797,7 +1797,7 @@ public class CPUTest
 				.AddClock(4)
 				.AddPC(2)
 		);
-		actual.TriggerKeypadInterrupt();
+		actual.Resume();
 		actual.Step();
 		Assert.False(actual.IsStopped);
 	}
@@ -3204,7 +3204,7 @@ public class CPUTest
 				.AddClock(4)
 				.AddPC(1)
 		);
-		actual.TriggerKeypadInterrupt();
+		actual.Resume();
 		actual.Step();
 		Assert.False(actual.IsHalted);
 	}

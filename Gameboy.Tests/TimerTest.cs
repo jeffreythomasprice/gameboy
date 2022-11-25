@@ -15,6 +15,9 @@ public class TimerTest
 			overflowed = true;
 		};
 
+		// enable interrupts
+		memory.WriteUInt8(Memory.INTERRUPT_ENABLE_REGISTER, Memory.IF_MASK_TIMER);
+
 		memory.WriteUInt8(Memory.IO_TAC, tac);
 		memory.WriteUInt8(Memory.IO_TMA, tma);
 		// assume starting TIMA was reset to TMA like an overflow just occurred
@@ -54,7 +57,10 @@ public class TimerTest
 			timer.Step();
 			Assert.Equal(tma, memory.ReadUInt8(Memory.IO_TIMA));
 			Assert.True(overflowed);
+			// flag has been set
+			Assert.Equal(Memory.IF_MASK_TIMER, memory.ReadUInt8(Memory.IO_IF));
 			overflowed = false;
+			memory.WriteUInt8(Memory.IO_IF, 0b0000_0000);
 		}
 	}
 

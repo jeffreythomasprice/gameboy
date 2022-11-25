@@ -18,17 +18,9 @@ public class Emulator : ISteppable
 		keypad = new Keypad(loggerFactory, memory);
 		timer = new Timer(loggerFactory, memory);
 
-		timer.Overflow += () =>
-		{
-			cpu.TriggerTimerInterrupt();
-		};
-		serialIO.DataAvailable += (value) =>
-		{
-			cpu.TriggerSerialIOCompleteInterrupt();
-		};
 		keypad.KeypadRegisterDelta += (oldValue, newValue) =>
 		{
-			cpu.TriggerKeypadInterrupt();
+			cpu.Resume();
 		};
 	}
 

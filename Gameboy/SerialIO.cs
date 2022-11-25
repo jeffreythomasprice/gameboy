@@ -73,6 +73,8 @@ public class SerialIO : ISteppable
 				// emit the result
 				DataAvailable?.Invoke(outgoingByte);
 				outgoingByte = 0;
+				// set interrupt flag
+				memory.WriteUInt8(Memory.IO_IF, (byte)(memory.ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_SERIAL));
 			}
 		}
 

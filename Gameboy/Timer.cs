@@ -93,10 +93,11 @@ public class Timer : ISteppable
 				var timaAfter = (byte)(timaBefore + 1);
 				if (timaAfter == 0)
 				{
-					// overflow, load TMA into TIMA
+					logger.LogTrace("timer overflow");
 					timaAfter = memory.ReadUInt8(Memory.IO_TMA);
 					Overflow?.Invoke();
-					logger.LogTrace("timer overflow");
+					// set interrupt flag
+					memory.WriteUInt8(Memory.IO_IF, (byte)(memory.ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_TIMER));
 				}
 				memory.WriteUInt8(Memory.IO_TIMA, timaAfter);
 			}

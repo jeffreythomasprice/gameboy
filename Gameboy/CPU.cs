@@ -69,10 +69,6 @@ public class CPU : ISteppable
 	private bool isHalted;
 	private bool interruptsEnabled;
 	private readonly Queue<InterruptEnableDelta> interruptEnableDeltas = new();
-	// TODO JEFF don't track interrupt triggered flags, that's mem reg 0xff0f IF
-	private bool timerInterruptTriggered;
-	private bool serialIOInterruptTriggered;
-	private bool keypadInterruptTriggered;
 
 	public CPU(ILoggerFactory loggerFactory, IMemory memory)
 	{
@@ -287,9 +283,6 @@ public class CPU : ISteppable
 		isHalted = false;
 		interruptsEnabled = true;
 		interruptEnableDeltas.Clear();
-		timerInterruptTriggered = false;
-		serialIOInterruptTriggered = false;
-		keypadInterruptTriggered = false;
 	}
 
 	public void Step()
@@ -309,61 +302,26 @@ public class CPU : ISteppable
 		if (InterruptsEnabled)
 		{
 			var interruptEnableRegister = memory.ReadUInt8(Memory.INTERRUPT_ENABLE_REGISTER);
-
-			// will be set to the address to jump to if an interrupt is being handled
-			UInt16? interruptHandlerAddress = null;
-
-			/*
-			TODO v-blank interrupt
-			v-blank is 59.7 times per second
-			mask = 0b0000_0001
-			*/
-
-			/*
-			TODO LCDC interrupt
-			LCDC is weird, see page 52
-			file:///home/jeff/workspaces/personal/gameboy/references/GBCPUman.pdf
-			mask = 0b0000_0010
-			*/
-
-			// timer interrupt
+			var interruptFlag = memory.ReadUInt8(Memory.IO_IF);
+			foreach (var (log, mask, address) in new[] {
+				("v-blank", Memory.IF_MASK_VBLANK, (UInt16)0x0040),
+				("LCDC", Memory.IF_MASK_LCDC, (UInt16)0x0048),
+				("timer", Memory.IF_MASK_TIMER, (UInt16)0x0050),
+				("serial", Memory.IF_MASK_SERIAL, (UInt16)0x0058),
+				("keypad", Memory.IF_MASK_KEYPAD, (UInt16)0x0060),
+			})
 			{
-				var enabled = (interruptEnableRegister & 0b0000_0100) != 0;
-				if (enabled && timerInterruptTriggered)
+				var enabled = (interruptEnableRegister & mask) != 0;
+				var triggered = (interruptFlag & mask) != 0;
+				if (enabled && triggered)
 				{
-					logger.LogTrace("timer interrupt handled");
-					timerInterruptTriggered = false;
-					interruptHandlerAddress = 0x0050;
+					logger.LogTrace($"{log} interrupt handled");
+					memory.WriteUInt8(Memory.IO_IF, (byte)(interruptFlag & (~mask)));
+					InterruptsEnabled = false;
+					PushUInt16(RegisterPC);
+					RegisterPC = address;
+					break;
 				}
-			}
-
-			// serial IO
-			{
-				var enabled = (interruptEnableRegister & 0b0000_1000) != 0;
-				if (enabled && serialIOInterruptTriggered)
-				{
-					logger.LogTrace("serial IO interrupt handled");
-					serialIOInterruptTriggered = false;
-					interruptHandlerAddress = 0x0058;
-				}
-			}
-
-			// keypad interrupt
-			{
-				var enabled = (interruptEnableRegister & 0b0001_0000) != 0;
-				if (enabled && keypadInterruptTriggered)
-				{
-					logger.LogTrace("keypad interrupt handled");
-					keypadInterruptTriggered = false;
-					interruptHandlerAddress = 0x0060;
-				}
-			}
-
-			if (interruptHandlerAddress.HasValue)
-			{
-				InterruptsEnabled = false;
-				PushUInt16(RegisterPC);
-				RegisterPC = interruptHandlerAddress.Value;
 			}
 		}
 
@@ -376,22 +334,9 @@ public class CPU : ISteppable
 		}
 	}
 
-	public void TriggerTimerInterrupt()
+	public void Resume()
 	{
-		logger.LogTrace("timer interrupt triggered");
-		timerInterruptTriggered = true;
-	}
-
-	public void TriggerSerialIOCompleteInterrupt()
-	{
-		logger.LogTrace("serial IO interrupt triggered");
-		serialIOInterruptTriggered = true;
-	}
-
-	public void TriggerKeypadInterrupt()
-	{
-		logger.LogTrace("keypad interrupt triggered");
-		keypadInterruptTriggered = true;
+		logger.LogTrace("resume");
 		IsStopped = false;
 		IsHalted = false;
 	}

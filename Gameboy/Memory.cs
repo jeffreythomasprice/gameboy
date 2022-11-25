@@ -27,41 +27,41 @@ public abstract class Memory : IMemory, ISteppable
 	public const UInt16 IO_IE = 0xffff;
 
 	public const UInt16 IO_P1 = 0xff00;
-	public const int IO_SB = 0xff01;
-	public const int IO_SC = 0xff02;
+	public const UInt16 IO_SB = 0xff01;
+	public const UInt16 IO_SC = 0xff02;
 	// 0xff03 unused
-	public const int IO_DIV = 0xff04;
-	public const int IO_TIMA = 0xff05;
-	public const int IO_TMA = 0xff06;
-	public const int IO_TAC = 0xff07;
+	public const UInt16 IO_DIV = 0xff04;
+	public const UInt16 IO_TIMA = 0xff05;
+	public const UInt16 IO_TMA = 0xff06;
+	public const UInt16 IO_TAC = 0xff07;
 	// 0xff08 unused
 	// 0xff09 unused
-	public const int IO_IF = 0xff0f;
-	public const int IO_NR10 = 0xff10;
-	public const int IO_NR11 = 0xff11;
-	public const int IO_NR12 = 0xff12;
-	public const int IO_NR13 = 0xff13;
-	public const int IO_NR14 = 0xff14;
+	public const UInt16 IO_IF = 0xff0f;
+	public const UInt16 IO_NR10 = 0xff10;
+	public const UInt16 IO_NR11 = 0xff11;
+	public const UInt16 IO_NR12 = 0xff12;
+	public const UInt16 IO_NR13 = 0xff13;
+	public const UInt16 IO_NR14 = 0xff14;
 	// 0xff15 unused
-	public const int IO_NR21 = 0xff16;
-	public const int IO_NR22 = 0xff17;
-	public const int IO_NR23 = 0xff18;
-	public const int IO_NR24 = 0xff19;
-	public const int IO_NR30 = 0xff1a;
-	public const int IO_NR31 = 0xff1b;
-	public const int IO_NR32 = 0xff1c;
-	public const int IO_NR33 = 0xff1d;
-	public const int IO_NR34 = 0xff1e;
+	public const UInt16 IO_NR21 = 0xff16;
+	public const UInt16 IO_NR22 = 0xff17;
+	public const UInt16 IO_NR23 = 0xff18;
+	public const UInt16 IO_NR24 = 0xff19;
+	public const UInt16 IO_NR30 = 0xff1a;
+	public const UInt16 IO_NR31 = 0xff1b;
+	public const UInt16 IO_NR32 = 0xff1c;
+	public const UInt16 IO_NR33 = 0xff1d;
+	public const UInt16 IO_NR34 = 0xff1e;
 	// 0xff1f unused
-	public const int IO_NR41 = 0xff20;
-	public const int IO_NR42 = 0xff21;
-	public const int IO_NR43 = 0xff22;
-	public const int IO_NR44 = 0xff23;
-	public const int IO_NR50 = 0xff24;
-	public const int IO_NR51 = 0xff25;
-	public const int IO_NR52 = 0xff26;
+	public const UInt16 IO_NR41 = 0xff20;
+	public const UInt16 IO_NR42 = 0xff21;
+	public const UInt16 IO_NR43 = 0xff22;
+	public const UInt16 IO_NR44 = 0xff23;
+	public const UInt16 IO_NR50 = 0xff24;
+	public const UInt16 IO_NR51 = 0xff25;
+	public const UInt16 IO_NR52 = 0xff26;
 	// 0xff27 through 0xff2f unused
-	public const int IO_WAVE_PATTERN_RAM_START = 0xff30;
+	public const UInt16 IO_WAVE_PATTERN_RAM_START = 0xff30;
 	public const UInt16 IO_WAVE_PATTERN_RAM_END = 0xff3f;
 	public const UInt16 IO_LCDC = 0xff40;
 	public const UInt16 IO_STAT = 0xff41;

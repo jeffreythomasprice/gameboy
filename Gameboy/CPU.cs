@@ -69,6 +69,7 @@ public class CPU : ISteppable
 	private bool isHalted;
 	private bool interruptsEnabled;
 	private readonly Queue<InterruptEnableDelta> interruptEnableDeltas = new();
+	// TODO JEFF don't track interrupt triggered flags, that's mem reg 0xff0f IF
 	private bool timerInterruptTriggered;
 	private bool serialIOInterruptTriggered;
 	private bool keypadInterruptTriggered;

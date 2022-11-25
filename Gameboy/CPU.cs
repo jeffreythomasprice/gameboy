@@ -69,6 +69,7 @@ public class CPU : ISteppable
 	private bool isHalted;
 	private bool interruptsEnabled;
 	private readonly Queue<InterruptEnableDelta> interruptEnableDeltas = new();
+	private bool timerInterruptTriggered;
 	private bool serialIOInterruptTriggered;
 	private bool keypadInterruptTriggered;
 
@@ -285,6 +286,7 @@ public class CPU : ISteppable
 		isHalted = false;
 		interruptsEnabled = true;
 		interruptEnableDeltas.Clear();
+		timerInterruptTriggered = false;
 		serialIOInterruptTriggered = false;
 		keypadInterruptTriggered = false;
 	}
@@ -323,11 +325,16 @@ public class CPU : ISteppable
 			mask = 0b0000_0010
 			*/
 
-			/*
-			TODO timer interrupt
-			timer is when TIMA overflows from 0xff to 0x00
-			mask = 0b0000_0100
-			*/
+			// timer interrupt
+			{
+				var enabled = (interruptEnableRegister & 0b0000_0100) != 0;
+				if (enabled && timerInterruptTriggered)
+				{
+					logger.LogTrace("timer interrupt handled");
+					timerInterruptTriggered = false;
+					interruptHandlerAddress = 0x0050;
+				}
+			}
 
 			// serial IO
 			{
@@ -366,6 +373,12 @@ public class CPU : ISteppable
 			InterruptsEnabled = interruptEnableDeltas.Dequeue().Value;
 			logger.LogTrace($"interrupts enabled = {InterruptsEnabled}");
 		}
+	}
+
+	public void TriggerTimerInterrupt()
+	{
+		logger.LogTrace("timer interrupt triggered");
+		timerInterruptTriggered = true;
 	}
 
 	public void TriggerSerialIOCompleteInterrupt()

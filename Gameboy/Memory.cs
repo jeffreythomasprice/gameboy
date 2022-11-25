@@ -213,13 +213,6 @@ public abstract class Memory : IMemory, ISteppable
 		Clock += 4;
 	}
 
-	/*
-	TODO IO ports
-
-	see file:///home/jeff/workspaces/personal/gameboy/references/GBCPUman.pdf
-	page 35
-	*/
-
 	/// <summary>
 	/// Which ROM bank should be used in the switchable area.
 	/// </summary>

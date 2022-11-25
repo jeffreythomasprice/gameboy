@@ -4,7 +4,7 @@ namespace Gameboy;
 
 public class Emulator : ISteppable
 {
-	private readonly IMemory memory;
+	private readonly Memory memory;
 	private readonly CPU cpu;
 	private readonly SerialIO serialIO;
 	private readonly Keypad keypad;
@@ -19,6 +19,17 @@ public class Emulator : ISteppable
 		keypad = new Keypad(loggerFactory, memory);
 		timer = new Timer(loggerFactory, memory);
 		video = new Video(loggerFactory, memory);
+
+		memory.IORegisterDIVWrite += (byte oldValue, ref byte newValue) =>
+		{
+			timer.ResetDIV();
+			newValue = 0;
+		};
+		memory.IORegisterLYWrite += (byte oldValue, ref byte newValue) =>
+		{
+			video.ResetLY();
+			newValue = 0;
+		};
 	}
 
 	public IMemory Memory => memory;

@@ -2,6 +2,8 @@ namespace Gameboy;
 
 public abstract class Memory : IMemory, ISteppable
 {
+	public delegate void MemoryWriteDelegate(byte oldValue, ref byte newValue);
+
 	public const UInt16 ROM_BANK_0_START = 0x0000;
 	public const UInt16 ROM_BANK_0_END = SWITCHABLE_ROM_BANK_START - 1;
 	public const UInt16 SWITCHABLE_ROM_BANK_START = 0x4000;
@@ -82,6 +84,9 @@ public abstract class Memory : IMemory, ISteppable
 	public const byte IF_MASK_SERIAL = 0b0000_1000;
 	public const byte IF_MASK_KEYPAD = 0b0001_0000;
 
+	public event MemoryWriteDelegate? IORegisterDIVWrite;
+	public event MemoryWriteDelegate? IORegisterLYWrite;
+
 	private readonly Cartridge cartridge;
 
 	private readonly byte[] videoRAM = new byte[VIDEO_RAM_END - VIDEO_RAM_START + 1];
@@ -152,7 +157,20 @@ public abstract class Memory : IMemory, ISteppable
 			case <= UNUSED_1_END:
 				break;
 			case <= IO_PORTS_END:
-				ioPorts[address - IO_PORTS_START] = value;
+				{
+					var oldValue = ioPorts[address - IO_PORTS_START];
+					// special cases for events that might modify this value
+					switch (address)
+					{
+						case IO_DIV:
+							IORegisterDIVWrite?.Invoke(oldValue, ref value);
+							break;
+						case IO_LY:
+							IORegisterLYWrite?.Invoke(oldValue, ref value);
+							break;
+					}
+					ioPorts[address - IO_PORTS_START] = value;
+				}
 				break;
 			case <= UNUSED_2_END:
 				break;

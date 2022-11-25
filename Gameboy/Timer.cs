@@ -13,7 +13,6 @@ public class Timer : ISteppable
 
 	private UInt64 clock;
 	private byte divLow;
-	private byte lastDivHigh;
 
 	public Timer(ILoggerFactory loggerFactory, IMemory memory)
 	{
@@ -31,7 +30,6 @@ public class Timer : ISteppable
 	{
 		clock = 0;
 		divLow = 0;
-		lastDivHigh = 0;
 	}
 
 	public void Step()
@@ -50,17 +48,9 @@ public class Timer : ISteppable
 		DIV isn't controllable, it just always goes up
 		*/
 		var divHigh = memory.ReadUInt8(Memory.IO_DIV);
-		// if div was written to reset it
-		if (divHigh != lastDivHigh)
-		{
-			divHigh = 0;
-			divLow = 0;
-			logger.LogTrace("DIV reset");
-		}
 		var div16Before = (UInt16)((divHigh << 8) | divLow);
 		var div16After = (UInt16)(div16Before + 1);
-		lastDivHigh = (byte)((div16After & 0xff00) >> 8);
-		memory.WriteUInt8(Memory.IO_DIV, lastDivHigh);
+		memory.WriteUInt8(Memory.IO_DIV, (byte)((div16After & 0xff00) >> 8));
 		divLow = (byte)(div16After & 0xff);
 
 		/*
@@ -102,5 +92,11 @@ public class Timer : ISteppable
 				memory.WriteUInt8(Memory.IO_TIMA, timaAfter);
 			}
 		}
+	}
+
+	public void ResetDIV()
+	{
+		logger.LogTrace("DIV reset");
+		divLow = 0;
 	}
 }

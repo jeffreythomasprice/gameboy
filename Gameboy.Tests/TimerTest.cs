@@ -194,14 +194,12 @@ public class TimerTest
 			Assert.False(overflowed);
 		}
 
-		// writing anything to div should reset it
-		memory.WriteUInt8(Memory.IO_DIV, 0x77);
+		// simulate a write to the div register, normally this would be triggered by an event on the memory
+		timer.ResetDIV();
+		memory.WriteUInt8(Memory.IO_DIV, 0);
 
-		timer.Step();
-		Assert.Equal(0, memory.ReadUInt8(Memory.IO_DIV));
-
-		// we just stepped once, so there should be TOTAL_STEPS - 2 remaining before it overflow
-		for (var i = 0; i < 1024 * 256 - 2; i++)
+		// advance until one setp remaining until overflow
+		for (var i = 0; i < 1024 * 256 - 1; i++)
 		{
 			timer.Step();
 			Assert.False(overflowed);

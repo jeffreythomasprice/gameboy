@@ -103,7 +103,7 @@ public class Cartridge
 
 	public ReadOnlySpan<byte> GetROMBankBytes(int i) => GetBytes(i * ROMBanks.Length, ROMBanks.Length);
 
-	public IMemory CreateMemory() =>
+	public Memory CreateMemory() =>
 		CartridgeType switch
 		{
 			Type.ROM_MBC1 or Type.ROM_MBC1_RAM or Type.ROM_MBC1_RAM_BATTERY => new MemoryMBC1(this),

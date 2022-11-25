@@ -9,6 +9,7 @@ public class Emulator : ISteppable
 	private readonly SerialIO serialIO;
 	private readonly Keypad keypad;
 	private readonly Timer timer;
+	private readonly Video video;
 
 	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge)
 	{
@@ -17,6 +18,7 @@ public class Emulator : ISteppable
 		serialIO = new SerialIO(loggerFactory, memory);
 		keypad = new Keypad(loggerFactory, memory);
 		timer = new Timer(loggerFactory, memory);
+		video = new Video(loggerFactory, memory);
 	}
 
 	public IMemory Memory => memory;
@@ -29,6 +31,8 @@ public class Emulator : ISteppable
 
 	public Timer Timer => timer;
 
+	public Video Video => video;
+
 	public ulong Clock => cpu.Clock;
 
 	public void Reset()
@@ -38,26 +42,24 @@ public class Emulator : ISteppable
 		serialIO.Reset();
 		keypad.Reset();
 		timer.Reset();
+		video.Reset();
 	}
 
 	public void Step()
 	{
-		while (memory.Clock < cpu.Clock)
-		{
-			memory.Step();
-		}
-		while (serialIO.Clock < cpu.Clock)
-		{
-			serialIO.Step();
-		}
-		while (keypad.Clock < cpu.Clock)
-		{
-			keypad.Step();
-		}
-		while (timer.Clock < cpu.Clock)
-		{
-			timer.Step();
-		}
+		Step(memory);
+		Step(serialIO);
+		Step(keypad);
+		Step(timer);
+		Step(video);
 		cpu.Step();
+	}
+
+	private void Step(ISteppable s)
+	{
+		while (s.Clock < cpu.Clock)
+		{
+			s.Step();
+		}
 	}
 }

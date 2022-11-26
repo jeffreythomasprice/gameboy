@@ -319,47 +319,8 @@ public class Video : ISteppable
 				var windowTileIndicesAddress = (UInt16)((registerLCDC & 0b0100_0000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
 				// TODO respect LCDC bit 7, display enabled
 
-				// logger.LogInformation($"TODO JEFF backgroundAndWindowEnabled={backgroundAndWindowEnabled}, windowEnabled={windowEnabled}, spritesEnabled={spritesEnabled}");
-
 				var backgroundTileIndices = memory.ReadArray(backgroundTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes);
 				var windowTileIndices = memory.ReadArray(windowTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes);
-
-				if (registerLY == 0)
-				{
-					var s = "";
-					for (var y = 0; y < BackgroundAndWindowSizeInTiles; y++)
-					{
-						for (var x = 0; x < BackgroundAndWindowSizeInTiles; x++)
-						{
-							var tileIndex = backgroundTileIndices[x + y * BackgroundAndWindowSizeInTiles];
-							s += tileIndex.ToString().PadLeft(3, ' ') + "/" + ((char)tileIndex) + " ";
-							// if (backgroundAndWindowTileDataIsSigned)
-							// {
-							// 	tileIndex = (byte)((sbyte)tileIndex + 128);
-							// }
-							// s += (char)tileIndex;
-						}
-						s += "\n";
-					}
-					logger.LogInformation($"TODO JEFF bg:\n{s}\nbackgroundAndWindowTileDataIsSigned? {backgroundAndWindowTileDataIsSigned}");
-
-					// s = "";
-					// for (var y = 0; y < BackgroundAndWindowSizeInTiles; y++)
-					// {
-					// 	for (var x = 0; x < BackgroundAndWindowSizeInTiles; x++)
-					// 	{
-					// 		var tileIndex = windowTileIndices[x + y * BackgroundAndWindowSizeInTiles];
-					// 		s += NumberUtils.ToHex(tileIndex) + ":" + ((char)tileIndex) + " ";
-					// 		// if (backgroundAndWindowTileDataIsSigned)
-					// 		// {
-					// 		// 	tileIndex = (byte)((sbyte)tileIndex + 128);
-					// 		// }
-					// 		// s += (char)tileIndex;
-					// 	}
-					// 	s += "\n";
-					// }
-					// logger.LogInformation($"TODO JEFF window:\n{s}\nbackgroundAndWindowTileDataIsSigned? {backgroundAndWindowTileDataIsSigned}");
-				}
 
 				// background and window offsets
 				var registerSCX = memory.ReadUInt8(Memory.IO_SCX);

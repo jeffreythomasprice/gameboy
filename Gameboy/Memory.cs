@@ -149,10 +149,11 @@ public abstract class Memory : IMemory, ISteppable
 				ROMWrite(address, value);
 				break;
 			case <= VIDEO_RAM_END:
-				if (VideoMemoryEnabled)
-				{
-					videoRAM[address - VIDEO_RAM_START] = value;
-				}
+				// TODO JEFF I'm wrong about how memory gets disabled during video hardware states
+				// if (VideoMemoryEnabled)
+				// {
+				videoRAM[address - VIDEO_RAM_START] = value;
+				// }
 				break;
 			case <= SWITCHABLE_RAM_BANK_END:
 				if (RAMBankEnabled)
@@ -167,10 +168,11 @@ public abstract class Memory : IMemory, ISteppable
 				internalRAM1[address - ECHO_INTERNAL_RAM_START] = value;
 				break;
 			case <= SPRITE_ATTRIBUTES_END:
-				if (SpriteAttributeMemoryEnabled)
-				{
-					spriteAttributes[address - SPRITE_ATTRIBUTES_START] = value;
-				}
+				// TODO JEFF I'm wrong about how memory gets disabled during video hardware states
+				// if (SpriteAttributeMemoryEnabled)
+				// {
+				spriteAttributes[address - SPRITE_ATTRIBUTES_START] = value;
+				// }
 				break;
 			case <= UNUSED_1_END:
 				break;

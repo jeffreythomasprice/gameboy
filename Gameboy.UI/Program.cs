@@ -28,6 +28,13 @@ public class Program
 			}
 			using var stream = new FileStream(args[0], FileMode.Open);
 			var cartridge = new Cartridge(stream);
+			logger.LogDebug($"title = {cartridge.Title}");
+			logger.LogDebug($"type = {cartridge.CartridgeType}");
+			logger.LogDebug($"ROM = {cartridge.ROMBanks}");
+			logger.LogDebug($"RAM = {cartridge.RAMBanks}");
+			logger.LogDebug($"color? {cartridge.IsColorGameboy}");
+			logger.LogDebug($"super? {cartridge.IsSuperGameboy}");
+
 			var emulator = new Emulator(loggerFactory, cartridge);
 
 			using var window = new Window(loggerFactory, emulator.Video, emulator.Keypad);
@@ -56,7 +63,7 @@ public class Program
 					{
 						nextLogTime = now + logInterval;
 						var state = emulator.CPU.IsStopped ? "STOP" : (emulator.CPU.IsHalted ? "HALT" : "running");
-						logger.LogTrace($"TODO JEFF clock time = {emulator.ClockTime}, state: {state}");
+						// logger.LogTrace($"TODO JEFF clock time = {emulator.ClockTime}, state: {state}");
 					}
 				}
 			});

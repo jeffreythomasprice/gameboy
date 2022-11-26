@@ -2,7 +2,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Gameboy;
 
-public class MemoryMBC1 : Memory
+// TODO JEFF trying to use pokemon as a test rom, but just displays white screen, unclear if the error is video or new type of cart
+
+public class MemoryMBC3 : Memory
 {
 	private const UInt16 RAM_DISABLE_START = 0x0000;
 	private const UInt16 RAM_DISABLE_END = 0x1fff;
@@ -10,35 +12,22 @@ public class MemoryMBC1 : Memory
 	private const UInt16 ROM_BANK_SELECTOR_END = 0x3fff;
 	private const UInt16 RAM_BANK_SELECTOR_START = 0x4000;
 	private const UInt16 RAM_BANK_SELECTOR_END = 0x5fff;
-	private const UInt16 MEMORY_MODEL_SELECT_START = 0x6000;
-	private const UInt16 MEMORY_MODEL_SELECT_END = 0x7fff;
 
 	private byte ramBankEnabled;
-	private byte romBankLow;
-	private byte romBankHigh;
+	private byte romBank;
 	private byte ramBank;
-	private byte memoryModelSelector;
 
-	public MemoryMBC1(ILoggerFactory loggerFactory, Cartridge cartridge) : base(loggerFactory, cartridge) { }
+	public MemoryMBC3(ILoggerFactory loggerFactory, Cartridge cartridge) : base(loggerFactory, cartridge) { }
 
 	public override void Reset()
 	{
 		base.Reset();
 		ramBankEnabled = 0x00;
-		romBankLow = 0x00;
-		romBankHigh = 0x00;
+		romBank = 0x00;
 		ramBank = 0x00;
-		memoryModelSelector = 0x00;
 	}
 
-	protected override int ActiveROMBank
-	{
-		get
-		{
-			var result = (romBankHigh << 5) | romBankLow;
-			return result == 0 ? 1 : result;
-		}
-	}
+	protected override int ActiveROMBank => romBank == 0 ? 1 : romBank;
 
 	protected override int ActiveRAMBank => ramBank;
 
@@ -52,22 +41,10 @@ public class MemoryMBC1 : Memory
 				ramBankEnabled = value;
 				break;
 			case <= ROM_BANK_SELECTOR_END:
-				romBankLow = (byte)(value & 0b0001_1111);
+				romBank = (byte)(value & 0b0111_1111);
 				break;
 			case <= RAM_BANK_SELECTOR_END:
-				// "16/8 mode"
-				if ((memoryModelSelector & 1) == 0)
-				{
-					romBankHigh = (byte)(value & 0b0000_0011);
-				}
-				// "4/32 mode"
-				else
-				{
-					ramBank = (byte)(value & 0b0000_0011);
-				}
-				break;
-			case <= MEMORY_MODEL_SELECT_END:
-				memoryModelSelector = value;
+				ramBank = (byte)(value & 0b0000_0011);
 				break;
 		}
 	}

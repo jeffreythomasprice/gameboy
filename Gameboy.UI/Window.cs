@@ -184,6 +184,54 @@ public class Window : GameWindow
 		base.OnResize(e);
 
 		GL.Viewport(new Size(Size.X, Size.Y));
+
+		// TODO JEFF get some ortho matrix stuff going otherwise aspect ratio correction is going to be too annoying
+
+		var scale = (double)Size.X / (double)Video.ScreenWidth;
+		var desiredWidth = (double)Video.ScreenWidth * scale;
+		var desiredHeight = (double)Video.ScreenHeight * scale;
+		float[] updatedVertices;
+		if (desiredHeight > Size.Y)
+		{
+			scale = (double)Size.Y / (double)Video.ScreenHeight;
+			desiredWidth = (double)Video.ScreenWidth * scale;
+			desiredHeight = (double)Video.ScreenHeight * scale;
+
+			var scaleVertexX = (float)(1.0 * (double)Video.ScreenHeight / (double)Video.ScreenWidth);
+			updatedVertices = new[] {
+				-scaleVertexX, -1, 0, 1,
+				scaleVertexX, -1, 1, 1,
+				scaleVertexX, 1, 1, 0,
+				scaleVertexX, 1, 1, 0,
+				-scaleVertexX, 1, 0, 0,
+				-scaleVertexX, -1, 0, 1,
+			};
+			logger.LogInformation($"TODO JEFF X form, scale X = {scaleVertexX}");
+		}
+		else
+		{
+			var scaleVertexY = (float)(1.0 * (double)Video.ScreenHeight / (double)Video.ScreenWidth);
+			updatedVertices = new[] {
+				-1, -scaleVertexY, 0, 1,
+				1, -scaleVertexY, 1, 1,
+				1, scaleVertexY, 1, 0,
+				1, scaleVertexY, 1, 0,
+				-1, scaleVertexY, 0, 0,
+				-1, -scaleVertexY, 0, 1,
+			};
+			logger.LogInformation($"TODO JEFF Y form, scale Y = {scaleVertexY}");
+		}
+		if (vertexArray.HasValue)
+		{
+			GL.BindVertexArray(vertexArray.Value);
+			GL.BufferSubData(
+				BufferTarget.ArrayBuffer,
+				0,
+				sizeof(float) * 4 * 6,
+				updatedVertices
+			);
+			GL.BindVertexArray(0);
+		}
 	}
 
 	protected override void OnUpdateFrame(FrameEventArgs args)

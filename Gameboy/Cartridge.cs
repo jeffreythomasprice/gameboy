@@ -107,7 +107,16 @@ public class Cartridge
 	public Memory CreateMemory(ILoggerFactory loggerFactory) =>
 		CartridgeType switch
 		{
-			Type.ROM_MBC1 or Type.ROM_MBC1_RAM or Type.ROM_MBC1_RAM_BATTERY => new MemoryMBC1(loggerFactory, this),
+			Type.ROM_MBC1 or
+			Type.ROM_MBC1_RAM or
+			Type.ROM_MBC1_RAM_BATTERY =>
+				new MemoryMBC1(loggerFactory, this),
+			Type.ROM_MBC3 or
+			Type.ROM_MBC3_RAM or
+			Type.ROM_MBC3_RAM_BATTERY or
+			Type.ROM_MBC3_TIMER_BATTERY or
+			Type.ROM_MBC3_TIMER_RAM_BATTERY =>
+				new MemoryMBC3(loggerFactory, this),
 			_ => throw new NotImplementedException($"unimplemented cartridge type {CartridgeType}"),
 		};
 }

@@ -141,6 +141,7 @@ public class Video : ISteppable
 					logger.LogTrace($"state={state}, ticks={ticksRemainingInCurrentState}");
 					setStatMode(0b10);
 					triggerSTATInterruptIfMaskSet(0b0010_0000);
+					enableVideoMemory();
 					disableSpriteAttributeMemory();
 					break;
 
@@ -151,6 +152,7 @@ public class Video : ISteppable
 					logger.LogTrace($"state={state}, ticks={ticksRemainingInCurrentState}");
 					setStatMode(0b11);
 					disableVideoMemory();
+					disableSpriteAttributeMemory();
 					break;
 
 				case State.AllVideoMemCopy:
@@ -197,6 +199,8 @@ public class Video : ISteppable
 					setStatMode(0b00);
 					triggerSTATInterruptIfMaskSet(0b0000_1000);
 					triggerSTATInterruptBasedOnLYAndLYC();
+					enableVideoMemory();
+					enableSpriteAttributeMemory();
 					break;
 			}
 
@@ -240,28 +244,33 @@ public class Video : ISteppable
 				memory.WriteUInt8(Memory.IO_STAT, (byte)((registerSTAT & 0b1111_1100) | (mode & 0b0000_0011)));
 			}
 
+			// TODO I'm wrong about how memory gets disabled during video hardware states
+			// actually disabling video memory has test programs just randomly fail to write stuff, implying that either
+			// 1. they're not checking the STAT bits for what mode
+			// 2. I'm wrong about what they should be checking for what mode so they don't think writes are unsafe
+
 			void enableVideoMemory()
 			{
 				logger.LogTrace("enabling video memory");
-				SetVideoMemoryEnabled?.Invoke(true);
+				// SetVideoMemoryEnabled?.Invoke(true);
 			}
 
 			void disableVideoMemory()
 			{
 				logger.LogTrace("disabling video memory");
-				SetVideoMemoryEnabled?.Invoke(false);
+				// SetVideoMemoryEnabled?.Invoke(false);
 			}
 
 			void enableSpriteAttributeMemory()
 			{
 				logger.LogTrace("enabling sprite attribute memory");
-				SetSpriteAttributeMemoryEnabled?.Invoke(true);
+				// SetSpriteAttributeMemoryEnabled?.Invoke(true);
 			}
 
 			void disableSpriteAttributeMemory()
 			{
 				logger.LogTrace("disabling sprite attribute memory");
-				SetSpriteAttributeMemoryEnabled?.Invoke(false);
+				// SetSpriteAttributeMemoryEnabled?.Invoke(false);
 			}
 
 			void drawScanLine()

@@ -128,11 +128,11 @@ public abstract class Memory : IMemory, ISteppable
 		{
 			<= ROM_BANK_0_END => cartridge.GetROMBankBytes(0)[address],
 			<= SWITCHABLE_ROM_BANK_END => cartridge.GetROMBankBytes(ActiveROMBank)[address - SWITCHABLE_ROM_BANK_START],
-			<= VIDEO_RAM_END => videoRAM[address - VIDEO_RAM_START],
+			<= VIDEO_RAM_END => VideoMemoryEnabled ? videoRAM[address - VIDEO_RAM_START] : (byte)0xff,
 			<= SWITCHABLE_RAM_BANK_END => RAMBankEnabled ? switchableRAMBanks[ActiveRAMBank, address - SWITCHABLE_RAM_BANK_START] : (byte)0,
 			<= INTERNAL_RAM_1_END => internalRAM1[address - INTERNAL_RAM_1_START],
 			<= ECHO_INTERNAL_RAM_END => internalRAM1[address - ECHO_INTERNAL_RAM_START],
-			<= SPRITE_ATTRIBUTES_END => spriteAttributes[address - SPRITE_ATTRIBUTES_START],
+			<= SPRITE_ATTRIBUTES_END => SpriteAttributeMemoryEnabled ? spriteAttributes[address - SPRITE_ATTRIBUTES_START] : (byte)0xff,
 			<= UNUSED_1_END => 0,
 			<= IO_PORTS_END => ioPorts[address - IO_PORTS_START],
 			<= UNUSED_2_END => 0,
@@ -149,11 +149,10 @@ public abstract class Memory : IMemory, ISteppable
 				ROMWrite(address, value);
 				break;
 			case <= VIDEO_RAM_END:
-				// TODO JEFF I'm wrong about how memory gets disabled during video hardware states
-				// if (VideoMemoryEnabled)
-				// {
-				videoRAM[address - VIDEO_RAM_START] = value;
-				// }
+				if (VideoMemoryEnabled)
+				{
+					videoRAM[address - VIDEO_RAM_START] = value;
+				}
 				break;
 			case <= SWITCHABLE_RAM_BANK_END:
 				if (RAMBankEnabled)
@@ -168,11 +167,10 @@ public abstract class Memory : IMemory, ISteppable
 				internalRAM1[address - ECHO_INTERNAL_RAM_START] = value;
 				break;
 			case <= SPRITE_ATTRIBUTES_END:
-				// TODO JEFF I'm wrong about how memory gets disabled during video hardware states
-				// if (SpriteAttributeMemoryEnabled)
-				// {
-				spriteAttributes[address - SPRITE_ATTRIBUTES_START] = value;
-				// }
+				if (SpriteAttributeMemoryEnabled)
+				{
+					spriteAttributes[address - SPRITE_ATTRIBUTES_START] = value;
+				}
 				break;
 			case <= UNUSED_1_END:
 				break;

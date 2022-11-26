@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 
 namespace Gameboy;
@@ -5,6 +6,12 @@ namespace Gameboy;
 public class Video : ISteppable
 {
 	public delegate void SetMemoryRegionEnabledDelegate(bool enabled);
+
+	/// <param name="y">in range 0 to ScreenHeight-1, inclusive</param>
+	/// <param name="data">a color, each element is a 2-bit value, so the high 6 bits are unused</param>
+	public delegate void ScanlineAvailableDelegate(int y, byte[] data);
+
+	public delegate void VSyncDelegate();
 
 	/*
 	state machine:
@@ -26,11 +33,37 @@ public class Video : ISteppable
 		VBlank
 	}
 
+	[StructLayout(LayoutKind.Explicit, Size = 16)]
+	private struct Sprite
+	{
+		[FieldOffset(0)]
+		public byte Y;
+
+		[FieldOffset(1)]
+		public byte X;
+
+		[FieldOffset(2)]
+		public byte TileIndex;
+
+		[FieldOffset(3)]
+		public byte Flags;
+	}
+
 	public const int ScreenWidth = 160;
 	public const int ScreenHeight = 144;
 
 	public event SetMemoryRegionEnabledDelegate? SetVideoMemoryEnabled;
 	public event SetMemoryRegionEnabledDelegate? SetSpriteAttributeMemoryEnabled;
+
+	/// <summary>
+	/// Called when a scanline is done drawing.
+	/// </summary>
+	public event ScanlineAvailableDelegate? ScanlineAvailable;
+
+	/// <summary>
+	/// Called when the last scanline is done drawing.
+	/// </summary>
+	public event VSyncDelegate? VSync;
 
 	private readonly ILogger logger;
 	private readonly IMemory memory;
@@ -74,12 +107,16 @@ public class Video : ISteppable
 		const UInt64 SpriteAttrCopyTime = 77;
 		const UInt64 AllVideoMemCopyTime = 169;
 		const UInt64 VBlankTime = 1386;
-		const int ScreenHeightPlusExtra = ScreenHeight + 10;
 		if (ticksRemainingInCurrentState == 0)
 		{
 			// control registers
 			var registerLCDC = memory.ReadUInt8(Memory.IO_LCDC);
 			var registerSTAT = memory.ReadUInt8(Memory.IO_STAT);
+
+			// color palettes
+			var registerBGP = memory.ReadUInt8(Memory.IO_BGP);
+			var registerOBP0 = memory.ReadUInt8(Memory.IO_OBP0);
+			var registerOBP1 = memory.ReadUInt8(Memory.IO_OBP1);
 
 			switch (state)
 			{
@@ -111,7 +148,7 @@ public class Video : ISteppable
 
 					// end of mode 11, either transition to mode 00 for a new scan line, or to mode 01 V blank
 					registerLY++;
-					if (registerLY < ScreenHeightPlusExtra)
+					if (registerLY < ScreenHeight + 10)
 					{
 						// more scan lines remaining, back to mode 00, H blank
 						state = State.HBlank;
@@ -129,6 +166,8 @@ public class Video : ISteppable
 						setStatMode(0b10);
 						triggerVBlankInterrupt();
 						triggerSTATInterruptIfMaskSet(0b0001_0000);
+						logger.LogTrace("emitting vsync");
+						VSync?.Invoke();
 					}
 					triggerSTATInterruptBasedOnLYAndLYC();
 					enableSpriteAttributeMemory();
@@ -213,200 +252,256 @@ public class Video : ISteppable
 
 			void drawScanLine()
 			{
+				const int TileIndicesLength = 32 * 32;
+				// tile data is 8x8 but 2 bits per pixel
+				const int TileLength = 16;
+				// how many tiles are there in the block of data that makes up the tile data
+				const int TileDataLength = 256 * TileLength;
+
+				// TODO this method is full of reading big blocks of data, even when not needed, maybe only read the specific bytes required for a particular line
+
 				/*
-				TODO JEFF actually draw scan line
-
-				find all the sprites that will be shown here
-				draw background color 0
-				draw window color 0
-				draw all sprites with priority bit 0 set
-				draw background colors 1-3
-				draw window colors 1-3
-				draw all sprites with priority bit 0 reset
+				unsigned indices, values from 0 to 255
+				tile 0 is at 0x8000
+				tile 255 is at 0x8ff0
 				*/
+				var tileData1 = memory.ReadArray(Memory.VIDEO_RAM_START, TileDataLength);
+				/*
+				signed indices, values from -128 to 127
+				tile -128 is at 0x8800
+				tile 0 is at 0x9000
+				tile 127 is at 0x97f0
 
-				var spriteAttributes = memory.ReadArray(Memory.SPRITE_ATTRIBUTES_START, Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1);
-				// TODO struct to help parsing array?
+				the two tile data do overlap
+				*/
+				var tileData2 = memory.ReadArray(Memory.VIDEO_RAM_START + 0x0800, TileDataLength);
+
+				// LCDC flags
+				var backgroundAndWindowEnabled = (registerLCDC & 0b0000_0001) != 0;
+				var spritesEnabled = (registerLCDC & 0b0000_0010) != 0;
+				// true = sprites are drawn in 2s as 8x16, false = sprites are 8x8
+				var spritesAreBig = (registerLCDC & 0b0000_0100) != 0;
+				// where in video memory the indices of the background tiles are
+				var backgroundTileIndicesAddress = (UInt16)((registerLCDC & 0b0000_1000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
+				// where in video memory are the actual 8x8 graphics for background and window
+				byte[] backgroundAndWindowTileData;
+				bool backgroundAndWindowTileDataIsSigned;
+				if ((registerLCDC & 0b0001_0000) != 0)
+				{
+					backgroundAndWindowTileData = tileData1;
+					backgroundAndWindowTileDataIsSigned = false;
+				}
+				else
+				{
+					backgroundAndWindowTileData = tileData2;
+					backgroundAndWindowTileDataIsSigned = true;
+				}
+				var windowEnabled = (registerLCDC & 0b0010_0000) != 0;
+				// where in video memory the indices of the window tiles are
+				var windowTileIndicesAddress = (UInt16)((registerLCDC & 0b0100_0000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
+
+				var backgroundTileIndices = memory.ReadArray(backgroundTileIndicesAddress, TileIndicesLength);
+				var windowTileIndices = memory.ReadArray(windowTileIndicesAddress, TileIndicesLength);
+
+				// background and window offsets
+				var registerSCX = memory.ReadUInt8(Memory.IO_SCX);
+				var registerSCY = memory.ReadUInt8(Memory.IO_SCY);
+				var registerWX = memory.ReadUInt8(Memory.IO_WX);
+				var registerWY = memory.ReadUInt8(Memory.IO_WY);
+
+				// the scan line we're drawing
+				byte[] outputPixels = new byte[ScreenWidth];
+
+				if (backgroundAndWindowEnabled)
+				{
+					drawBackground(0b0001);
+					if (windowEnabled)
+					{
+						drawWindow(0b0001);
+					}
+				}
+
+				// figure out what sprites are visible and draw the background ones
+				const int MaxSprites = 40;
+				const int MaxVisibleSprites = 10;
+				var visibleSprites = new List<Sprite>(capacity: MaxVisibleSprites);
+				if (spritesEnabled)
+				{
+					// get all the sprite attributes
+					var spriteBytes = memory.ReadArray(Memory.SPRITE_ATTRIBUTES_START, Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1);
+					var sprites = new List<Sprite>(capacity: MaxSprites);
+					for (var i = 0; i < MaxSprites; i++)
+					{
+						var sprite = MemoryMarshal.AsRef<Sprite>(spriteBytes.AsSpan(i * 4, 4));
+						if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && sprite.Y > 0 && sprite.Y < ScreenHeight + 16)
+						{
+							sprites.Add(sprite);
+						}
+					}
+					sprites.Sort((a, b) =>
+					{
+						// right to left, larger X goes first so that it's drawn underneath the larger X
+						var delta = b.X - a.X;
+						if (delta != 0)
+						{
+							return delta;
+						}
+						// break ties by drawing larger tile index first so that they're underneath the smaller tile index
+						return b.TileIndex - a.TileIndex;
+					});
+					visibleSprites.AddRange(sprites.TakeLast(MaxVisibleSprites));
+
+					foreach (var sprite in visibleSprites)
+					{
+						if ((sprite.Flags & 0b1000_0000) != 0)
+						{
+							drawSpriteLine(sprite);
+						}
+					}
+				}
+
+				if (backgroundAndWindowEnabled)
+				{
+					drawBackground(0b1110);
+					if (windowEnabled)
+					{
+						drawWindow(0b1110);
+					}
+				}
+
+				if (spritesEnabled)
+				{
+					foreach (var sprite in visibleSprites)
+					{
+						if ((sprite.Flags & 0b1000_0000) == 0)
+						{
+							drawSpriteLine(sprite);
+						}
+					}
+				}
+
+				logger.LogTrace($"emitting scanline pixels y={registerLY}");
+				ScanlineAvailable?.Invoke(registerLY, outputPixels);
+
+				void drawBackground(byte colorMask)
+				{
+					drawBackgroundOrWindow(registerSCX, registerSCY, true, backgroundTileIndices, colorMask);
+				}
+
+				void drawWindow(byte colorMask)
+				{
+					drawBackgroundOrWindow(registerWX - 7, registerWY, false, windowTileIndices, colorMask);
+				}
+
+				void drawBackgroundOrWindow(int positionX, int positionY, bool wrapAround, byte[] tileIndices, byte colorMask)
+				{
+					// the Y we draw at, adjusted for wrapping if necessary
+					var wrappedPositionY = positionY;
+					if (registerLY < positionY)
+					{
+						// not wrapping, must be window, nothing to actually draw
+						if (!wrapAround)
+						{
+							return;
+						}
+						wrappedPositionY -= 32 * 8;
+					}
+					// in terms of tiles not pixels, what Y are we drawing?
+					var tileIndexY = (registerLY - wrappedPositionY) / 8;
+					// in terms of pixels on a tile, i.e. from 0 to 7, what Y are we drawing?
+					var tileY = registerLY - (wrappedPositionY + tileIndexY * 8);
+					// draw all tiles
+					for (var tileIndexX = 0; tileIndexX < 32; tileIndexX++)
+					{
+						// turn that back into an index into the tile map
+						var tileIndex = tileIndices[tileIndexX + tileIndexY * 32];
+						// correct for tile data 2's signed index nonsense
+						if (backgroundAndWindowTileDataIsSigned)
+						{
+							tileIndex = (byte)((sbyte)tileIndex + 128);
+						}
+						// the index into the tile data where this index is
+						var tileOffset = tileIndex * TileLength + tileY * 2;
+						// the actual tile data
+						var tileDataLow = backgroundAndWindowTileData[tileOffset];
+						var tileDataHigh = backgroundAndWindowTileData[tileOffset + 1];
+						var tileData = (UInt16)((tileDataHigh << 8) | tileDataLow);
+						for (var tileX = 0; tileX < 8; tileX++)
+						{
+							// extract the 2 bits for this pixel, and then index into the palette register for what color to draw
+							var pixelColorIndex = (tileData & (0b11 << (tileX * 2))) >> (tileX * 2);
+							// if we didn't want to draw this pixel color, skip this one
+							if ((colorMask & (1 << pixelColorIndex)) == 0)
+							{
+								continue;
+							}
+							var pixelColor = (byte)((registerBGP & (0b11 << pixelColorIndex)) >> pixelColorIndex);
+							// where are we drawing, adjusted for wrap around if needed
+							var screenX = positionX + tileIndexX * 8 + tileX;
+							if (screenX >= ScreenWidth && wrapAround)
+							{
+								screenX -= 32 * 8;
+							}
+							if (screenX >= 0 && screenX < ScreenWidth)
+							{
+								outputPixels[screenX] = pixelColor;
+							}
+						}
+					}
+				}
+
+				void drawSpriteLine(Sprite sprite)
+				{
+					var screenX = sprite.X - 8;
+					var screenY = sprite.Y - 16;
+					var xFlip = (sprite.Flags & 0b0010_0000) != 0;
+					var yFlip = (sprite.Flags & 0b0100_0000) != 0;
+					var y = registerLY - screenY;
+					var palette = (sprite.Flags & 0b0001_0000) != 0 ? registerOBP1 : registerOBP0;
+					if (spritesAreBig)
+					{
+						if (y < 8)
+						{
+							drawTileLine(sprite.TileIndex & 0b1111_1110, yFlip ? 7 - y : y);
+						}
+						else
+						{
+							drawTileLine((sprite.TileIndex & 0b1111_1110) + 1, yFlip ? 15 - y : y - 8);
+						}
+					}
+					else
+					{
+						drawTileLine(sprite.TileIndex, 7 - y);
+					}
+
+					void drawTileLine(int tileIndex, int tileY)
+					{
+						// the index into the tile data where this index is
+						var tileOffset = tileIndex * TileLength + tileY * 2;
+						// the actual tile data
+						var tileDataLow = tileData1[tileOffset];
+						var tileDataHigh = tileData1[tileOffset + 1];
+						var tileData = (UInt16)((tileDataHigh << 8) | tileDataLow);
+						for (int tileX = 0; tileX < 8; tileX++)
+						{
+							// extract the 2 bits for this pixel, and then index into the palette register for what color to draw
+							var pixelColorIndex = (tileData & (0b11 << (tileX * 2))) >> (tileX * 2);
+							// sprites have transparency
+							if (pixelColorIndex == 0)
+							{
+								continue;
+							}
+							var pixelColor = (byte)((palette & (0b11 << pixelColorIndex)) >> pixelColorIndex);
+							var flippedScreenX = xFlip ? screenX + 7 - tileX : screenX + tileX;
+							if (flippedScreenX >= 0 && flippedScreenX < ScreenWidth)
+							{
+								outputPixels[flippedScreenX] = pixelColor;
+							}
+						}
+					}
+				}
 			}
 		}
-
-		/*
-		TODO JEFF clean up docs
-
-		summary of docs
-
-		actual screen is 160x144 pixels
-
-		background
-		window
-		sprites
-
-		tiles are 8x8 pixels, by 2 bytes per line, so 16 bytes total
-
-		tiles 1 at 0x8000 = VIDEO_RAM_START
-			can be used for anything: sprites, background, window
-			256 tiles * 16 bytes = ends at 0x8fff
-			unsigned indices
-			tile 0 is at 0x8000
-			tile 255 is at 0x8ff0
-		tiles 2 at 0x8800 = VIDEO_RAM_START + 0x0800
-			overlaps with tiles 1
-			can only be used for background or window
-			256 tiles * 16 bytes = ends at 0x97ff
-			signed indices, so -128 to 127
-			tile -128 is at 0x8800
-			tile 0 is at 0x9000
-			tile 127 is at 0x97f0
-
-		background tile map
-		32 rows, each 32 bytes long
-
-		SCROLLX and SCROLLY are coordinates of background that is in the upper left corner
-		background wraps around
-
-		background and window indices and which tile maps to use are based on LCDC register
-
-		window is displayed at WNDPOSX-7, WNDPOSY
-		changes to WNDPOSX changes are picked up between scan line interrupts, WNDPOSY is only between screen redraws
-
-		background and window always use same tile data table
-
-		sprite attributes are at SPRITE_ATTRIBUTES_START
-		4 bytes each, 40 max sprites
-		technically 28 bits, because 4 flag bits unused, this is relevant to DMA transfers, see DMA register
-		attributes:
-			byte 0 = Y
-			byte 1 = X
-			byte 2 = ID in the sprite tile map, 0x8000
-			byte 3 = flags
-				bit 7 = priority
-					0 = on top of background and window
-					1 = behind background and window colors 1, 2, and 3, in front of background and window color 0
-				bit 6 = Y flip
-				bit 5 = X flip
-				bit 4 = palette number, 0 = OBJ0PAL, 1 = OBJ1PAL
-
-		can be in 8x8 or 8x16 mode
-		in 8x16 mode least significant bit of sprite pattern number is ignored, always 0
-		i.e. it takes blocks of sprites adjacent to each other and draws them on top of each other, you can't start at an odd index
-
-		sprites with smaller X have priority and are drawn on top
-		i.e. draw them right to left
-		when they overlap and have the same X the one with the smaller index in the sprite attribute table wins
-		i.e. the one at SPRITE_ATTRIBUTES_START+0 is on top of everything else, then SPRITE_ATTRIBUTES_START+4, then SPRITE_ATTRIBUTES_START+8, etc.
-
-		max 10 sprites per unique Y
-		larger X wins, so draw 
-		Y = 0 or Y >= 144+16 means won't draw
-		X = 0 or X = 160+8 means won't draw, but will count in priority calculations with other sprites on the same Y
-
-		LCDC
-			bit 7
-				0 = turn off display
-				1 = screen on
-			bit 6
-				0 = window tile indices are from 0x9800 to 0x9bff
-				1 = window tile indices are from 0x9c00 to 0x9fff
-			bit 5
-				0 = window off
-				1 = window on
-			bit 4
-				0 = background and window tiles draw from tiles 2, 0x8800 to 0x97ff
-				1 = background and window tiles draw from tiles 1, 0x8000 to 0x8fff
-			bit 3
-				0 = background tile indices are from 0x9800 to 0x9bff
-				1 = background tile indices are from 0x9c00 to 0x9fff
-			bit 2
-				0 = sprites are 8x8
-				1 = sprites are 8*16 (8 width, 16 height)
-			bit 1
-				0 = sprites off
-				1 = sprites on
-			bit 0
-				0 = background and window off
-				1 = background and window on
-
-		STAT
-			bits 3 through 6 are interrupt selectors, 1 means that condition triggers LCDC interrupts
-			bit 6 = depends on bit 2
-			bit 5 = mode 10
-			bit 4 = mode 01
-			bit 3 = mode 00
-			bit 2
-				0 = bit 6 means LYC != LY
-				1 = bit 6 means LYC == LY
-			bit 0 and 1 = mode
-				00 = H blank
-				01 = V blank
-				10 = sprite attributes
-				11 = during transfer of data to LCD driver
-
-			mode 00 = H blank
-			all memory is accessible
-
-			mode 01 = V blank
-			all memory is accessible
-
-			mode 10 = sprite attribute memory is being used
-			can't access sprite attribute memory
-
-			mode 11 = actually transferring data around
-			can't access sprite attributes or video memory
-
-			translating from rough ascii art in the docs
-			each scan line goes through modes 00, 10, 11 in that order
-			when it's done with all scan lines it goes to mode 01 until it's time to refresh the screen
-
-			complete screen refresh is every 70224 clock ticks
-			mode 00 (H blank) lasts between 201-207 clock ticks
-			mode 01 (V blank) lasts 4560 clock ticks
-			mode 10 (sprite attrs) lasts 77 to 83 clock ticks
-			mode 11 (copy) lasts 169-175 clock ticks
-
-			worst case 144 scan lines * (207 + 83 + 175) = 66960 clock ticks < 70224 clock ticks that we want per frame
-			except LY actually goes up to 153, so 154 * (207 + 83 + 175) = 71610, which is > 70224
-			best case for the full LY range is 154*(201+77+169) = 68838, which is again < 70224
-			at 60 fps 70224*60 = 4213440 ~= 4.02 MHz
-
-		SCY, SCX
-			background scroll
-
-		LY
-			scan line that is actively being displayed
-			actually runs from 0 to 153 then loops back to 0, even though the screen is 144 pixels tall
-			so 10 "empty" scan lines?
-			writing sets to 0? "Writing will reset the counter."
-
-		LYC
-			LY compare, used depending on STAT to trigger interrupts based on what line we're on
-
-		BGP
-			palette data for background and window
-			bits 76
-				color 11
-			bits 54
-				color 10
-			bits 32
-				color 01
-			bits 10
-				color 00
-
-		OBP0 and OBP1
-			two color palettes for sprites
-			exactly as BGP, except a color with a value of 0 is transaprent
-
-		WX, WY
-			window position
-			window is actually drawn at WX-7, WY
-
-
-		expected timing:
-			for LY=0 to <= 153:
-				mode = 00 = H blank, lasts 201 ticks
-				mode = 10 = sprite attr memory is disabled, lasts 77 ticks
-				mode = 11 = sprite and video is disabled, lasts 169 ticks
-			mode = 01 = V blank, lasts 1386 ticks, i.e. until this total operation has taken 70224 total ticks
-		*/
 	}
 
 	public void ResetLY()

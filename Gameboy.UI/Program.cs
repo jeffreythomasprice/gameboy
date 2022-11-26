@@ -22,8 +22,8 @@ public class Program
 		var logger = loggerFactory.CreateLogger<Program>();
 		try
 		{
-			using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
-			// using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
+			// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
+			using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 			var cartridge = new Cartridge(stream);
 			var emulator = new Emulator(loggerFactory, cartridge);
 

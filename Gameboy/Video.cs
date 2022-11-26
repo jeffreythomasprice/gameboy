@@ -119,9 +119,18 @@ public class Video : ISteppable
 			var registerSTAT = memory.ReadUInt8(Memory.IO_STAT);
 
 			// color palettes
-			var registerBGP = memory.ReadUInt8(Memory.IO_BGP);
-			var registerOBP0 = memory.ReadUInt8(Memory.IO_OBP0);
-			var registerOBP1 = memory.ReadUInt8(Memory.IO_OBP1);
+			var registerBGP = extractColorPalette(memory.ReadUInt8(Memory.IO_BGP));
+			var registerOBP0 = extractColorPalette(memory.ReadUInt8(Memory.IO_OBP0));
+			var registerOBP1 = extractColorPalette(memory.ReadUInt8(Memory.IO_OBP1));
+			byte[] extractColorPalette(byte palette)
+			{
+				return new[] {
+					(byte)((palette & 0b0000_0011) >> 0),
+					(byte)((palette & 0b0000_1100) >> 2),
+					(byte)((palette & 0b0011_0000) >> 4),
+					(byte)((palette & 0b1100_0000) >> 6),
+				};
+			}
 
 			switch (state)
 			{
@@ -257,11 +266,15 @@ public class Video : ISteppable
 
 			void drawScanLine()
 			{
-				const int TileIndicesLength = 32 * 32;
+				const int BackgroundAndWindowSizeInTiles = 32;
+				const int TileSizeInPixels = 8;
+				const int BackgroundAndWindowSizeInPixels = BackgroundAndWindowSizeInTiles * TileSizeInPixels;
+				// the length of the background and window index arrays
+				const int BackgroundAndWindowTileIndicesLengthInBytes = BackgroundAndWindowSizeInTiles * BackgroundAndWindowSizeInTiles;
 				// tile data is 8x8 but 2 bits per pixel
-				const int TileLength = 16;
+				const int TileLengthInBytes = 16;
 				// how many tiles are there in the block of data that makes up the tile data
-				const int TileDataLength = 256 * TileLength;
+				const int TileDataLengthInBytes = 256 * TileLengthInBytes;
 
 				// TODO this method is full of reading big blocks of data, even when not needed, maybe only read the specific bytes required for a particular line
 
@@ -270,7 +283,7 @@ public class Video : ISteppable
 				tile 0 is at 0x8000
 				tile 255 is at 0x8ff0
 				*/
-				var tileData1 = memory.ReadArray(Memory.VIDEO_RAM_START, TileDataLength);
+				var tileData1 = memory.ReadArray(Memory.VIDEO_RAM_START, TileDataLengthInBytes);
 				/*
 				signed indices, values from -128 to 127
 				tile -128 is at 0x8800
@@ -279,7 +292,7 @@ public class Video : ISteppable
 
 				the two tile data do overlap
 				*/
-				var tileData2 = memory.ReadArray(Memory.VIDEO_RAM_START + 0x0800, TileDataLength);
+				var tileData2 = memory.ReadArray(Memory.VIDEO_RAM_START + 0x0800, TileDataLengthInBytes);
 
 				// LCDC flags
 				var backgroundAndWindowEnabled = (registerLCDC & 0b0000_0001) != 0;
@@ -306,8 +319,47 @@ public class Video : ISteppable
 				var windowTileIndicesAddress = (UInt16)((registerLCDC & 0b0100_0000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
 				// TODO respect LCDC bit 7, display enabled
 
-				var backgroundTileIndices = memory.ReadArray(backgroundTileIndicesAddress, TileIndicesLength);
-				var windowTileIndices = memory.ReadArray(windowTileIndicesAddress, TileIndicesLength);
+				// logger.LogInformation($"TODO JEFF backgroundAndWindowEnabled={backgroundAndWindowEnabled}, windowEnabled={windowEnabled}, spritesEnabled={spritesEnabled}");
+
+				var backgroundTileIndices = memory.ReadArray(backgroundTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes);
+				var windowTileIndices = memory.ReadArray(windowTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes);
+
+				if (registerLY == 0)
+				{
+					var s = "";
+					for (var y = 0; y < BackgroundAndWindowSizeInTiles; y++)
+					{
+						for (var x = 0; x < BackgroundAndWindowSizeInTiles; x++)
+						{
+							var tileIndex = backgroundTileIndices[x + y * BackgroundAndWindowSizeInTiles];
+							s += tileIndex.ToString().PadLeft(3, ' ') + "/" + ((char)tileIndex) + " ";
+							// if (backgroundAndWindowTileDataIsSigned)
+							// {
+							// 	tileIndex = (byte)((sbyte)tileIndex + 128);
+							// }
+							// s += (char)tileIndex;
+						}
+						s += "\n";
+					}
+					logger.LogInformation($"TODO JEFF bg:\n{s}\nbackgroundAndWindowTileDataIsSigned? {backgroundAndWindowTileDataIsSigned}");
+
+					// s = "";
+					// for (var y = 0; y < BackgroundAndWindowSizeInTiles; y++)
+					// {
+					// 	for (var x = 0; x < BackgroundAndWindowSizeInTiles; x++)
+					// 	{
+					// 		var tileIndex = windowTileIndices[x + y * BackgroundAndWindowSizeInTiles];
+					// 		s += NumberUtils.ToHex(tileIndex) + ":" + ((char)tileIndex) + " ";
+					// 		// if (backgroundAndWindowTileDataIsSigned)
+					// 		// {
+					// 		// 	tileIndex = (byte)((sbyte)tileIndex + 128);
+					// 		// }
+					// 		// s += (char)tileIndex;
+					// 	}
+					// 	s += "\n";
+					// }
+					// logger.LogInformation($"TODO JEFF window:\n{s}\nbackgroundAndWindowTileDataIsSigned? {backgroundAndWindowTileDataIsSigned}");
+				}
 
 				// background and window offsets
 				var registerSCX = memory.ReadUInt8(Memory.IO_SCX);
@@ -315,197 +367,80 @@ public class Video : ISteppable
 				var registerWX = memory.ReadUInt8(Memory.IO_WX);
 				var registerWY = memory.ReadUInt8(Memory.IO_WY);
 
-				// the scan line we're drawing
-				byte[] outputPixels = new byte[ScreenWidth];
+				var outputPixels = new byte[ScreenWidth];
 
-				if (backgroundAndWindowEnabled)
+				// TODO JEFF split up window and background into foreground and background
+				// var foreground = new byte[ScreenWidth];
+				// TODO JEFF only do if bg enabled
 				{
-					drawBackground(0b0001);
-					if (windowEnabled)
+					var screenY = registerLY;
+					var bgPixelY = (screenY + registerSCY) % BackgroundAndWindowSizeInPixels;
+					var bgTileY = bgPixelY / TileSizeInPixels;
+					var tileY = bgPixelY - bgTileY * TileSizeInPixels;
+					for (var screenX = 0; screenX < ScreenWidth; screenX++)
 					{
-						drawWindow(0b0001);
-					}
-				}
-
-				// figure out what sprites are visible and draw the background ones
-				const int MaxSprites = 40;
-				const int MaxVisibleSprites = 10;
-				var visibleSprites = new List<Sprite>(capacity: MaxVisibleSprites);
-				if (spritesEnabled)
-				{
-					// get all the sprite attributes
-					var spriteBytes = memory.ReadArray(Memory.SPRITE_ATTRIBUTES_START, Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1);
-					var sprites = new List<Sprite>(capacity: MaxSprites);
-					for (var i = 0; i < MaxSprites; i++)
-					{
-						var sprite = MemoryMarshal.AsRef<Sprite>(spriteBytes.AsSpan(i * 4, 4));
-						if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && sprite.Y > 0 && sprite.Y < ScreenHeight + 16)
-						{
-							sprites.Add(sprite);
-						}
-					}
-					sprites.Sort((a, b) =>
-					{
-						// right to left, larger X goes first so that it's drawn underneath the larger X
-						var delta = b.X - a.X;
-						if (delta != 0)
-						{
-							return delta;
-						}
-						// break ties by drawing larger tile index first so that they're underneath the smaller tile index
-						return b.TileIndex - a.TileIndex;
-					});
-					visibleSprites.AddRange(sprites.TakeLast(MaxVisibleSprites));
-
-					foreach (var sprite in visibleSprites)
-					{
-						if ((sprite.Flags & 0b1000_0000) != 0)
-						{
-							drawSpriteLine(sprite);
-						}
-					}
-				}
-
-				if (backgroundAndWindowEnabled)
-				{
-					drawBackground(0b1110);
-					if (windowEnabled)
-					{
-						drawWindow(0b1110);
-					}
-				}
-
-				if (spritesEnabled)
-				{
-					foreach (var sprite in visibleSprites)
-					{
-						if ((sprite.Flags & 0b1000_0000) == 0)
-						{
-							drawSpriteLine(sprite);
-						}
-					}
-				}
-
-				logger.LogTrace($"emitting scanline pixels y={registerLY}");
-				ScanlineAvailable?.Invoke(registerLY, outputPixels);
-
-				void drawBackground(byte colorMask)
-				{
-					drawBackgroundOrWindow(registerSCX, registerSCY, true, backgroundTileIndices, colorMask);
-				}
-
-				void drawWindow(byte colorMask)
-				{
-					drawBackgroundOrWindow(registerWX - 7, registerWY, false, windowTileIndices, colorMask);
-				}
-
-				void drawBackgroundOrWindow(int positionX, int positionY, bool wrapAround, byte[] tileIndices, byte colorMask)
-				{
-					// the Y we draw at, adjusted for wrapping if necessary
-					var wrappedPositionY = positionY;
-					if (registerLY < positionY)
-					{
-						// not wrapping, must be window, nothing to actually draw
-						if (!wrapAround)
-						{
-							return;
-						}
-						wrappedPositionY -= 32 * 8;
-					}
-					// in terms of tiles not pixels, what Y are we drawing?
-					var tileIndexY = (registerLY - wrappedPositionY) / 8;
-					// in terms of pixels on a tile, i.e. from 0 to 7, what Y are we drawing?
-					var tileY = registerLY - (wrappedPositionY + tileIndexY * 8);
-					// draw all tiles
-					for (var tileIndexX = 0; tileIndexX < 32; tileIndexX++)
-					{
-						// turn that back into an index into the tile map
-						var tileIndex = tileIndices[tileIndexX + tileIndexY * 32];
-						// correct for tile data 2's signed index nonsense
+						var bgPixelX = (screenX + registerSCX) % BackgroundAndWindowSizeInPixels;
+						var bgTileX = bgPixelX / TileSizeInPixels;
+						var tileX = bgPixelX - bgTileX * TileSizeInPixels;
+						var tileIndex = backgroundTileIndices[bgTileX + bgTileY * BackgroundAndWindowSizeInTiles];
 						if (backgroundAndWindowTileDataIsSigned)
 						{
 							tileIndex = (byte)((sbyte)tileIndex + 128);
 						}
-						// the index into the tile data where this index is
-						var tileOffset = tileIndex * TileLength + tileY * 2;
-						// the actual tile data
-						var tileDataLow = backgroundAndWindowTileData[tileOffset];
-						var tileDataHigh = backgroundAndWindowTileData[tileOffset + 1];
-						var tileData = (UInt16)((tileDataHigh << 8) | tileDataLow);
-						for (var tileX = 0; tileX < 8; tileX++)
-						{
-							// extract the 2 bits for this pixel, and then index into the palette register for what color to draw
-							var pixelColorIndex = (tileData & (0b11 << (tileX * 2))) >> (tileX * 2);
-							// if we didn't want to draw this pixel color, skip this one
-							if ((colorMask & (1 << pixelColorIndex)) == 0)
-							{
-								continue;
-							}
-							var pixelColor = (byte)((registerBGP & (0b11 << (pixelColorIndex * 2))) >> (pixelColorIndex * 2));
-							// where are we drawing, adjusted for wrap around if needed
-							var screenX = positionX + tileIndexX * 8 + tileX;
-							if (screenX >= ScreenWidth && wrapAround)
-							{
-								screenX -= 32 * 8;
-							}
-							if (screenX >= 0 && screenX < ScreenWidth)
-							{
-								outputPixels[screenX] = pixelColor;
-							}
-						}
+						var tileDataIndex = tileIndex * TileLengthInBytes + tileY * 2;
+						var tileDataLow = backgroundAndWindowTileData[tileDataIndex];
+						var tileDataHigh = backgroundAndWindowTileData[tileDataIndex + 1];
+						int colorShift = 7 - tileX;
+						int colorMask = 1 << colorShift;
+						var colorIndex = ((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1);
+						outputPixels[screenX] = registerBGP[colorIndex];
 					}
 				}
 
-				void drawSpriteLine(Sprite sprite)
-				{
-					var screenX = sprite.X - 8;
-					var screenY = sprite.Y - 16;
-					var xFlip = (sprite.Flags & 0b0010_0000) != 0;
-					var yFlip = (sprite.Flags & 0b0100_0000) != 0;
-					var y = registerLY - screenY;
-					var palette = (sprite.Flags & 0b0001_0000) != 0 ? registerOBP1 : registerOBP0;
-					if (spritesAreBig)
-					{
-						if (y < 8)
-						{
-							drawTileLine(sprite.TileIndex & 0b1111_1110, yFlip ? 7 - y : y);
-						}
-						else
-						{
-							drawTileLine((sprite.TileIndex & 0b1111_1110) + 1, yFlip ? 15 - y : y - 8);
-						}
-					}
-					else
-					{
-						drawTileLine(sprite.TileIndex, 7 - y);
-					}
+				// TODO JEFF put window back
+				// TODO JEFF put sprites back
 
-					void drawTileLine(int tileIndex, int tileY)
-					{
-						// the index into the tile data where this index is
-						var tileOffset = tileIndex * TileLength + tileY * 2;
-						// the actual tile data
-						var tileDataLow = tileData1[tileOffset];
-						var tileDataHigh = tileData1[tileOffset + 1];
-						var tileData = (UInt16)((tileDataHigh << 8) | tileDataLow);
-						for (int tileX = 0; tileX < 8; tileX++)
-						{
-							// extract the 2 bits for this pixel, and then index into the palette register for what color to draw
-							var pixelColorIndex = (tileData & (0b11 << (tileX * 2))) >> (tileX * 2);
-							// sprites have transparency
-							if (pixelColorIndex == 0)
-							{
-								continue;
-							}
-							var pixelColor = (byte)((palette & (0b11 << (pixelColorIndex * 2))) >> (pixelColorIndex * 2));
-							var flippedScreenX = xFlip ? screenX + 7 - tileX : screenX + tileX;
-							if (flippedScreenX >= 0 && flippedScreenX < ScreenWidth)
-							{
-								outputPixels[flippedScreenX] = pixelColor;
-							}
-						}
-					}
-				}
+				// // figure out what sprites are visible and draw the background ones
+				// const int MaxSprites = 40;
+				// const int MaxVisibleSprites = 10;
+				// var visibleSprites = new List<Sprite>(capacity: MaxVisibleSprites);
+				// if (spritesEnabled)
+				// {
+				// 	// get all the sprite attributes
+				// 	var spriteBytes = memory.ReadArray(Memory.SPRITE_ATTRIBUTES_START, Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1);
+				// 	var sprites = new List<Sprite>(capacity: MaxSprites);
+				// 	for (var i = 0; i < MaxSprites; i++)
+				// 	{
+				// 		var sprite = MemoryMarshal.AsRef<Sprite>(spriteBytes.AsSpan(i * 4, 4));
+				// 		if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && sprite.Y > 0 && sprite.Y < ScreenHeight + 16)
+				// 		{
+				// 			sprites.Add(sprite);
+				// 		}
+				// 	}
+				// 	sprites.Sort((a, b) =>
+				// 	{
+				// 		// right to left, larger X goes first so that it's drawn underneath the larger X
+				// 		var delta = b.X - a.X;
+				// 		if (delta != 0)
+				// 		{
+				// 			return delta;
+				// 		}
+				// 		// break ties by drawing larger tile index first so that they're underneath the smaller tile index
+				// 		return b.TileIndex - a.TileIndex;
+				// 	});
+				// 	visibleSprites.AddRange(sprites.TakeLast(MaxVisibleSprites));
+
+				// 	foreach (var sprite in visibleSprites)
+				// 	{
+				// 		if ((sprite.Flags & 0b1000_0000) != 0)
+				// 		{
+				// 			drawSpriteLine(sprite);
+				// 		}
+				// 	}
+				// }
+
+				logger.LogTrace($"emitting scanline pixels y={registerLY}");
+				ScanlineAvailable?.Invoke(registerLY, outputPixels);
 			}
 		}
 	}

@@ -1,6 +1,5 @@
 namespace Gameboy.UI;
 
-using System.ComponentModel;
 using System.Drawing;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL4;

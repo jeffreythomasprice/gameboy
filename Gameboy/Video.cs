@@ -330,78 +330,169 @@ public class Video : ISteppable
 
 				var outputPixels = new byte[ScreenWidth];
 
-				// TODO JEFF split up window and background into foreground and background
-				// var foreground = new byte[ScreenWidth];
-				// TODO JEFF only do if bg enabled
+				// first layer for background and window
+				if (backgroundAndWindowEnabled)
 				{
+					drawTileMap(backgroundTileIndices, background: true);
+					if (windowEnabled)
+					{
+						drawTileMap(windowTileIndices, background: true);
+					}
+				}
+
+				// figure out what sprites are visible and draw the ones in between the two layers
+				const int MaxSprites = 40;
+				const int MaxVisibleSprites = 10;
+				var visibleSprites = new List<Sprite>(capacity: MaxVisibleSprites);
+				if (spritesEnabled)
+				{
+					// get all the sprite attributes
+					var spriteBytes = memory.ReadArray(Memory.SPRITE_ATTRIBUTES_START, Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1);
+					var sprites = new List<Sprite>(capacity: MaxSprites);
+					for (var i = 0; i < MaxSprites; i++)
+					{
+						var sprite = MemoryMarshal.AsRef<Sprite>(spriteBytes.AsSpan(i * 4, 4));
+						if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && sprite.Y > 0 && sprite.Y < ScreenHeight + 16)
+						{
+							sprites.Add(sprite);
+						}
+					}
+					sprites.Sort((a, b) =>
+					{
+						// right to left, larger X goes first so that it's drawn underneath the larger X
+						var delta = b.X - a.X;
+						if (delta != 0)
+						{
+							return delta;
+						}
+						// break ties by drawing larger tile index first so that they're underneath the smaller tile index
+						return b.TileIndex - a.TileIndex;
+					});
+					visibleSprites.AddRange(sprites.TakeLast(MaxVisibleSprites));
+
+					foreach (var sprite in visibleSprites)
+					{
+						if ((sprite.Flags & 0b1000_0000) != 0)
+						{
+							drawSpriteLine(sprite);
+						}
+					}
+				}
+
+				// second layer for background and window
+				if (backgroundAndWindowEnabled)
+				{
+					drawTileMap(backgroundTileIndices, background: false);
+					if (windowEnabled)
+					{
+						drawTileMap(windowTileIndices, background: false);
+					}
+				}
+
+				// sprites on top of second layer
+				if (spritesEnabled)
+				{
+					foreach (var sprite in visibleSprites)
+					{
+						if ((sprite.Flags & 0b1000_0000) == 0)
+						{
+							drawSpriteLine(sprite);
+						}
+					}
+				}
+
+				logger.LogTrace($"emitting scanline pixels y={registerLY}");
+				ScanlineAvailable?.Invoke(registerLY, outputPixels);
+
+				void drawTileMap(byte[] tileIndices, bool background)
+				{
+					// in pixels on the device display, so 0 to 143
 					var screenY = registerLY;
-					var bgPixelY = (screenY + registerSCY) % BackgroundAndWindowSizeInPixels;
-					var bgTileY = bgPixelY / TileSizeInPixels;
-					var tileY = bgPixelY - bgTileY * TileSizeInPixels;
+					// in pixels on the tile map, so 0 to 255
+					var tileMapPixelY = (screenY + registerSCY) % BackgroundAndWindowSizeInPixels;
+					// in tiles on the tile map, so 0 to 31
+					var tileMapTileY = tileMapPixelY / TileSizeInPixels;
+					// the pixel offset on that tile, so 0 to 7
+					var tileY = tileMapPixelY - tileMapTileY * TileSizeInPixels;
+					// iterate over device display in pixels, so 0 to 159
 					for (var screenX = 0; screenX < ScreenWidth; screenX++)
 					{
-						var bgPixelX = (screenX + registerSCX) % BackgroundAndWindowSizeInPixels;
-						var bgTileX = bgPixelX / TileSizeInPixels;
-						var tileX = bgPixelX - bgTileX * TileSizeInPixels;
-						var tileIndex = backgroundTileIndices[bgTileX + bgTileY * BackgroundAndWindowSizeInTiles];
+						// in pixels on the tile map, so 0 to 255
+						var tileMapPixelX = (screenX + registerSCX) % BackgroundAndWindowSizeInPixels;
+						// in tiles on the tile map, so 0 to 31
+						var tileMapTileX = tileMapPixelX / TileSizeInPixels;
+						// the pixel offset on that tile, so 0 to 7
+						var tileX = tileMapPixelX - tileMapTileX * TileSizeInPixels;
+						// the value from the tile map, an index into the tile data
+						var tileIndex = tileIndices[tileMapTileX + tileMapTileY * BackgroundAndWindowSizeInTiles];
+						// possibly adjusted for the one that has signed offsets
 						if (backgroundAndWindowTileDataIsSigned)
 						{
 							tileIndex = (byte)((sbyte)tileIndex + 128);
 						}
+						// the index into the tile data for the row of pixels we're drawing
 						var tileDataIndex = tileIndex * TileLengthInBytes + tileY * 2;
+						// the two bytes that make up this row
 						var tileDataLow = backgroundAndWindowTileData[tileDataIndex];
 						var tileDataHigh = backgroundAndWindowTileData[tileDataIndex + 1];
+						// the index into the palette for this pixel
 						int colorShift = 7 - tileX;
 						int colorMask = 1 << colorShift;
 						var colorIndex = ((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1);
-						outputPixels[screenX] = registerBGP[colorIndex];
+						// if this pixel is one we want to draw
+						if ((colorIndex == 0 && background) || (colorIndex != 0 && !background))
+						{
+							outputPixels[screenX] = registerBGP[colorIndex];
+						}
 					}
 				}
 
-				// TODO JEFF put window back
-				// TODO JEFF put sprites back
-
-				// // figure out what sprites are visible and draw the background ones
-				// const int MaxSprites = 40;
-				// const int MaxVisibleSprites = 10;
-				// var visibleSprites = new List<Sprite>(capacity: MaxVisibleSprites);
-				// if (spritesEnabled)
-				// {
-				// 	// get all the sprite attributes
-				// 	var spriteBytes = memory.ReadArray(Memory.SPRITE_ATTRIBUTES_START, Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1);
-				// 	var sprites = new List<Sprite>(capacity: MaxSprites);
-				// 	for (var i = 0; i < MaxSprites; i++)
-				// 	{
-				// 		var sprite = MemoryMarshal.AsRef<Sprite>(spriteBytes.AsSpan(i * 4, 4));
-				// 		if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && sprite.Y > 0 && sprite.Y < ScreenHeight + 16)
-				// 		{
-				// 			sprites.Add(sprite);
-				// 		}
-				// 	}
-				// 	sprites.Sort((a, b) =>
-				// 	{
-				// 		// right to left, larger X goes first so that it's drawn underneath the larger X
-				// 		var delta = b.X - a.X;
-				// 		if (delta != 0)
-				// 		{
-				// 			return delta;
-				// 		}
-				// 		// break ties by drawing larger tile index first so that they're underneath the smaller tile index
-				// 		return b.TileIndex - a.TileIndex;
-				// 	});
-				// 	visibleSprites.AddRange(sprites.TakeLast(MaxVisibleSprites));
-
-				// 	foreach (var sprite in visibleSprites)
-				// 	{
-				// 		if ((sprite.Flags & 0b1000_0000) != 0)
-				// 		{
-				// 			drawSpriteLine(sprite);
-				// 		}
-				// 	}
-				// }
-
-				logger.LogTrace($"emitting scanline pixels y={registerLY}");
-				ScanlineAvailable?.Invoke(registerLY, outputPixels);
+				void drawSpriteLine(Sprite sprite)
+				{
+					// in pixels on the device display, so 0 to 143
+					var screenY = registerLY;
+					// actual sprite coordinates in pixels
+					var spriteX = sprite.X - 8;
+					var spriteY = sprite.Y - 16;
+					// which tile to draw
+					var tileIndex = sprite.TileIndex;
+					if (spritesAreBig)
+					{
+						tileIndex = (byte)(tileIndex & 0b1111_1110);
+					}
+					// the pixel offset on the tile, so 0 to 7
+					var tileY = screenY - spriteY;
+					if (tileY >= 8)
+					{
+						tileY -= 8;
+						// drawing the bottom half of a big sprite
+						tileIndex++;
+					}
+					// iterate over device display in pixels, so 0 to 159
+					for (var screenX = spriteX; screenX < spriteX + 8; screenX++)
+					{
+						// clip to screen
+						if (screenX < 0 || screenX >= ScreenWidth)
+						{
+							continue;
+						}
+						// the pixel offset on that tile, so 0 to 7
+						var tileX = screenX - spriteX;
+						// the index into the tile data for the row of pixels we're drawing
+						var tileDataIndex = tileIndex * TileLengthInBytes + tileY * 2;
+						// the two bytes that make up this row
+						var tileDataLow = backgroundAndWindowTileData[tileDataIndex];
+						var tileDataHigh = backgroundAndWindowTileData[tileDataIndex + 1];
+						// the index into the palette for this pixel
+						int colorShift = 7 - tileX;
+						int colorMask = 1 << colorShift;
+						var colorIndex = ((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1);
+						// which palette are we using
+						var palette = (sprite.Flags & 0b0001_0000) == 0 ? registerOBP0 : registerOBP1;
+						// draw the pixel
+						outputPixels[screenX] = palette[colorIndex];
+					}
+				}
 			}
 		}
 	}

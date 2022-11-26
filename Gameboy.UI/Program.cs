@@ -1,12 +1,11 @@
 ﻿namespace Gameboy.UI;
 
-using System.Drawing;
 using Gameboy;
 using Microsoft.Extensions.Logging;
 
 public class Program
 {
-	public static void Main()
+	public static void Main(string[] args)
 	{
 		using var loggerFactory = LoggerFactory.Create(builder =>
 		{
@@ -22,8 +21,12 @@ public class Program
 		var logger = loggerFactory.CreateLogger<Program>();
 		try
 		{
-			// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
-			using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
+			if (args.Length != 1)
+			{
+				logger.LogError("provide a rom path");
+				return;
+			}
+			using var stream = new FileStream(args[0], FileMode.Open);
 			var cartridge = new Cartridge(stream);
 			var emulator = new Emulator(loggerFactory, cartridge);
 

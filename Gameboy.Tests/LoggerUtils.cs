@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Gameboy.Test;
+namespace Gameboy.Tests;
 
 public static class LoggerUtils
 {

@@ -55,6 +55,8 @@ public class Emulator : ISteppable
 
 	public ulong Clock => cpu.Clock;
 
+	public TimeSpan ClockTime => TimeUtils.ToTimeSpan(Clock);
+
 	public void Reset()
 	{
 		memory.Reset();

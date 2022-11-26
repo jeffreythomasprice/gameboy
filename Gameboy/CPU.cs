@@ -43,6 +43,11 @@ public class CPU : ISteppable
 	)
 	{ }
 
+	/// <summary>
+	/// How many clock ticks the CPU expects to go through per second of real time.
+	/// </summary>
+	public const UInt64 ClockTicksPerSecond = 4194304;
+
 	public const UInt16 InitialPC = 0x0100;
 
 	private const byte ZeroFlagMask = 0b1000_0000;

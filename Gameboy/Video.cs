@@ -23,6 +23,8 @@ public class Video : ISteppable
 		mode = 11 = sprite and video is disabled, lasts 169 ticks
 	}
 	mode = 01 = V blank, lasts 1386 ticks, i.e. until this total operation has taken 70224 total ticks
+
+	so at 60 FPS thats 70224 * 60 = 4213440 ticks per second
 	*/
 
 	private enum State
@@ -97,16 +99,19 @@ public class Video : ISteppable
 
 	public void Step()
 	{
+		const double FramesPerSecond = 59.73;
+		const UInt64 ClockTicksPerFrame = (UInt64)(CPU.ClockTicksPerSecond / FramesPerSecond);
+		const UInt64 HBlankTime = 201;
+		const UInt64 SpriteAttrCopyTime = 77;
+		const UInt64 AllVideoMemCopyTime = 169;
+		const UInt64 VBlankTime = ClockTicksPerFrame - (HBlankTime + SpriteAttrCopyTime + AllVideoMemCopyTime) * (ScreenHeight + 10);
+
 		// advance time
 		var advance = Math.Min(ticksRemainingInCurrentState, 4);
 		Clock += advance;
 		ticksRemainingInCurrentState -= advance;
 
 		// advance state machine if enough time has passed
-		const UInt64 HBlankTime = 201;
-		const UInt64 SpriteAttrCopyTime = 77;
-		const UInt64 AllVideoMemCopyTime = 169;
-		const UInt64 VBlankTime = 1386;
 		if (ticksRemainingInCurrentState == 0)
 		{
 			// control registers
@@ -435,7 +440,7 @@ public class Video : ISteppable
 							{
 								continue;
 							}
-							var pixelColor = (byte)((registerBGP & (0b11 << pixelColorIndex)) >> pixelColorIndex);
+							var pixelColor = (byte)((registerBGP & (0b11 << (pixelColorIndex * 2))) >> (pixelColorIndex * 2));
 							// where are we drawing, adjusted for wrap around if needed
 							var screenX = positionX + tileIndexX * 8 + tileX;
 							if (screenX >= ScreenWidth && wrapAround)
@@ -491,7 +496,7 @@ public class Video : ISteppable
 							{
 								continue;
 							}
-							var pixelColor = (byte)((palette & (0b11 << pixelColorIndex)) >> pixelColorIndex);
+							var pixelColor = (byte)((palette & (0b11 << (pixelColorIndex * 2))) >> (pixelColorIndex * 2));
 							var flippedScreenX = xFlip ? screenX + 7 - tileX : screenX + tileX;
 							if (flippedScreenX >= 0 && flippedScreenX < ScreenWidth)
 							{

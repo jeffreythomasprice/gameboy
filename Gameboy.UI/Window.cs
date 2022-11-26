@@ -6,11 +6,13 @@ using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 
 public class Window : GameWindow
 {
 	private readonly ILoggerFactory loggerFactory;
 	private readonly ILogger logger;
+	private readonly Keypad keypad;
 
 	private Shader? shader = null;
 	private int? vertexBuffer;
@@ -19,7 +21,7 @@ public class Window : GameWindow
 
 	private List<Action> textureUpdates = new();
 
-	public Window(ILoggerFactory loggerFactory) : base(
+	public Window(ILoggerFactory loggerFactory, Video video, Keypad keypad) : base(
 		GameWindowSettings.Default,
 		new NativeWindowSettings
 		{
@@ -39,32 +41,50 @@ public class Window : GameWindow
 	)
 	{
 		this.loggerFactory = loggerFactory;
+		this.keypad = keypad;
+
 		logger = loggerFactory.CreateLogger<Window>();
 		logger.LogDebug("window properties");
 		logger.LogDebug($"APIVersion = {APIVersion}");
 		logger.LogDebug($"Profile = {Profile}");
 		logger.LogDebug($"Flags = {Flags}");
-	}
 
-	public void ScanlineAvailable(int y, Color[] data)
-	{
-		lock (textureUpdates)
+		// TODO multiple palettes to switch between
+		var palette = new Color[]
 		{
-			textureUpdates.Add(() =>
+			// approximately 0.8
+			Color.FromArgb(205,205,205),
+			// approximately 0.6
+			Color.FromArgb(154,154,154),
+			// approximately 0.4
+			Color.FromArgb(102,102,102),
+			// approximately 0.2
+			Color.FromArgb(51,51,51),
+		};
+		video.ScanlineAvailable += (y, data) =>
+		{
+			var rgbaData = data
+				.Select(color => palette[color])
+				.SelectMany(c => new byte[] { c.R, c.G, c.B, c.A })
+				.ToArray();
+			lock (textureUpdates)
 			{
-				GL.TexSubImage2D<byte>(
-					TextureTarget.Texture2D,
-					0,
-					0,
-					y,
-					Video.ScreenWidth,
-					1,
-					PixelFormat.Rgba,
-					PixelType.UnsignedByte,
-					data.SelectMany(c => new byte[] { c.R, c.G, c.B, c.A }).ToArray()
-				);
-			});
-		}
+				textureUpdates.Add(() =>
+				{
+					GL.TexSubImage2D<byte>(
+						TextureTarget.Texture2D,
+						0,
+						0,
+						y,
+						Video.ScreenWidth,
+						1,
+						PixelFormat.Rgba,
+						PixelType.UnsignedByte,
+						rgbaData
+					);
+				});
+			}
+		};
 	}
 
 	protected override void OnLoad()
@@ -109,12 +129,12 @@ public class Window : GameWindow
 			BufferTarget.ArrayBuffer,
 			sizeof(float) * 4 * 6,
 			new float[] {
-				-1, -1, 0, 0,
-				1, -1, 1, 0,
-				1, 1, 1, 1,
-				1, 1, 1, 1,
-				-1, 1, 0, 1,
-				-1, -1, 0, 0,
+				-1, -1, 0, 1,
+				1, -1, 1, 1,
+				1, 1, 1, 0,
+				1, 1, 1, 0,
+				-1, 1, 0, 0,
+				-1, -1, 0, 1,
 			},
 			BufferUsageHint.StaticDraw
 		);
@@ -201,5 +221,15 @@ public class Window : GameWindow
 		}
 
 		Context.SwapBuffers();
+
+		// TODO configurable key bindings
+		keypad.SetPressed(Key.Left, KeyboardState.IsKeyDown(Keys.Left) || KeyboardState.IsKeyDown(Keys.A));
+		keypad.SetPressed(Key.Right, KeyboardState.IsKeyDown(Keys.Right) || KeyboardState.IsKeyDown(Keys.D));
+		keypad.SetPressed(Key.Up, KeyboardState.IsKeyDown(Keys.Up) || KeyboardState.IsKeyDown(Keys.W));
+		keypad.SetPressed(Key.Down, KeyboardState.IsKeyDown(Keys.Down) || KeyboardState.IsKeyDown(Keys.S));
+		keypad.SetPressed(Key.Start, KeyboardState.IsKeyDown(Keys.Enter));
+		keypad.SetPressed(Key.Select, KeyboardState.IsKeyDown(Keys.RightShift));
+		keypad.SetPressed(Key.A, KeyboardState.IsKeyDown(Keys.Z));
+		keypad.SetPressed(Key.B, KeyboardState.IsKeyDown(Keys.X));
 	}
 }

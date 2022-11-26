@@ -22,35 +22,39 @@ public class Program
 		var logger = loggerFactory.CreateLogger<Program>();
 		try
 		{
+			// using var stream = new FileStream("gb-test-roms/cpu_instrs/individual/01-special.gb", FileMode.Open);
 			using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 			var cartridge = new Cartridge(stream);
 			var emulator = new Emulator(loggerFactory, cartridge);
 
-			using var window = new Window(loggerFactory);
+			using var window = new Window(loggerFactory, emulator.Video, emulator.Keypad);
 
-			// TODO multiple palettes to switch between
-			var palette = new Color[]
+			emulator.SerialIO.DataAvailable += (data) =>
 			{
-				// approximately 0.8
-				Color.FromArgb(205,205,205),
-				// approximately 0.6
-				Color.FromArgb(154,154,154),
-				// approximately 0.4
-				Color.FromArgb(102,102,102),
-				// approximately 0.2
-				Color.FromArgb(51,51,51),
+				logger.LogTrace($"TODO JEFF serial IO data = {data}");
 			};
-			emulator.Video.ScanlineAvailable += (y, data) =>
+
+			emulator.Keypad.KeypadRegisterDelta += (oldValue, newValue) =>
 			{
-				window.ScanlineAvailable(y, data.Select(color => palette[color]).ToArray());
+				logger.LogTrace($"TODO JEFF keypad register {NumberUtils.ToBinary(newValue)}");
 			};
 
 			var emulatorThreadRunning = true;
 			var emulatorThread = new Thread(() =>
 			{
+				var logInterval = TimeSpan.FromSeconds(1);
+				var nextLogTime = DateTime.Now + logInterval;
 				while (emulatorThreadRunning)
 				{
 					emulator.Step();
+
+					var now = DateTime.Now;
+					if (now >= nextLogTime)
+					{
+						nextLogTime = now + logInterval;
+						var state = emulator.CPU.IsStopped ? "STOP" : (emulator.CPU.IsHalted ? "HALT" : "running");
+						logger.LogTrace($"TODO JEFF clock time = {emulator.ClockTime}, state: {state}");
+					}
 				}
 			});
 			logger.LogTrace("starting emulating thread");

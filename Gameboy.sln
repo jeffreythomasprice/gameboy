@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gameboy", "Gameboy\Gameboy.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gameboy.Tests", "Gameboy.Tests\Gameboy.Tests.csproj", "{94526AC7-A7E2-48DA-99E3-C20430CD0C0F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gameboy.UI", "Gameboy.UI\Gameboy.UI.csproj", "{A8010AEE-35EF-423F-8BF4-BF71DF2DEA64}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{94526AC7-A7E2-48DA-99E3-C20430CD0C0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{94526AC7-A7E2-48DA-99E3-C20430CD0C0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{94526AC7-A7E2-48DA-99E3-C20430CD0C0F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A8010AEE-35EF-423F-8BF4-BF71DF2DEA64}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8010AEE-35EF-423F-8BF4-BF71DF2DEA64}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8010AEE-35EF-423F-8BF4-BF71DF2DEA64}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8010AEE-35EF-423F-8BF4-BF71DF2DEA64}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

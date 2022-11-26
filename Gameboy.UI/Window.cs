@@ -1,5 +1,6 @@
 namespace Gameboy.UI;
 
+using System.ComponentModel;
 using System.Drawing;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL4;
@@ -15,6 +16,8 @@ public class Window : GameWindow
 	private int? vertexBuffer;
 	private int? vertexArray;
 	private int? texture;
+
+	private List<Action> textureUpdates = new();
 
 	public Window(ILoggerFactory loggerFactory) : base(
 		GameWindowSettings.Default,
@@ -45,7 +48,23 @@ public class Window : GameWindow
 
 	public void ScanlineAvailable(int y, Color[] data)
 	{
-		// TODO JEFF draw scanline to screen
+		lock (textureUpdates)
+		{
+			textureUpdates.Add(() =>
+			{
+				GL.TexSubImage2D<byte>(
+					TextureTarget.Texture2D,
+					0,
+					0,
+					y,
+					Video.ScreenWidth,
+					1,
+					PixelFormat.Rgba,
+					PixelType.UnsignedByte,
+					data.SelectMany(c => new byte[] { c.R, c.G, c.B, c.A }).ToArray()
+				);
+			});
+		}
 	}
 
 	protected override void OnLoad()
@@ -120,27 +139,6 @@ public class Window : GameWindow
 		GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 		GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 		GL.BindTexture(TextureTarget.Texture2D, 0);
-
-		// TODO testing
-		{
-			var pixels = new byte[Video.ScreenWidth * Video.ScreenHeight * 4];
-			for (var y = 0; y < Video.ScreenHeight; y++)
-			{
-				var b = (byte)((double)y / (double)(Video.ScreenHeight - 1) * 255);
-				for (var x = 0; x < Video.ScreenWidth; x++)
-				{
-					var a = (byte)((double)x / (double)(Video.ScreenWidth - 1) * 255);
-					var i = (x + y * Video.ScreenWidth) * 4;
-					pixels[i++] = a;
-					pixels[i++] = b;
-					pixels[i++] = a;
-					pixels[i++] = 255;
-				}
-			}
-			GL.BindTexture(TextureTarget.Texture2D, texture.Value);
-			GL.TexSubImage2D<byte>(TextureTarget.Texture2D, 0, 0, 0, Video.ScreenWidth, Video.ScreenHeight, PixelFormat.Rgba, PixelType.UnsignedByte, pixels);
-			GL.BindTexture(TextureTarget.Texture2D, 0);
-		}
 	}
 
 	protected override void OnUnload()
@@ -183,6 +181,15 @@ public class Window : GameWindow
 			GL.ActiveTexture(TextureUnit.Texture0);
 			GL.BindTexture(TextureTarget.Texture2D, texture.Value);
 			GL.Uniform1(shader.Uniforms["textureUniform"].Location, 0);
+
+			lock (textureUpdates)
+			{
+				foreach (var udpate in textureUpdates)
+				{
+					udpate();
+				}
+				textureUpdates.Clear();
+			}
 
 			GL.BindVertexArray(vertexArray.Value);
 			GL.DrawArrays(PrimitiveType.Triangles, 0, 6);

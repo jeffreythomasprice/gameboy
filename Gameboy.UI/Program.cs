@@ -45,7 +45,24 @@ public class Program
 				window.ScanlineAvailable(y, data.Select(color => palette[color]).ToArray());
 			};
 
+			var emulatorThreadRunning = true;
+			var emulatorThread = new Thread(() =>
+			{
+				while (emulatorThreadRunning)
+				{
+					emulator.Step();
+				}
+			});
+			logger.LogTrace("starting emulating thread");
+			emulatorThread.Start();
+
+			logger.LogTrace("starting window");
 			window.Run();
+
+			logger.LogDebug("stopping emulation thread");
+			emulatorThreadRunning = false;
+			emulatorThread.Join();
+			logger.LogDebug("emulation thread stopped");
 		}
 		catch (Exception e)
 		{

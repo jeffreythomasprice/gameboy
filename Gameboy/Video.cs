@@ -304,6 +304,7 @@ public class Video : ISteppable
 				var windowEnabled = (registerLCDC & 0b0010_0000) != 0;
 				// where in video memory the indices of the window tiles are
 				var windowTileIndicesAddress = (UInt16)((registerLCDC & 0b0100_0000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
+				// TODO respect LCDC bit 7, display enabled
 
 				var backgroundTileIndices = memory.ReadArray(backgroundTileIndicesAddress, TileIndicesLength);
 				var windowTileIndices = memory.ReadArray(windowTileIndicesAddress, TileIndicesLength);

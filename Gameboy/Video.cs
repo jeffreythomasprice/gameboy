@@ -39,7 +39,7 @@ public class Video : ISteppable
 		VBlank
 	}
 
-	[StructLayout(LayoutKind.Explicit, Size = 16)]
+	[StructLayout(LayoutKind.Explicit, Size = 4)]
 	private struct Sprite
 	{
 		[FieldOffset(0)]
@@ -497,6 +497,7 @@ public class Video : ISteppable
 						// drawing the bottom half of a big sprite
 						tileIndex++;
 					}
+					// TODO JEFF respect the wrap Y flag
 					// iterate over device display in pixels, so 0 to 159
 					for (var screenX = spriteX; screenX < spriteX + 8; screenX++)
 					{
@@ -510,9 +511,10 @@ public class Video : ISteppable
 						// the index into the tile data for the row of pixels we're drawing
 						var tileDataIndex = tileIndex * TileLengthInBytes + tileY * 2;
 						// the two bytes that make up this row
-						var tileDataLow = backgroundAndWindowTileData[tileDataIndex];
-						var tileDataHigh = backgroundAndWindowTileData[tileDataIndex + 1];
+						var tileDataLow = tileData1[tileDataIndex];
+						var tileDataHigh = tileData1[tileDataIndex + 1];
 						// the index into the palette for this pixel
+						// TODO JEFF respect the wrap X flag
 						int colorShift = 7 - tileX;
 						int colorMask = 1 << colorShift;
 						var colorIndex = ((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1);

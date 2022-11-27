@@ -56,6 +56,11 @@ public class Video : ISteppable
 
 		public int AdjustedX => X - 8;
 		public int AdjustedY => Y - 16;
+
+		public bool WrapX => (Flags & 0b0010_0000) != 0;
+		public bool WrapY => (Flags & 0b0100_0000) != 0;
+		public bool PaletteIsOBP0 => (Flags & 0b0001_0000) == 0;
+		public bool DrawOnTopOfBackgroundAndWindow => (Flags & 0b1000_0000) == 0;
 	}
 
 	private struct ColorPalette
@@ -366,7 +371,7 @@ public class Video : ISteppable
 					drawTileMap(tileIndices: backgroundTileIndices, scrollX: RegisterSCX, scrollY: RegisterSCY, wrap: true);
 					if (windowEnabled)
 					{
-						drawTileMap(tileIndices: windowTileIndices, scrollX: -RegisterWX, scrollY: -RegisterWY, wrap: false);
+						drawTileMap(tileIndices: windowTileIndices, scrollX: -(RegisterWX - 7), scrollY: -RegisterWY, wrap: false);
 					}
 				}
 
@@ -376,29 +381,49 @@ public class Video : ISteppable
 				var visibleSprites = new List<Sprite>(capacity: MaxVisibleSprites);
 				if (spritesEnabled)
 				{
+					var shouldDebug = false;
+					if (RegisterLY == 0 || RegisterLY == 80)
+					{
+						shouldDebug = true;
+						logger.LogDebug($"TODO JEFF RegisterLY={RegisterLY}");
+					}
+
 					// get all the sprite attributes
 					var spriteBytes = memory.ReadArray(Memory.SPRITE_ATTRIBUTES_START, Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1);
 					var sprites = new List<Sprite>(capacity: MaxSprites);
 					for (var i = 0; i < MaxSprites; i++)
 					{
 						var sprite = MemoryMarshal.AsRef<Sprite>(spriteBytes.AsSpan(i * 4, 4));
-						if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && RegisterLY >= sprite.AdjustedY && RegisterLY < sprite.AdjustedX + spriteHeight)
+						if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && sprite.Y > 0 && RegisterLY >= sprite.AdjustedY && RegisterLY < sprite.AdjustedX + spriteHeight)
 						{
 							sprites.Add(sprite);
 						}
+
+						if (shouldDebug && sprite.X > 0 && sprite.Y > 0)
+						{
+							logger.LogDebug($"TODO JEFF sprite ({sprite.X}, {sprite.Y}), tile={sprite.TileIndex}");
+						}
 					}
+					/*
+					sprite priority:
+					- sprites to the left are on top
+					- resolve ties, sprites with lower tile indices are on top
+
+					so sort in ascending order by x, break ties by ascending order by tile
+					if too many, drop at from the end of the list
+					draw from back of list to front
+					*/
 					sprites.Sort((a, b) =>
 					{
-						// right to left, larger X goes first so that it's drawn underneath the larger X
-						var delta = b.X - a.X;
+						var delta = a.X - b.X;
 						if (delta != 0)
 						{
 							return delta;
 						}
-						// break ties by drawing larger tile index first so that they're underneath the smaller tile index
-						return b.TileIndex - a.TileIndex;
+						return a.TileIndex - b.TileIndex;
 					});
-					visibleSprites.AddRange(sprites.TakeLast(MaxVisibleSprites));
+					visibleSprites.AddRange(sprites.Take(MaxVisibleSprites));
+					visibleSprites.Reverse();
 
 					foreach (var sprite in visibleSprites)
 					{
@@ -455,16 +480,8 @@ public class Video : ISteppable
 						{
 							tileIndex = (byte)((sbyte)tileIndex + 128);
 						}
-						// the index into the tile data for the row of pixels we're drawing
-						var tileDataIndex = tileIndex * TileLengthInBytes + tileY * 2;
-						// the two bytes that make up this row
-						var tileDataLow = backgroundAndWindowTileData[tileDataIndex];
-						var tileDataHigh = backgroundAndWindowTileData[tileDataIndex + 1];
-						// the index into the palette for this pixel
-						int colorShift = 7 - tileX;
-						int colorMask = 1 << colorShift;
-						var colorIndex = (byte)(((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1));
 						// remember both the actual color and the index
+						var colorIndex = getColorIndexFromTile(backgroundAndWindowTileData, tileIndex, tileX, tileY);
 						outputPixels[screenX] = RegisterBGP[colorIndex];
 						backgroundAndWindowColorIndex[screenX] = colorIndex;
 					}
@@ -488,11 +505,11 @@ public class Video : ISteppable
 						// drawing the bottom half of a big sprite
 						tileIndex++;
 					}
-					if ((sprite.Flags & 0b0100_0000) != 0)
+					if (sprite.WrapY)
 					{
 						tileY = 7 - tileY;
 					}
-					// iterate over device display in pixels, so 0 to 159
+					// iterate over x coordinates in pixels that are part of this sprite, so in range 0 to 159
 					for (var screenX = sprite.AdjustedX; screenX < sprite.AdjustedX + 8; screenX++)
 					{
 						// clip to screen
@@ -502,20 +519,12 @@ public class Video : ISteppable
 						}
 						// the pixel offset on that tile, so 0 to 7
 						var tileX = screenX - sprite.AdjustedX;
-						if ((sprite.Flags & 0b0010_0000) != 0)
+						if (sprite.WrapX)
 						{
 							tileX = 7 - tileX;
 						}
-						// the index into the tile data for the row of pixels we're drawing
-						var tileDataIndex = tileIndex * TileLengthInBytes + tileY * 2;
-						// the two bytes that make up this row
-						var tileDataLow = tileData1[tileDataIndex];
-						var tileDataHigh = tileData1[tileDataIndex + 1];
-						// the index into the palette for this pixel
-						int colorShift = 7 - tileX;
-						int colorMask = 1 << colorShift;
-						var colorIndex = ((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1);
 						// draw the pixel, but index 0 is transparent
+						var colorIndex = getColorIndexFromTile(tileData1, tileIndex, tileX, tileY);
 						if (colorIndex != 0)
 						{
 							bool shouldDraw;
@@ -524,7 +533,7 @@ public class Video : ISteppable
 								// only sprites are visible
 								shouldDraw = true;
 							}
-							else if ((sprite.Flags & 0b1000_0000) == 0)
+							else if (sprite.DrawOnTopOfBackgroundAndWindow)
 							{
 								// always draw this sprite on top of background and window
 								shouldDraw = true;
@@ -536,12 +545,24 @@ public class Video : ISteppable
 							}
 							if (shouldDraw)
 							{
-								// which palette are we using
-								var palette = (sprite.Flags & 0b0001_0000) == 0 ? RegisterOBP0 : RegisterOBP1;
+								var palette = sprite.PaletteIsOBP0 ? RegisterOBP0 : RegisterOBP1;
 								outputPixels[screenX] = palette[colorIndex];
 							}
 						}
 					}
+				}
+
+				byte getColorIndexFromTile(byte[] tileData, int tileIndex, int tileX, int tileY)
+				{
+					// the index into the tile data for the row of pixels we're drawing
+					var tileDataIndex = tileIndex * TileLengthInBytes + tileY * 2;
+					// the two bytes that make up this row
+					var tileDataLow = tileData[tileDataIndex];
+					var tileDataHigh = tileData[tileDataIndex + 1];
+					// the index into the palette for this pixel
+					int colorShift = 7 - tileX;
+					int colorMask = 1 << colorShift;
+					return (byte)(((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1));
 				}
 			}
 		}
@@ -549,6 +570,9 @@ public class Video : ISteppable
 
 	public void RegisterLYWrite(byte oldValue, ref byte newValue)
 	{
+		// if update flag is true it means we're actively trying to update this value as part of the scan line state machine
+		// in that case we let the intended write go through normally
+		// if we're not in the middle of that, it means the CPU is writing here expecting to cause it to reset
 		if (expectedLYUpdate)
 		{
 			expectedLYUpdate = false;
@@ -581,6 +605,8 @@ public class Video : ISteppable
 		get => memory.ReadUInt8(Memory.IO_LY);
 		set
 		{
+			// we need to update this register value, but memory will emit events when we do
+			// this flag gets checked when we're handling the memory write event
 			expectedLYUpdate = true;
 			memory.WriteUInt8(Memory.IO_LY, value);
 		}

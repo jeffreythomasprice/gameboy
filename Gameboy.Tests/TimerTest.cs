@@ -195,8 +195,12 @@ public class TimerTest
 		}
 
 		// simulate a write to the div register, normally this would be triggered by an event on the memory
-		timer.ResetDIV();
-		memory.WriteUInt8(Memory.IO_DIV, 0);
+		{
+			byte newValue = 0x42;
+			timer.RegisterDIVWrite(memory.ReadUInt8(Memory.IO_DIV), ref newValue);
+			memory.WriteUInt8(Memory.IO_DIV, newValue);
+		}
+		Assert.Equal(0, memory.ReadUInt8(Memory.IO_DIV));
 
 		// advance until one setp remaining until overflow
 		for (var i = 0; i < 1024 * 256 - 1; i++)

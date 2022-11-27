@@ -363,10 +363,10 @@ public class Video : ISteppable
 				// first layer for background and window
 				if (backgroundAndWindowEnabled)
 				{
-					drawTileMap(tileIndices: backgroundTileIndices, background: true, scrollX: RegisterSCX, scrollY: RegisterSCY);
+					drawTileMap(tileIndices: backgroundTileIndices, onlyColor0: true, scrollX: RegisterSCX, scrollY: RegisterSCY, wrap: true);
 					if (windowEnabled)
 					{
-						drawTileMap(tileIndices: windowTileIndices, background: true, scrollX: RegisterWX, scrollY: RegisterWY);
+						drawTileMap(tileIndices: windowTileIndices, onlyColor0: true, scrollX: -RegisterWX, scrollY: -RegisterWY, wrap: false);
 					}
 				}
 
@@ -413,10 +413,10 @@ public class Video : ISteppable
 				// second layer for background and window
 				if (backgroundAndWindowEnabled)
 				{
-					drawTileMap(tileIndices: backgroundTileIndices, background: false, scrollX: RegisterSCX, scrollY: RegisterSCY);
+					drawTileMap(tileIndices: backgroundTileIndices, onlyColor0: false, scrollX: RegisterSCX, scrollY: RegisterSCY, wrap: true);
 					if (windowEnabled)
 					{
-						drawTileMap(tileIndices: windowTileIndices, background: false, scrollX: RegisterWX, scrollY: RegisterWY);
+						drawTileMap(tileIndices: windowTileIndices, onlyColor0: false, scrollX: -RegisterWX, scrollY: -RegisterWY, wrap: false);
 					}
 				}
 
@@ -435,14 +435,22 @@ public class Video : ISteppable
 				logger.LogTrace($"emitting scanline pixels y={RegisterLY}");
 				ScanlineAvailable?.Invoke(RegisterLY, outputPixels);
 
-				void drawTileMap(byte[] tileIndices, bool background, int scrollX, int scrollY)
+				void drawTileMap(byte[] tileIndices, bool onlyColor0, int scrollX, int scrollY, bool wrap)
 				{
-					// TODO JEFF window use of scrollX and scrollY might be wrong, bg and window treat this as opposite sign?
-
 					// in pixels on the device display, so 0 to 143
 					var screenY = RegisterLY;
 					// in pixels on the tile map, so 0 to 255
-					var tileMapPixelY = (screenY + scrollY) % BackgroundAndWindowSizeInPixels;
+					var tileMapPixelY = (screenY + scrollY);
+					if (wrap)
+					{
+						// drawing the background, which wraps around
+						tileMapPixelY %= BackgroundAndWindowSizeInPixels;
+					}
+					else if (tileMapPixelY < 0 || tileMapPixelY >= BackgroundAndWindowSizeInPixels)
+					{
+						// drawing the window which does not wrap, and we're out of bounds so nothing to draw
+						return;
+					}
 					// in tiles on the tile map, so 0 to 31
 					var tileMapTileY = tileMapPixelY / TileSizeInPixels;
 					// the pixel offset on that tile, so 0 to 7
@@ -451,7 +459,17 @@ public class Video : ISteppable
 					for (var screenX = 0; screenX < ScreenWidth; screenX++)
 					{
 						// in pixels on the tile map, so 0 to 255
-						var tileMapPixelX = (screenX + scrollX) % BackgroundAndWindowSizeInPixels;
+						var tileMapPixelX = (screenX + scrollX);
+						if (wrap)
+						{
+							// drawing the background, which wraps around
+							tileMapPixelX %= BackgroundAndWindowSizeInPixels;
+						}
+						else if (tileMapPixelX < 0 || tileMapPixelX >= BackgroundAndWindowSizeInPixels)
+						{
+							// drawing the window which does not wrap, and we're out of bounds so nothing to draw
+							continue;
+						}
 						// in tiles on the tile map, so 0 to 31
 						var tileMapTileX = tileMapPixelX / TileSizeInPixels;
 						// the pixel offset on that tile, so 0 to 7
@@ -473,7 +491,7 @@ public class Video : ISteppable
 						int colorMask = 1 << colorShift;
 						var colorIndex = ((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1);
 						// if this pixel is one we want to draw
-						if ((colorIndex == 0 && background) || (colorIndex != 0 && !background))
+						if ((colorIndex == 0 && onlyColor0) || (colorIndex != 0 && !onlyColor0))
 						{
 							outputPixels[screenX] = RegisterBGP[colorIndex];
 						}
@@ -498,7 +516,10 @@ public class Video : ISteppable
 						// drawing the bottom half of a big sprite
 						tileIndex++;
 					}
-					// TODO JEFF respect the wrap Y flag
+					if ((sprite.Flags & 0b0100_0000) != 0)
+					{
+						tileY = 7 - tileY;
+					}
 					// iterate over device display in pixels, so 0 to 159
 					for (var screenX = sprite.AdjustedX; screenX < sprite.AdjustedX + 8; screenX++)
 					{
@@ -509,20 +530,26 @@ public class Video : ISteppable
 						}
 						// the pixel offset on that tile, so 0 to 7
 						var tileX = screenX - sprite.AdjustedX;
+						if ((sprite.Flags & 0b0010_0000) != 0)
+						{
+							tileX = 7 - tileX;
+						}
 						// the index into the tile data for the row of pixels we're drawing
 						var tileDataIndex = tileIndex * TileLengthInBytes + tileY * 2;
 						// the two bytes that make up this row
 						var tileDataLow = tileData1[tileDataIndex];
 						var tileDataHigh = tileData1[tileDataIndex + 1];
 						// the index into the palette for this pixel
-						// TODO JEFF respect the wrap X flag
 						int colorShift = 7 - tileX;
 						int colorMask = 1 << colorShift;
 						var colorIndex = ((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1);
-						// which palette are we using
-						var palette = (sprite.Flags & 0b0001_0000) == 0 ? RegisterOBP0 : RegisterOBP1;
-						// draw the pixel
-						outputPixels[screenX] = palette[colorIndex];
+						// draw the pixel, but index 0 is transparent
+						if (colorIndex != 0)
+						{
+							// which palette are we using
+							var palette = (sprite.Flags & 0b0001_0000) == 0 ? RegisterOBP0 : RegisterOBP1;
+							outputPixels[screenX] = palette[colorIndex];
+						}
 					}
 				}
 			}

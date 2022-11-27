@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace Gameboy;
@@ -16,6 +17,11 @@ public class Emulator : IDisposable, ISteppable
 	private bool isDisposed = false;
 	private Thread? thread = null;
 	private bool threadShouldExit;
+
+	// TODO JEFF timing debugging
+	private Stopwatch totalStopwatch = new();
+	private Stopwatch videoStopwatch = new();
+	private Stopwatch cpuStopwatch = new();
 
 	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge)
 	{
@@ -86,12 +92,32 @@ public class Emulator : IDisposable, ISteppable
 
 	public void Step()
 	{
+		totalStopwatch.Start();
+
 		Step(memory);
+
 		Step(serialIO);
+
 		Step(keypad);
+
 		Step(timer);
+
+		videoStopwatch.Start();
 		Step(video);
+		videoStopwatch.Stop();
+
+		cpuStopwatch.Start();
 		cpu.Step();
+		cpuStopwatch.Stop();
+
+		totalStopwatch.Stop();
+
+		if (cpu.Clock % CPU.ClockTicksPerSecond == 0)
+		{
+			var videoPercentage = ((double)videoStopwatch.ElapsedTicks / (double)totalStopwatch.ElapsedTicks * 100.0).ToString("N2") + "%";
+			var cpuPercentage = ((double)cpuStopwatch.ElapsedTicks / (double)totalStopwatch.ElapsedTicks * 100.0).ToString("N2") + "%";
+			logger.LogDebug($"TODO JEFF total={totalStopwatch.Elapsed}, video={videoStopwatch.Elapsed} ({videoPercentage}) cpu={cpuStopwatch.Elapsed} ({cpuPercentage})");
+		}
 	}
 
 	public void Start()

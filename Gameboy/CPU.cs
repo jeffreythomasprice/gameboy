@@ -293,22 +293,17 @@ public class CPU : ISteppable
 		interruptEnableDeltas.Clear();
 	}
 
-	// TODO JEFF debugging
-	private readonly System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
-	private int stopwatchCounter = 0;
-
 	public void Step()
 	{
-		// TODO JEFF debugging
-		stopwatch.Start();
-
 		var registerPCBefore = RegisterPC;
 		var shouldResetPC = false;
 
 		// special case for STOP, resumes on any key press
 		if (IsStopped && (memory.ReadUInt8(Memory.IO_IF) & Memory.IF_MASK_KEYPAD) != 0)
 		{
+#if DEBUG
 			logger.LogTrace("resuming from state STOP, keyboard interrupt flag set");
+#endif
 			IsStopped = false;
 		}
 
@@ -331,7 +326,9 @@ public class CPU : ISteppable
 				{
 					if (IsHalted)
 					{
+#if DEBUG
 						logger.LogTrace($"resuming from HALT because of {log} interrupt");
+#endif
 						IsHalted = false;
 						if (!IME)
 						{
@@ -340,7 +337,9 @@ public class CPU : ISteppable
 					}
 					else
 					{
+#if DEBUG
 						logger.LogTrace($"{log} interrupt handled");
+#endif
 						memory.WriteUInt8(Memory.IO_IF, (byte)(interruptFlag & (~mask)));
 						IME = false;
 						PushUInt16(RegisterPC);
@@ -353,12 +352,16 @@ public class CPU : ISteppable
 
 		if (IsStopped)
 		{
+#if DEBUG
 			logger.LogTrace("CPU is in state STOP");
+#endif
 			// stopped CPU has no clock running, only keypad will break out of this
 		}
 		else if (IsHalted)
 		{
+#if DEBUG
 			logger.LogTrace("CPU is in state HALT");
+#endif
 			// stop does advance time, because we might be jumped out by a timer interrupt
 			Clock += 4;
 		}
@@ -370,23 +373,17 @@ public class CPU : ISteppable
 		if (interruptEnableDeltas.TryPeek(out var next) && Clock > next.Clock)
 		{
 			IME = interruptEnableDeltas.Dequeue().Value;
+#if DEBUG
 			logger.LogTrace($"interrupts enabled = {IME}");
+#endif
 		}
 
 		if (shouldResetPC)
 		{
+#if DEBUG
 			logger.LogTrace($"PC stuck, resetting back to {ToHex(registerPCBefore)}");
+#endif
 			RegisterPC = registerPCBefore;
-		}
-
-		// TODO JEFF debugging
-		stopwatch.Stop();
-		stopwatchCounter++;
-		if (Clock % ClockTicksPerSecond == 0)
-		{
-			var totalTime = stopwatch.Elapsed;
-			var avgTime = stopwatch.Elapsed / stopwatchCounter;
-			logger.LogInformation($"TODO JEFF total time = {totalTime}, average time = {avgTime}");
 		}
 	}
 
@@ -396,7 +393,9 @@ public class CPU : ISteppable
 		switch (instruction)
 		{
 			case 0x00:
+#if DEBUG
 				logger.LogTrace("NOP");
+#endif
 				Clock += 4;
 				break;
 
@@ -650,7 +649,9 @@ public class CPU : ISteppable
 
 			case 0x07:
 				{
+#if DEBUG
 					logger.LogTrace("RLCA");
+#endif
 					var before = RegisterA;
 					var after = (byte)((before << 1) | ((before & 0b1000_0000) >> 7));
 					RegisterA = after;
@@ -663,7 +664,9 @@ public class CPU : ISteppable
 				break;
 			case 0x0f:
 				{
+#if DEBUG
 					logger.LogTrace("RRCA");
+#endif
 					var before = RegisterA;
 					var after = (byte)((before >> 1) | ((before & 0b0000_0001) << 7));
 					RegisterA = after;
@@ -676,7 +679,9 @@ public class CPU : ISteppable
 				break;
 			case 0x17:
 				{
+#if DEBUG
 					logger.LogTrace("RLA");
+#endif
 					var before = RegisterA;
 					var after = (byte)((before << 1) | (CarryFlag ? 0b0000_0001 : 0));
 					RegisterA = after;
@@ -689,7 +694,9 @@ public class CPU : ISteppable
 				break;
 			case 0x1f:
 				{
+#if DEBUG
 					logger.LogTrace("RRA");
+#endif
 					var before = RegisterA;
 					var after = (byte)((before >> 1) | (CarryFlag ? 0b1000_0000 : 0));
 					RegisterA = after;
@@ -704,7 +711,9 @@ public class CPU : ISteppable
 			case 0x08:
 				{
 					var address = ReadNextPCUInt16();
+#if DEBUG
 					logger.LogTrace($"LD ({ToHex(address)}), {Register16.SP}");
+#endif
 					memory.WriteUInt16(address, RegisterSP);
 					Clock += 20;
 				}
@@ -733,7 +742,9 @@ public class CPU : ISteppable
 
 			case 0x10:
 				{
+#if DEBUG
 					logger.LogTrace("STOP");
+#endif
 					// convention is that the next byte is 0x00, but unchecked
 					ReadNextPCUInt8();
 					IsStopped = true;
@@ -744,7 +755,9 @@ public class CPU : ISteppable
 			case 0x18:
 				{
 					var delta = ReadNextPCInt8();
+#if DEBUG
 					logger.LogTrace($"JR {delta}");
+#endif
 					RegisterPC = (UInt16)((int)RegisterPC + (int)delta);
 					Clock += 12;
 				}
@@ -773,7 +786,9 @@ public class CPU : ISteppable
 			case 0x27:
 				{
 					// https://forums.nesdev.org/viewtopic.php?p=196282&sid=20ffd9ebbfc1973358a81b9a3c59857b#p196282
+#if DEBUG
 					logger.LogTrace("DAA");
+#endif
 					if (SubtractFlag)
 					{
 						if (CarryFlag)
@@ -805,7 +820,9 @@ public class CPU : ISteppable
 
 			case 0x2f:
 				{
+#if DEBUG
 					logger.LogTrace("CPL");
+#endif
 					RegisterA = (byte)(~RegisterA);
 					SubtractFlag = true;
 					HalfCarryFlag = true;
@@ -815,7 +832,9 @@ public class CPU : ISteppable
 
 			case 0x37:
 				{
+#if DEBUG
 					logger.LogTrace("SCF");
+#endif
 					SubtractFlag = false;
 					HalfCarryFlag = false;
 					CarryFlag = true;
@@ -824,7 +843,9 @@ public class CPU : ISteppable
 				break;
 			case 0x3f:
 				{
+#if DEBUG
 					logger.LogTrace("CCF");
+#endif
 					SubtractFlag = false;
 					HalfCarryFlag = false;
 					CarryFlag = !CarryFlag;
@@ -1157,7 +1178,9 @@ public class CPU : ISteppable
 
 			case 0x76:
 				{
+#if DEBUG
 					logger.LogTrace("HALT");
+#endif
 					IsHalted = true;
 					Clock += 4;
 				}
@@ -1728,7 +1751,9 @@ public class CPU : ISteppable
 			case 0xe0:
 				{
 					var offset = ReadNextPCUInt8();
+#if DEBUG
 					logger.LogTrace($"LDH ({ToHex(0xff00)}+{ToHex(offset)}), A");
+#endif
 					memory.WriteUInt8((UInt16)(0xff00 + offset), RegisterA);
 					Clock += 12;
 				}
@@ -1736,7 +1761,9 @@ public class CPU : ISteppable
 			case 0xf0:
 				{
 					var offset = ReadNextPCUInt8();
+#if DEBUG
 					logger.LogTrace($"LDH A, ({ToHex(0xff00)}+{ToHex(offset)})");
+#endif
 					RegisterA = memory.ReadUInt8((UInt16)(0xff00 + offset));
 					Clock += 12;
 				}
@@ -1744,14 +1771,18 @@ public class CPU : ISteppable
 
 			case 0xe2:
 				{
+#if DEBUG
 					logger.LogTrace($"LD ({ToHex(0xff00)}+c), A");
+#endif
 					memory.WriteUInt8((UInt16)(0xff00 + RegisterC), RegisterA);
 					Clock += 8;
 				}
 				break;
 			case 0xf2:
 				{
+#if DEBUG
 					logger.LogTrace($"LD A, ({ToHex(0xff00)}+c)");
+#endif
 					RegisterA = memory.ReadUInt8((UInt16)(0xff00 + RegisterC));
 					Clock += 8;
 				}
@@ -1773,7 +1804,9 @@ public class CPU : ISteppable
 			case 0xea:
 				{
 					var address = ReadNextPCUInt16();
+#if DEBUG
 					logger.LogTrace($"LD ({ToHex(address)}), A");
+#endif
 					memory.WriteUInt8(address, RegisterA);
 					Clock += 16;
 				}
@@ -1781,7 +1814,9 @@ public class CPU : ISteppable
 			case 0xfa:
 				{
 					var address = ReadNextPCUInt16();
+#if DEBUG
 					logger.LogTrace($"LD A, ({ToHex(address)})");
+#endif
 					RegisterA = memory.ReadUInt8(address);
 					Clock += 16;
 				}
@@ -1801,7 +1836,9 @@ public class CPU : ISteppable
 			case 0xf8:
 				{
 					var offset = ReadNextPCInt8();
+#if DEBUG
 					logger.LogTrace($"LD HL, SP+{offset}");
+#endif
 					var before = RegisterSP;
 					var after = (UInt16)(before + offset);
 					RegisterHL = after;
@@ -3146,7 +3183,9 @@ public class CPU : ISteppable
 
 	private void ConditionalJumpInt8(bool condition, string conditionString, sbyte delta)
 	{
+#if DEBUG
 		logger.LogTrace($"JR {conditionString}, {delta}");
+#endif
 		if (condition)
 		{
 			RegisterPC = (UInt16)((int)RegisterPC + (int)delta);
@@ -3160,7 +3199,9 @@ public class CPU : ISteppable
 
 	private void ConditionalJumpUInt16(bool condition, string conditionString, UInt16 address)
 	{
+#if DEBUG
 		logger.LogTrace($"JP {conditionString}, {ToHex(address)}");
+#endif
 		if (condition)
 		{
 			RegisterPC = address;
@@ -3174,21 +3215,27 @@ public class CPU : ISteppable
 
 	private void JumpUInt16(UInt16 address)
 	{
+#if DEBUG
 		logger.LogTrace($"JP {ToHex(address)}");
+#endif
 		RegisterPC = address;
 		Clock += 16;
 	}
 
 	private void Jump(Register16 address)
 	{
+#if DEBUG
 		logger.LogTrace($"JP {address}");
+#endif
 		RegisterPC = GetRegister(address);
 		Clock += 4;
 	}
 
 	private void ConditionalReturn(bool condition, string conditionString)
 	{
+#if DEBUG
 		logger.LogTrace($"RET {conditionString}");
+#endif
 		if (condition)
 		{
 			RegisterPC = PopUInt16();
@@ -3202,14 +3249,18 @@ public class CPU : ISteppable
 
 	private void Return()
 	{
+#if DEBUG
 		logger.LogTrace("RET");
+#endif
 		RegisterPC = PopUInt16();
 		Clock += 16;
 	}
 
 	private void ReturnAndEnableInterrupts()
 	{
+#if DEBUG
 		logger.LogTrace("RETI");
+#endif
 		RegisterPC = PopUInt16();
 		ime = true;
 		Clock += 16;
@@ -3217,7 +3268,9 @@ public class CPU : ISteppable
 
 	private void ConditionalCallUInt16(bool condition, string conditionString, UInt16 address)
 	{
+#if DEBUG
 		logger.LogTrace($"CALL {conditionString}, {ToHex(address)}");
+#endif
 		if (condition)
 		{
 			Clock += 24;
@@ -3232,7 +3285,9 @@ public class CPU : ISteppable
 
 	private void Call(UInt16 address)
 	{
+#if DEBUG
 		logger.LogTrace($"CALL {ToHex(address)}");
+#endif
 		PushUInt16(RegisterPC);
 		RegisterPC = address;
 		Clock += 24;
@@ -3240,7 +3295,9 @@ public class CPU : ISteppable
 
 	private void RestartCall(byte address)
 	{
+#if DEBUG
 		logger.LogTrace($"RST {ToHex(address)}");
+#endif
 		PushUInt16(RegisterPC);
 		RegisterPC = address;
 		Clock += 16;
@@ -3248,49 +3305,63 @@ public class CPU : ISteppable
 
 	private void SetTo(Register8 destination, byte source)
 	{
+#if DEBUG
 		logger.LogTrace($"LD {destination}, {ToHex(source)}");
+#endif
 		SetRegister(destination, source);
 		Clock += 8;
 	}
 
 	private void SetTo(Register16 destination, UInt16 source)
 	{
+#if DEBUG
 		logger.LogTrace($"LD {destination}, {ToHex(source)}");
+#endif
 		SetRegister(destination, source);
 		Clock += 12;
 	}
 
 	private void SetTo(Address destination, byte source)
 	{
+#if DEBUG
 		logger.LogTrace($"LD {destination}, {ToHex(source)}");
+#endif
 		memory.WriteUInt8(destination.Value, source);
 		Clock += 12;
 	}
 
 	private void SetTo(Address destination, Register8 source)
 	{
+#if DEBUG
 		logger.LogTrace($"LD {destination}, {source}");
+#endif
 		memory.WriteUInt8(destination.Value, GetRegister(source));
 		Clock += 8;
 	}
 
 	private void SetTo(Register8 destination, Address source)
 	{
+#if DEBUG
 		logger.LogTrace($"LD {destination}, {source}");
+#endif
 		SetRegister(destination, memory.ReadUInt8(source.Value));
 		Clock += 8;
 	}
 
 	private void SetTo(Register8 destination, Register8 source)
 	{
+#if DEBUG
 		logger.LogTrace($"LD {destination}, {source}");
+#endif
 		SetRegister(destination, GetRegister(source));
 		Clock += 4;
 	}
 
 	private void Increment(Register8 destinationAndSource)
 	{
+#if DEBUG
 		logger.LogTrace($"INC {destinationAndSource}");
+#endif
 		var before = GetRegister(destinationAndSource);
 		var after = (byte)(before + 1);
 		SetRegister(destinationAndSource, after);
@@ -3302,7 +3373,9 @@ public class CPU : ISteppable
 
 	private void Increment(Register16 destinationAndSource)
 	{
+#if DEBUG
 		logger.LogTrace($"INC {destinationAndSource}");
+#endif
 		var before = GetRegister(destinationAndSource);
 		var after = (UInt16)(before + 1);
 		SetRegister(destinationAndSource, after);
@@ -3311,7 +3384,9 @@ public class CPU : ISteppable
 
 	private void Increment(Address destinationAndSource)
 	{
+#if DEBUG
 		logger.LogTrace($"INC {destinationAndSource}");
+#endif
 		var before = memory.ReadUInt8(destinationAndSource.Value);
 		var after = (byte)(before + 1);
 		memory.WriteUInt8(destinationAndSource.Value, after);
@@ -3323,7 +3398,9 @@ public class CPU : ISteppable
 
 	private void Decrement(Register8 destinationAndSource)
 	{
+#if DEBUG
 		logger.LogTrace($"DEC {destinationAndSource}");
+#endif
 		var before = GetRegister(destinationAndSource);
 		var after = (byte)(before - 1);
 		SetRegister(destinationAndSource, after);
@@ -3335,7 +3412,9 @@ public class CPU : ISteppable
 
 	private void Decrement(Register16 destinationAndSource)
 	{
+#if DEBUG
 		logger.LogTrace($"DEC {destinationAndSource}");
+#endif
 		var before = GetRegister(destinationAndSource);
 		var after = (UInt16)(before - 1);
 		SetRegister(destinationAndSource, after);
@@ -3344,7 +3423,9 @@ public class CPU : ISteppable
 
 	private void Decrement(Address destinationAndSource)
 	{
+#if DEBUG
 		logger.LogTrace($"DEC {destinationAndSource}");
+#endif
 		var before = memory.ReadUInt8(destinationAndSource.Value);
 		var after = (byte)(before - 1);
 		memory.WriteUInt8(destinationAndSource.Value, after);
@@ -3356,7 +3437,9 @@ public class CPU : ISteppable
 
 	private void Add(Register8 destination, Register8 source)
 	{
+#if DEBUG
 		logger.LogTrace($"ADD {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var after16 = (UInt16)((UInt16)before + (UInt16)sourceValue);
@@ -3371,7 +3454,9 @@ public class CPU : ISteppable
 
 	private void Add(Register8 destination, Register8 source, bool sourceCarry)
 	{
+#if DEBUG
 		logger.LogTrace($"ADC {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var sourceCarryValue = sourceCarry ? 1 : 0;
@@ -3387,7 +3472,9 @@ public class CPU : ISteppable
 
 	private void Add(Register8 destination, Address source)
 	{
+#if DEBUG
 		logger.LogTrace($"ADD {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after16 = (UInt16)((UInt16)before + (UInt16)sourceValue);
@@ -3402,7 +3489,9 @@ public class CPU : ISteppable
 
 	private void Add(Register8 destination, Address source, bool sourceCarry)
 	{
+#if DEBUG
 		logger.LogTrace($"ADC {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var sourceCarryValue = sourceCarry ? 1 : 0;
@@ -3418,7 +3507,9 @@ public class CPU : ISteppable
 
 	private void Add(Register8 destination, byte source)
 	{
+#if DEBUG
 		logger.LogTrace($"ADD {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var after16 = (UInt16)((UInt16)before + (UInt16)source);
 		var after8 = (byte)after16;
@@ -3432,7 +3523,9 @@ public class CPU : ISteppable
 
 	private void Add(Register8 destination, byte source, bool sourceCarry)
 	{
+#if DEBUG
 		logger.LogTrace($"ADC {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceCarryValue = sourceCarry ? 1 : 0;
 		var after16 = (UInt16)((UInt16)before + (UInt16)source + sourceCarryValue);
@@ -3447,7 +3540,9 @@ public class CPU : ISteppable
 
 	private void Add(Register16 destination, Register16 source)
 	{
+#if DEBUG
 		logger.LogTrace($"ADD {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var after32 = (UInt32)before + (UInt32)sourceValue;
@@ -3462,7 +3557,9 @@ public class CPU : ISteppable
 
 	private void Add(Register16 destination, sbyte delta)
 	{
+#if DEBUG
 		logger.LogTrace($"ADD {destination}, {delta}");
+#endif
 		var before = GetRegister(destination);
 		var after = (UInt16)(before + delta);
 		SetRegister(destination, after);
@@ -3476,7 +3573,9 @@ public class CPU : ISteppable
 
 	private void Subtract(Register8 destination, Register8 source)
 	{
+#if DEBUG
 		logger.LogTrace($"SUB {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var after = (byte)(before - sourceValue);
@@ -3490,7 +3589,9 @@ public class CPU : ISteppable
 
 	private void Subtract(Register8 destination, Register8 source, bool sourceCarry)
 	{
+#if DEBUG
 		logger.LogTrace($"SBC {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var sourceCarryValue = sourceCarry ? 1 : 0;
@@ -3505,7 +3606,9 @@ public class CPU : ISteppable
 
 	private void Subtract(Register8 destination, Address source)
 	{
+#if DEBUG
 		logger.LogTrace($"SUB {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after = (byte)(before - sourceValue);
@@ -3519,7 +3622,9 @@ public class CPU : ISteppable
 
 	private void Subtract(Register8 destination, Address source, bool sourceCarry)
 	{
+#if DEBUG
 		logger.LogTrace($"SBC {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var sourceCarryValue = sourceCarry ? 1 : 0;
@@ -3534,7 +3639,9 @@ public class CPU : ISteppable
 
 	private void Subtract(Register8 destination, byte source)
 	{
+#if DEBUG
 		logger.LogTrace($"SUB {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var after = (byte)(before - source);
 		SetRegister(destination, after);
@@ -3547,7 +3654,9 @@ public class CPU : ISteppable
 
 	private void Subtract(Register8 destination, byte source, bool sourceCarry)
 	{
+#if DEBUG
 		logger.LogTrace($"SBC {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceCarryValue = sourceCarry ? 1 : 0;
 		var after = (byte)(before - source - sourceCarryValue);
@@ -3561,7 +3670,9 @@ public class CPU : ISteppable
 
 	private void Compare(Register8 destination, Register8 source)
 	{
+#if DEBUG
 		logger.LogTrace($"CP {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var after = (byte)(before - sourceValue);
@@ -3574,7 +3685,9 @@ public class CPU : ISteppable
 
 	private void Compare(Register8 destination, Address source)
 	{
+#if DEBUG
 		logger.LogTrace($"CP {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after = (byte)(before - sourceValue);
@@ -3587,7 +3700,9 @@ public class CPU : ISteppable
 
 	private void Compare(Register8 destination, byte source)
 	{
+#if DEBUG
 		logger.LogTrace($"CP {destination}, {ToHex(source)}");
+#endif
 		var before = GetRegister(destination);
 		var after = (byte)(before - source);
 		ZeroFlag = after == 0;
@@ -3599,7 +3714,9 @@ public class CPU : ISteppable
 
 	private void And(Register8 destination, Register8 source)
 	{
+#if DEBUG
 		logger.LogTrace($"AND {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var after = (byte)(before & sourceValue);
@@ -3613,7 +3730,9 @@ public class CPU : ISteppable
 
 	private void And(Register8 destination, Address source)
 	{
+#if DEBUG
 		logger.LogTrace($"AND {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after = (byte)(before & sourceValue);
@@ -3627,7 +3746,9 @@ public class CPU : ISteppable
 
 	private void And(Register8 destination, byte source)
 	{
+#if DEBUG
 		logger.LogTrace($"AND {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var after = (byte)(before & source);
 		SetRegister(destination, after);
@@ -3640,7 +3761,9 @@ public class CPU : ISteppable
 
 	private void Xor(Register8 destination, Register8 source)
 	{
+#if DEBUG
 		logger.LogTrace($"XOR {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var after = (byte)(before ^ sourceValue);
@@ -3654,7 +3777,9 @@ public class CPU : ISteppable
 
 	private void Xor(Register8 destination, Address source)
 	{
+#if DEBUG
 		logger.LogTrace($"XOR {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after = (byte)(before ^ sourceValue);
@@ -3668,7 +3793,9 @@ public class CPU : ISteppable
 
 	private void Xor(Register8 destination, byte source)
 	{
+#if DEBUG
 		logger.LogTrace($"XOR {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var after = (byte)(before ^ source);
 		SetRegister(destination, after);
@@ -3681,7 +3808,9 @@ public class CPU : ISteppable
 
 	private void Or(Register8 destination, Register8 source)
 	{
+#if DEBUG
 		logger.LogTrace($"OR {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = GetRegister(source);
 		var after = (byte)(before | sourceValue);
@@ -3695,7 +3824,9 @@ public class CPU : ISteppable
 
 	private void Or(Register8 destination, Address source)
 	{
+#if DEBUG
 		logger.LogTrace($"OR {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after = (byte)(before | sourceValue);
@@ -3709,7 +3840,9 @@ public class CPU : ISteppable
 
 	private void Or(Register8 destination, byte source)
 	{
+#if DEBUG
 		logger.LogTrace($"OR {destination}, {source}");
+#endif
 		var before = GetRegister(destination);
 		var after = (byte)(before | source);
 		SetRegister(destination, after);
@@ -3722,6 +3855,7 @@ public class CPU : ISteppable
 
 	private void EnqueueInterruptsEnabled(bool value)
 	{
+#if DEBUG
 		if (value)
 		{
 			logger.LogTrace("EI");
@@ -3730,6 +3864,7 @@ public class CPU : ISteppable
 		{
 			logger.LogTrace("DI");
 		}
+#endif
 		// executes after the next instruction, so put the clock just after the end of this instruction, presumably in the middle of the next one
 		// by the time the clock is at least that value then ext instruction must have completed
 		interruptEnableDeltas.Enqueue(new(value, Clock + 5));
@@ -3738,7 +3873,9 @@ public class CPU : ISteppable
 
 	private void RotateLeftDontIncludeCarry(Register8 register)
 	{
+#if DEBUG
 		logger.LogTrace($"RLC {register}");
+#endif
 		var before = GetRegister(register);
 		var after = (byte)((before << 1) | ((before & 0b1000_0000) >> 7));
 		SetRegister(register, after);
@@ -3751,7 +3888,9 @@ public class CPU : ISteppable
 
 	private void RotateLeftDontIncludeCarry(Address address)
 	{
+#if DEBUG
 		logger.LogTrace($"RLC {address}");
+#endif
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before << 1) | ((before & 0b1000_0000) >> 7));
 		memory.WriteUInt8(address.Value, after);
@@ -3764,7 +3903,9 @@ public class CPU : ISteppable
 
 	private void RotateLeftThroughCarry(Register8 register)
 	{
+#if DEBUG
 		logger.LogTrace($"RL {register}");
+#endif
 		var before = GetRegister(register);
 		var after = (byte)((before << 1) | (CarryFlag ? 0b0000_0001 : 0));
 		SetRegister(register, after);
@@ -3777,7 +3918,9 @@ public class CPU : ISteppable
 
 	private void RotateLeftThroughCarry(Address address)
 	{
+#if DEBUG
 		logger.LogTrace($"RL {address}");
+#endif
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before << 1) | (CarryFlag ? 0b0000_0001 : 0));
 		memory.WriteUInt8(address.Value, after);
@@ -3790,7 +3933,9 @@ public class CPU : ISteppable
 
 	private void RotateRightDontIncludeCarry(Register8 register)
 	{
+#if DEBUG
 		logger.LogTrace($"RRC {register}");
+#endif
 		var before = GetRegister(register);
 		var after = (byte)((before >> 1) | ((before & 0b0000_0001) << 7));
 		SetRegister(register, after);
@@ -3803,7 +3948,9 @@ public class CPU : ISteppable
 
 	private void RotateRightDontIncludeCarry(Address address)
 	{
+#if DEBUG
 		logger.LogTrace($"RRC {address}");
+#endif
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before >> 1) | ((before & 0b0000_0001) << 7));
 		memory.WriteUInt8(address.Value, after);
@@ -3816,7 +3963,9 @@ public class CPU : ISteppable
 
 	private void RotateRightThroughCarry(Register8 register)
 	{
+#if DEBUG
 		logger.LogTrace($"RR {register}");
+#endif
 		var before = GetRegister(register);
 		var after = (byte)((before >> 1) | (CarryFlag ? 0b1000_0000 : 0));
 		SetRegister(register, after);
@@ -3829,7 +3978,9 @@ public class CPU : ISteppable
 
 	private void RotateRightThroughCarry(Address address)
 	{
+#if DEBUG
 		logger.LogTrace($"RR {address}");
+#endif
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before >> 1) | (CarryFlag ? 0b1000_0000 : 0));
 		memory.WriteUInt8(address.Value, after);
@@ -3842,7 +3993,9 @@ public class CPU : ISteppable
 
 	private void ShiftLeftIntoCarryResetLsb(Register8 register)
 	{
+#if DEBUG
 		logger.LogTrace($"SLA {register}");
+#endif
 		var before = GetRegister(register);
 		var after = (byte)(before << 1);
 		SetRegister(register, after);
@@ -3855,7 +4008,9 @@ public class CPU : ISteppable
 
 	private void ShiftLeftIntoCarryResetLsb(Address address)
 	{
+#if DEBUG
 		logger.LogTrace($"SLA {address}");
+#endif
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)(before << 1);
 		memory.WriteUInt8(address.Value, after);
@@ -3868,7 +4023,9 @@ public class CPU : ISteppable
 
 	private void ShiftRightIntoCarryResetMsb(Register8 register)
 	{
+#if DEBUG
 		logger.LogTrace($"SRL {register}");
+#endif
 		var before = GetRegister(register);
 		var after = (byte)(before >> 1);
 		SetRegister(register, after);
@@ -3881,7 +4038,9 @@ public class CPU : ISteppable
 
 	private void ShiftRightIntoCarryResetMsb(Address address)
 	{
+#if DEBUG
 		logger.LogTrace($"SRL {address}");
+#endif
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)(before >> 1);
 		memory.WriteUInt8(address.Value, after);
@@ -3894,7 +4053,9 @@ public class CPU : ISteppable
 
 	private void ShiftRightIntoCarryKeepMsb(Register8 register)
 	{
+#if DEBUG
 		logger.LogTrace($"SRA {register}");
+#endif
 		var before = GetRegister(register);
 		var after = (byte)((before >> 1) | (before & 0b1000_0000));
 		SetRegister(register, after);
@@ -3907,7 +4068,9 @@ public class CPU : ISteppable
 
 	private void ShiftRightIntoCarryKeepMsb(Address address)
 	{
+#if DEBUG
 		logger.LogTrace($"SRA {address}");
+#endif
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before >> 1) | (before & 0b1000_0000));
 		memory.WriteUInt8(address.Value, after);
@@ -3920,21 +4083,27 @@ public class CPU : ISteppable
 
 	private void Pop(Register16 destination)
 	{
+#if DEBUG
 		logger.LogTrace($"POP {destination}");
+#endif
 		SetRegister(destination, PopUInt16());
 		clock += 12;
 	}
 
 	private void Push(Register16 source)
 	{
+#if DEBUG
 		logger.LogTrace($"PUSH {source}");
+#endif
 		PushUInt16(GetRegister(source));
 		clock += 16;
 	}
 
 	private void SwapUpperAndLowerNibbles(Register8 register)
 	{
+#if DEBUG
 		logger.LogTrace($"SWAP {register}");
+#endif
 		var before = GetRegister(register);
 		var after = (byte)(((before & 0b1111_0000) >> 4) | ((before & 0b0000_1111) << 4));
 		SetRegister(register, after);
@@ -3947,7 +4116,9 @@ public class CPU : ISteppable
 
 	private void SwapUpperAndLowerNibbles(Address address)
 	{
+#if DEBUG
 		logger.LogTrace($"SWAP {address}");
+#endif
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)(((before & 0b1111_0000) >> 4) | ((before & 0b0000_1111) << 4));
 		memory.WriteUInt8(address.Value, after);
@@ -3960,7 +4131,9 @@ public class CPU : ISteppable
 
 	private void GetBit(Register8 register, int bit)
 	{
+#if DEBUG
 		logger.LogTrace($"BIT {bit}, {register}");
+#endif
 		var value = GetRegister(register);
 		ZeroFlag = (value & (1 << bit)) == 0;
 		SubtractFlag = false;
@@ -3970,7 +4143,9 @@ public class CPU : ISteppable
 
 	private void GetBit(Address address, int bit)
 	{
+#if DEBUG
 		logger.LogTrace($"BIT {bit}, {address}");
+#endif
 		var value = memory.ReadUInt8(address.Value);
 		ZeroFlag = (value & (1 << bit)) == 0;
 		SubtractFlag = false;
@@ -3980,7 +4155,9 @@ public class CPU : ISteppable
 
 	private void ResetBit(Register8 register, int bit)
 	{
+#if DEBUG
 		logger.LogTrace($"RES {bit}, {register}");
+#endif
 		var before = GetRegister(register);
 		var after = (byte)(before & (~(1 << bit)));
 		SetRegister(register, after);
@@ -3989,7 +4166,9 @@ public class CPU : ISteppable
 
 	private void ResetBit(Address address, int bit)
 	{
+#if DEBUG
 		logger.LogTrace($"RES {bit}, {address}");
+#endif
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)(before & (~(1 << bit)));
 		memory.WriteUInt8(address.Value, after);
@@ -3998,7 +4177,9 @@ public class CPU : ISteppable
 
 	private void SetBit(Register8 register, int bit)
 	{
+#if DEBUG
 		logger.LogTrace($"SET {bit}, {register}");
+#endif
 		var before = GetRegister(register);
 		var after = (byte)(before | (1 << bit));
 		SetRegister(register, after);
@@ -4007,7 +4188,9 @@ public class CPU : ISteppable
 
 	private void SetBit(Address address, int bit)
 	{
+#if DEBUG
 		logger.LogTrace($"SET {bit}, {address}");
+#endif
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)(before | (1 << bit));
 		memory.WriteUInt8(address.Value, after);
@@ -4016,7 +4199,9 @@ public class CPU : ISteppable
 
 	private void InvalidInstruction(byte instruction)
 	{
+#if DEBUG
 		logger.LogWarning($"INVALID {ToHex(instruction)}");
+#endif
 		Clock += 4;
 	}
 

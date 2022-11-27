@@ -49,6 +49,7 @@ public class Program
 				logger.LogTrace($"TODO JEFF keypad register {NumberUtils.ToBinary(newValue)}");
 			};
 
+			// TODO emulator thread should be its own class with a Start and Stop method
 			var emulatorThreadRunning = true;
 			var emulatorThread = new Thread(() =>
 			{

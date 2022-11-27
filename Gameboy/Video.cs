@@ -381,27 +381,15 @@ public class Video : ISteppable
 				var visibleSprites = new List<Sprite>(capacity: MaxVisibleSprites);
 				if (spritesEnabled)
 				{
-					var shouldDebug = false;
-					if (RegisterLY == 0 || RegisterLY == 80)
-					{
-						shouldDebug = true;
-						logger.LogDebug($"TODO JEFF RegisterLY={RegisterLY}");
-					}
-
 					// get all the sprite attributes
 					var spriteBytes = memory.ReadArray(Memory.SPRITE_ATTRIBUTES_START, Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1);
 					var sprites = new List<Sprite>(capacity: MaxSprites);
 					for (var i = 0; i < MaxSprites; i++)
 					{
 						var sprite = MemoryMarshal.AsRef<Sprite>(spriteBytes.AsSpan(i * 4, 4));
-						if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && sprite.Y > 0 && RegisterLY >= sprite.AdjustedY && RegisterLY < sprite.AdjustedX + spriteHeight)
+						if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && sprite.Y > 0 && RegisterLY >= sprite.AdjustedY && RegisterLY < sprite.AdjustedY + spriteHeight)
 						{
 							sprites.Add(sprite);
-						}
-
-						if (shouldDebug && sprite.X > 0 && sprite.Y > 0)
-						{
-							logger.LogDebug($"TODO JEFF sprite ({sprite.X}, {sprite.Y}), tile={sprite.TileIndex}");
 						}
 					}
 					/*

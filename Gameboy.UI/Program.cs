@@ -13,8 +13,6 @@ public class Program
 				.SetMinimumLevel(LogLevel.Information)
 				.AddFilter("Gameboy", LogLevel.Debug)
 				.AddFilter("Gameboy.UI", LogLevel.Trace)
-				// .AddFilter("Gameboy.CPU", LogLevel.Trace)
-				.AddFilter("Gameboy.Video", LogLevel.Trace)
 				.AddSimpleConsole(options =>
 				{
 					options.TimestampFormat = "o";
@@ -56,8 +54,6 @@ public class Program
 			{
 				var logInterval = TimeSpan.FromSeconds(1);
 				var nextLogTime = DateTime.Now + logInterval;
-				// TODO JEFF testing
-				var lastRegisterLY = -1;
 				while (emulatorThreadRunning)
 				{
 					emulator.Step();
@@ -69,13 +65,6 @@ public class Program
 						var state = emulator.CPU.IsStopped ? "STOP" : (emulator.CPU.IsHalted ? "HALT" : "running");
 						logger.LogTrace($"TODO JEFF clock time = {emulator.ClockTime}, state: {state}");
 					}
-
-					var registerLY = emulator.Memory.ReadUInt8(Memory.IO_LY);
-					if (registerLY != lastRegisterLY)
-					{
-						logger.LogDebug($"TODO JEFF LY = {registerLY}");
-					}
-					lastRegisterLY = registerLY;
 				}
 			});
 			logger.LogTrace("starting emulating thread");

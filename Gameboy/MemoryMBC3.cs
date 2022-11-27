@@ -2,8 +2,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Gameboy;
 
-// TODO JEFF trying to use pokemon as a test rom, but just displays white screen, unclear if the error is video or new type of cart
-
 public class MemoryMBC3 : Memory
 {
 	private const UInt16 RAM_DISABLE_START = 0x0000;

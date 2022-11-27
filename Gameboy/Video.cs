@@ -55,6 +55,26 @@ public class Video : ISteppable
 		public byte Flags;
 	}
 
+	private struct ColorPalette
+	{
+		private byte registerValue;
+
+		public ColorPalette(byte registerValue)
+		{
+			this.registerValue = registerValue;
+		}
+
+		public byte this[int index] =>
+			index switch
+			{
+				0 => (byte)((registerValue & 0b0000_0011) >> 0),
+				1 => (byte)((registerValue & 0b0000_1100) >> 2),
+				2 => (byte)((registerValue & 0b0011_0000) >> 4),
+				3 => (byte)((registerValue & 0b1100_0000) >> 6),
+				_ => throw new ArgumentOutOfRangeException(nameof(index)),
+			};
+	}
+
 	public const int ScreenWidth = 160;
 	public const int ScreenHeight = 144;
 
@@ -125,26 +145,6 @@ public class Video : ISteppable
 		// advance state machine if enough time has passed
 		if (ticksRemainingInCurrentState == 0)
 		{
-			// control registers
-			// TODO JEFF accessors for registers
-			var registerLCDC = memory.ReadUInt8(Memory.IO_LCDC);
-			var registerSTAT = memory.ReadUInt8(Memory.IO_STAT);
-
-			// color palettes
-			// TODO JEFF accessors for registers
-			var registerBGP = extractColorPalette(memory.ReadUInt8(Memory.IO_BGP));
-			var registerOBP0 = extractColorPalette(memory.ReadUInt8(Memory.IO_OBP0));
-			var registerOBP1 = extractColorPalette(memory.ReadUInt8(Memory.IO_OBP1));
-			byte[] extractColorPalette(byte palette)
-			{
-				return new[] {
-					(byte)((palette & 0b0000_0011) >> 0),
-					(byte)((palette & 0b0000_1100) >> 2),
-					(byte)((palette & 0b0011_0000) >> 4),
-					(byte)((palette & 0b1100_0000) >> 6),
-				};
-			}
-
 			switch (state)
 			{
 				case State.HBlank:
@@ -241,7 +241,7 @@ public class Video : ISteppable
 
 			void triggerSTATInterruptIfMaskSet(byte mask)
 			{
-				if ((registerSTAT & mask) != 0)
+				if ((RegisterSTAT & mask) != 0)
 				{
 					triggerLCDCInterrupt();
 				}
@@ -250,9 +250,9 @@ public class Video : ISteppable
 			void triggerSTATInterruptBasedOnLYAndLYC()
 			{
 				// trigger interrupt based on which scan line we're on
-				if ((registerSTAT & 0b0100_0000) != 0)
+				if ((RegisterSTAT & 0b0100_0000) != 0)
 				{
-					var statConditionFlag = (registerSTAT & 0b0000_0100) != 0;
+					var statConditionFlag = (RegisterSTAT & 0b0000_0100) != 0;
 					// TODO JEFF accessors for registers
 					var registerLYC = memory.ReadUInt8(Memory.IO_LYC);
 					if (
@@ -267,7 +267,7 @@ public class Video : ISteppable
 
 			void setStatMode(byte mode)
 			{
-				memory.WriteUInt8(Memory.IO_STAT, (byte)((registerSTAT & 0b1111_1100) | (mode & 0b0000_0011)));
+				memory.WriteUInt8(Memory.IO_STAT, (byte)((RegisterSTAT & 0b1111_1100) | (mode & 0b0000_0011)));
 			}
 
 			// TODO I'm wrong about how memory gets disabled during video hardware states
@@ -331,16 +331,16 @@ public class Video : ISteppable
 
 				// LCDC flags
 				// TODO JEFF accessors for registers
-				var backgroundAndWindowEnabled = (registerLCDC & 0b0000_0001) != 0;
-				var spritesEnabled = (registerLCDC & 0b0000_0010) != 0;
+				var backgroundAndWindowEnabled = (RegisterLCDC & 0b0000_0001) != 0;
+				var spritesEnabled = (RegisterLCDC & 0b0000_0010) != 0;
 				// true = sprites are drawn in 2s as 8x16, false = sprites are 8x8
-				var spritesAreBig = (registerLCDC & 0b0000_0100) != 0;
+				var spritesAreBig = (RegisterLCDC & 0b0000_0100) != 0;
 				// where in video memory the indices of the background tiles are
-				var backgroundTileIndicesAddress = (UInt16)((registerLCDC & 0b0000_1000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
+				var backgroundTileIndicesAddress = (UInt16)((RegisterLCDC & 0b0000_1000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
 				// where in video memory are the actual 8x8 graphics for background and window
 				byte[] backgroundAndWindowTileData;
 				bool backgroundAndWindowTileDataIsSigned;
-				if ((registerLCDC & 0b0001_0000) != 0)
+				if ((RegisterLCDC & 0b0001_0000) != 0)
 				{
 					backgroundAndWindowTileData = tileData1;
 					backgroundAndWindowTileDataIsSigned = false;
@@ -350,9 +350,9 @@ public class Video : ISteppable
 					backgroundAndWindowTileData = tileData2;
 					backgroundAndWindowTileDataIsSigned = true;
 				}
-				var windowEnabled = (registerLCDC & 0b0010_0000) != 0;
+				var windowEnabled = (RegisterLCDC & 0b0010_0000) != 0;
 				// where in video memory the indices of the window tiles are
-				var windowTileIndicesAddress = (UInt16)((registerLCDC & 0b0100_0000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
+				var windowTileIndicesAddress = (UInt16)((RegisterLCDC & 0b0100_0000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
 				// TODO respect LCDC bit 7, display enabled
 
 				var backgroundTileIndices = memory.ReadArray(backgroundTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes);
@@ -479,7 +479,7 @@ public class Video : ISteppable
 						// if this pixel is one we want to draw
 						if ((colorIndex == 0 && background) || (colorIndex != 0 && !background))
 						{
-							outputPixels[screenX] = registerBGP[colorIndex];
+							outputPixels[screenX] = RegisterBGP[colorIndex];
 						}
 					}
 				}
@@ -525,7 +525,7 @@ public class Video : ISteppable
 						int colorMask = 1 << colorShift;
 						var colorIndex = ((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1);
 						// which palette are we using
-						var palette = (sprite.Flags & 0b0001_0000) == 0 ? registerOBP0 : registerOBP1;
+						var palette = (sprite.Flags & 0b0001_0000) == 0 ? RegisterOBP0 : RegisterOBP1;
 						// draw the pixel
 						outputPixels[screenX] = palette[colorIndex];
 					}
@@ -550,6 +550,8 @@ public class Video : ISteppable
 		}
 	}
 
+	// TODO register caching so we're not reading mem all the time
+
 	private byte RegisterLY
 	{
 		get => memory.ReadUInt8(Memory.IO_LY);
@@ -559,4 +561,25 @@ public class Video : ISteppable
 			memory.WriteUInt8(Memory.IO_LY, value);
 		}
 	}
+
+	private byte RegisterLCDC
+	{
+		get => memory.ReadUInt8(Memory.IO_LCDC);
+		set => memory.WriteUInt8(Memory.IO_LCDC, value);
+	}
+
+	private byte RegisterSTAT
+	{
+		get => memory.ReadUInt8(Memory.IO_STAT);
+		set => memory.WriteUInt8(Memory.IO_STAT, value);
+	}
+
+	private ColorPalette RegisterBGP =>
+		new ColorPalette(memory.ReadUInt8(Memory.IO_BGP));
+
+	private ColorPalette RegisterOBP0 =>
+		new ColorPalette(memory.ReadUInt8(Memory.IO_OBP0));
+
+	private ColorPalette RegisterOBP1 =>
+		new ColorPalette(memory.ReadUInt8(Memory.IO_OBP1));
 }

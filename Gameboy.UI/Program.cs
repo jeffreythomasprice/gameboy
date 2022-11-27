@@ -13,6 +13,7 @@ public class Program
 				.SetMinimumLevel(LogLevel.Information)
 				.AddFilter("Gameboy", LogLevel.Debug)
 				.AddFilter("Gameboy.UI", LogLevel.Trace)
+				.AddFilter("Gameboy.CPU", LogLevel.Trace)
 				.AddSimpleConsole(options =>
 				{
 					options.TimestampFormat = "o";

@@ -1711,7 +1711,7 @@ public class CPU : ISteppable
 			case 0xe0:
 				{
 					var offset = ReadNextPCUInt8();
-					logger.LogTrace($"LDH (0xff00+{offset}), A");
+					logger.LogTrace($"LDH ({ToHex(0xff00)}+{ToHex(offset)}), A");
 					memory.WriteUInt8((UInt16)(0xff00 + offset), RegisterA);
 					Clock += 12;
 				}
@@ -1719,7 +1719,7 @@ public class CPU : ISteppable
 			case 0xf0:
 				{
 					var offset = ReadNextPCUInt8();
-					logger.LogTrace($"LDH A, (0xff00+{offset})");
+					logger.LogTrace($"LDH A, ({ToHex(0xff00)}+{ToHex(offset)})");
 					RegisterA = memory.ReadUInt8((UInt16)(0xff00 + offset));
 					Clock += 12;
 				}
@@ -1727,14 +1727,14 @@ public class CPU : ISteppable
 
 			case 0xe2:
 				{
-					logger.LogTrace($"LD (0xff00+c), A");
+					logger.LogTrace($"LD ({ToHex(0xff00)}+c), A");
 					memory.WriteUInt8((UInt16)(0xff00 + RegisterC), RegisterA);
 					Clock += 8;
 				}
 				break;
 			case 0xf2:
 				{
-					logger.LogTrace($"LD A, (0xff00+c)");
+					logger.LogTrace($"LD A, ({ToHex(0xff00)}+c)");
 					RegisterA = memory.ReadUInt8((UInt16)(0xff00 + RegisterC));
 					Clock += 8;
 				}
@@ -3570,7 +3570,7 @@ public class CPU : ISteppable
 
 	private void Compare(Register8 destination, byte source)
 	{
-		logger.LogTrace($"CP {destination}, {source}");
+		logger.LogTrace($"CP {destination}, {ToHex(source)}");
 		var before = GetRegister(destination);
 		var after = (byte)(before - source);
 		ZeroFlag = after == 0;

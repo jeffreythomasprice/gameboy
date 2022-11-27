@@ -162,6 +162,7 @@ public class Video : ISteppable
 						drawScanLine();
 					}
 
+					// TODO JEFF supposed to go into v blank mode during those extra 10 LY lines?
 					// end of mode 11, either transition to mode 00 for a new scan line, or to mode 01 V blank
 					registerLY++;
 					if (registerLY < ScreenHeight + 10)
@@ -179,7 +180,7 @@ public class Video : ISteppable
 						state = State.VBlank;
 						ticksRemainingInCurrentState = VBlankTime;
 						logger.LogTrace($"state={state}, ticks={ticksRemainingInCurrentState}");
-						setStatMode(0b10);
+						setStatMode(0b01);
 						triggerVBlankInterrupt();
 						triggerSTATInterruptIfMaskSet(0b0001_0000);
 						logger.LogTrace("emitting vsync");

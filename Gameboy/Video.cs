@@ -53,6 +53,9 @@ public class Video : ISteppable
 
 		[FieldOffset(3)]
 		public byte Flags;
+
+		public int AdjustedX => X - 8;
+		public int AdjustedY => Y - 16;
 	}
 
 	private struct ColorPalette
@@ -370,6 +373,7 @@ public class Video : ISteppable
 				// figure out what sprites are visible and draw the ones in between the two layers
 				const int MaxSprites = 40;
 				const int MaxVisibleSprites = 10;
+				var spriteHeight = spritesAreBig ? TileSizeInPixels * 2 : TileSizeInPixels;
 				var visibleSprites = new List<Sprite>(capacity: MaxVisibleSprites);
 				if (spritesEnabled)
 				{
@@ -379,7 +383,7 @@ public class Video : ISteppable
 					for (var i = 0; i < MaxSprites; i++)
 					{
 						var sprite = MemoryMarshal.AsRef<Sprite>(spriteBytes.AsSpan(i * 4, 4));
-						if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && sprite.Y > 0 && sprite.Y < ScreenHeight + 16)
+						if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && RegisterLY >= sprite.AdjustedY && RegisterLY < sprite.AdjustedX + spriteHeight)
 						{
 							sprites.Add(sprite);
 						}
@@ -480,9 +484,6 @@ public class Video : ISteppable
 				{
 					// in pixels on the device display, so 0 to 143
 					var screenY = RegisterLY;
-					// actual sprite coordinates in pixels
-					var spriteX = sprite.X - 8;
-					var spriteY = sprite.Y - 16;
 					// which tile to draw
 					var tileIndex = sprite.TileIndex;
 					if (spritesAreBig)
@@ -490,7 +491,7 @@ public class Video : ISteppable
 						tileIndex = (byte)(tileIndex & 0b1111_1110);
 					}
 					// the pixel offset on the tile, so 0 to 7
-					var tileY = screenY - spriteY;
+					var tileY = screenY - sprite.AdjustedY;
 					if (tileY >= 8)
 					{
 						tileY -= 8;
@@ -499,7 +500,7 @@ public class Video : ISteppable
 					}
 					// TODO JEFF respect the wrap Y flag
 					// iterate over device display in pixels, so 0 to 159
-					for (var screenX = spriteX; screenX < spriteX + 8; screenX++)
+					for (var screenX = sprite.AdjustedX; screenX < sprite.AdjustedX + 8; screenX++)
 					{
 						// clip to screen
 						if (screenX < 0 || screenX >= ScreenWidth)
@@ -507,7 +508,7 @@ public class Video : ISteppable
 							continue;
 						}
 						// the pixel offset on that tile, so 0 to 7
-						var tileX = screenX - spriteX;
+						var tileX = screenX - sprite.AdjustedX;
 						// the index into the tile data for the row of pixels we're drawing
 						var tileDataIndex = tileIndex * TileLengthInBytes + tileY * 2;
 						// the two bytes that make up this row

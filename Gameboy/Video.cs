@@ -433,6 +433,8 @@ public class Video : ISteppable
 
 				void drawTileMap(byte[] tileIndices, bool background, int scrollX, int scrollY)
 				{
+					// TODO JEFF window use of scrollX and scrollY might be wrong, bg and window treat this as opposite sign?
+
 					// in pixels on the device display, so 0 to 143
 					var screenY = RegisterLY;
 					// in pixels on the tile map, so 0 to 255
@@ -528,7 +530,6 @@ public class Video : ISteppable
 	{
 		if (expectedLYUpdate)
 		{
-			logger.LogTrace($"TODO JEFF expected LY update to {newValue}");
 			expectedLYUpdate = false;
 		}
 		else

@@ -3,6 +3,7 @@ namespace Gameboy.UI;
 using System.Drawing;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
@@ -11,6 +12,7 @@ public class Window : GameWindow
 {
 	private readonly ILoggerFactory loggerFactory;
 	private readonly ILogger logger;
+	private readonly Video video;
 	private readonly Keypad keypad;
 
 	private Shader? shader = null;
@@ -18,7 +20,23 @@ public class Window : GameWindow
 	private int? vertexArray;
 	private int? texture;
 
+	private Matrix4 orthoMatrix;
+	private Matrix4 modelviewMatrix;
+
 	private List<Action> textureUpdates = new();
+
+	// TODO multiple palettes to switch between
+	private readonly Color[] palette = new[]
+		{
+			// approximately 0.8
+			Color.FromArgb(205,205,205),
+			// approximately 0.6
+			Color.FromArgb(154,154,154),
+			// approximately 0.4
+			Color.FromArgb(102,102,102),
+			// approximately 0.2
+			Color.FromArgb(51,51,51),
+		};
 
 	public Window(ILoggerFactory loggerFactory, Video video, Keypad keypad) : base(
 		GameWindowSettings.Default,
@@ -40,6 +58,7 @@ public class Window : GameWindow
 	)
 	{
 		this.loggerFactory = loggerFactory;
+		this.video = video;
 		this.keypad = keypad;
 
 		logger = loggerFactory.CreateLogger<Window>();
@@ -47,54 +66,22 @@ public class Window : GameWindow
 		logger.LogDebug($"APIVersion = {APIVersion}");
 		logger.LogDebug($"Profile = {Profile}");
 		logger.LogDebug($"Flags = {Flags}");
-
-		// TODO multiple palettes to switch between
-		var palette = new Color[]
-		{
-			// approximately 0.8
-			Color.FromArgb(205,205,205),
-			// approximately 0.6
-			Color.FromArgb(154,154,154),
-			// approximately 0.4
-			Color.FromArgb(102,102,102),
-			// approximately 0.2
-			Color.FromArgb(51,51,51),
-		};
-		video.ScanlineAvailable += (y, data) =>
-		{
-			var rgbaData = data
-				.Select(color => palette[color])
-				.SelectMany(c => new byte[] { c.R, c.G, c.B, c.A })
-				.ToArray();
-			lock (textureUpdates)
-			{
-				textureUpdates.Add(() =>
-				{
-					GL.TexSubImage2D<byte>(
-						TextureTarget.Texture2D,
-						0,
-						0,
-						y,
-						Video.ScreenWidth,
-						1,
-						PixelFormat.Rgba,
-						PixelType.UnsignedByte,
-						rgbaData
-					);
-				});
-			}
-		};
 	}
 
 	protected override void OnLoad()
 	{
 		base.OnLoad();
 
+		GL.ClearColor(palette[0]);
+
 		shader = new Shader(
 			loggerFactory,
 			"""
 			#version 330 core
 			
+			uniform mat4 projectionMatrixUniform;
+			uniform mat4 modelviewMatrixUniform;
+
 			layout (location = 0) in vec2 positionAttribute;
 			layout (location = 1) in vec2 textureCoordinateAttribute;
 
@@ -102,7 +89,7 @@ public class Window : GameWindow
 
 			void main()
 			{
-				gl_Position = vec4(positionAttribute, 0.0, 1.0);
+				gl_Position = projectionMatrixUniform * modelviewMatrixUniform * vec4(positionAttribute, 0.0, 1.0);
 				textureCoordinateVarying = textureCoordinateAttribute;
 			}
 			""",
@@ -128,12 +115,12 @@ public class Window : GameWindow
 			BufferTarget.ArrayBuffer,
 			sizeof(float) * 4 * 6,
 			new float[] {
-				-1, -1, 0, 1,
-				1, -1, 1, 1,
-				1, 1, 1, 0,
-				1, 1, 1, 0,
-				-1, 1, 0, 0,
-				-1, -1, 0, 1,
+				0, 0, 0, 0,
+				Video.ScreenWidth, 0, 1, 0,
+				Video.ScreenWidth, Video.ScreenHeight, 1, 1,
+				Video.ScreenWidth, Video.ScreenHeight, 1, 1,
+				0, Video.ScreenHeight, 0, 1,
+				0, 0, 0, 0,
 			},
 			BufferUsageHint.StaticDraw
 		);
@@ -158,11 +145,15 @@ public class Window : GameWindow
 		GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 		GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 		GL.BindTexture(TextureTarget.Texture2D, 0);
+
+		video.ScanlineAvailable += ScanlineAvailable;
 	}
 
 	protected override void OnUnload()
 	{
 		base.OnUnload();
+
+		video.ScanlineAvailable += ScanlineAvailable;
 
 		shader?.Dispose();
 		if (vertexBuffer.HasValue)
@@ -185,60 +176,22 @@ public class Window : GameWindow
 
 		GL.Viewport(new Size(Size.X, Size.Y));
 
-		// TODO JEFF get some ortho matrix stuff going otherwise aspect ratio correction is going to be too annoying
+		orthoMatrix = Matrix4.CreateOrthographicOffCenter(0, Size.X, Size.Y, 0, -1, 1);
 
-		var scale = (double)Size.X / (double)Video.ScreenWidth;
-		var desiredWidth = (double)Video.ScreenWidth * scale;
-		var desiredHeight = (double)Video.ScreenHeight * scale;
-		float[] updatedVertices;
-		if (desiredHeight > Size.Y)
-		{
-			scale = (double)Size.Y / (double)Video.ScreenHeight;
-			desiredWidth = (double)Video.ScreenWidth * scale;
-			desiredHeight = (double)Video.ScreenHeight * scale;
-
-			var scaleVertexX = (float)(1.0 * (double)Video.ScreenHeight / (double)Video.ScreenWidth);
-			updatedVertices = new[] {
-				-scaleVertexX, -1, 0, 1,
-				scaleVertexX, -1, 1, 1,
-				scaleVertexX, 1, 1, 0,
-				scaleVertexX, 1, 1, 0,
-				-scaleVertexX, 1, 0, 0,
-				-scaleVertexX, -1, 0, 1,
-			};
-			logger.LogInformation($"TODO JEFF X form, scale X = {scaleVertexX}");
-		}
-		else
-		{
-			var scaleVertexY = (float)(1.0 * (double)Video.ScreenHeight / (double)Video.ScreenWidth);
-			updatedVertices = new[] {
-				-1, -scaleVertexY, 0, 1,
-				1, -scaleVertexY, 1, 1,
-				1, scaleVertexY, 1, 0,
-				1, scaleVertexY, 1, 0,
-				-1, scaleVertexY, 0, 0,
-				-1, -scaleVertexY, 0, 1,
-			};
-			logger.LogInformation($"TODO JEFF Y form, scale Y = {scaleVertexY}");
-		}
-		if (vertexArray.HasValue)
-		{
-			GL.BindVertexArray(vertexArray.Value);
-			GL.BufferSubData(
-				BufferTarget.ArrayBuffer,
-				0,
-				sizeof(float) * 4 * 6,
-				updatedVertices
+		var scale = Math.Min((double)Size.X / (double)Video.ScreenWidth, (double)Size.Y / (double)Video.ScreenHeight);
+		modelviewMatrix =
+			Matrix4.CreateScale((float)scale) *
+			Matrix4.CreateTranslation(
+				(float)(((double)Size.X - (double)Video.ScreenWidth * scale) / 2.0),
+				(float)(((double)Size.Y - (double)Video.ScreenHeight * scale) / 2.0),
+				0.0f
 			);
-			GL.BindVertexArray(0);
-		}
 	}
 
 	protected override void OnUpdateFrame(FrameEventArgs args)
 	{
 		base.OnUpdateFrame(args);
 
-		GL.ClearColor(0.25f, 0.5f, 0.75f, 1);
 		GL.Clear(ClearBufferMask.ColorBufferBit);
 
 		if (shader != null && vertexArray.HasValue && texture.HasValue)
@@ -248,6 +201,9 @@ public class Window : GameWindow
 			GL.ActiveTexture(TextureUnit.Texture0);
 			GL.BindTexture(TextureTarget.Texture2D, texture.Value);
 			GL.Uniform1(shader.Uniforms["textureUniform"].Location, 0);
+
+			GL.UniformMatrix4(shader.Uniforms["projectionMatrixUniform"].Location, false, ref orthoMatrix);
+			GL.UniformMatrix4(shader.Uniforms["modelviewMatrixUniform"].Location, false, ref modelviewMatrix);
 
 			lock (textureUpdates)
 			{
@@ -278,5 +234,30 @@ public class Window : GameWindow
 		keypad.SetPressed(Key.Select, KeyboardState.IsKeyDown(Keys.RightShift));
 		keypad.SetPressed(Key.A, KeyboardState.IsKeyDown(Keys.Z));
 		keypad.SetPressed(Key.B, KeyboardState.IsKeyDown(Keys.X));
+	}
+
+	private void ScanlineAvailable(int y, byte[] data)
+	{
+		var rgbaData = data
+			.Select(color => palette[color])
+			.SelectMany(c => new byte[] { c.R, c.G, c.B, c.A })
+			.ToArray();
+		lock (textureUpdates)
+		{
+			textureUpdates.Add(() =>
+			{
+				GL.TexSubImage2D<byte>(
+					TextureTarget.Texture2D,
+					0,
+					0,
+					y,
+					Video.ScreenWidth,
+					1,
+					PixelFormat.Rgba,
+					PixelType.UnsignedByte,
+					rgbaData
+				);
+			});
+		}
 	}
 }

@@ -253,11 +253,9 @@ public class Video : ISteppable
 				if ((RegisterSTAT & 0b0100_0000) != 0)
 				{
 					var statConditionFlag = (RegisterSTAT & 0b0000_0100) != 0;
-					// TODO JEFF accessors for registers
-					var registerLYC = memory.ReadUInt8(Memory.IO_LYC);
 					if (
-						(statConditionFlag && RegisterLY == registerLYC) ||
-						(!statConditionFlag && RegisterLY != registerLYC)
+						(statConditionFlag && RegisterLY == RegisterLYC) ||
+						(!statConditionFlag && RegisterLY != RegisterLYC)
 					)
 					{
 						triggerLCDCInterrupt();
@@ -330,7 +328,6 @@ public class Video : ISteppable
 				var tileData2 = memory.ReadArray(Memory.VIDEO_RAM_START + 0x0800, TileDataLengthInBytes);
 
 				// LCDC flags
-				// TODO JEFF accessors for registers
 				var backgroundAndWindowEnabled = (RegisterLCDC & 0b0000_0001) != 0;
 				var spritesEnabled = (RegisterLCDC & 0b0000_0010) != 0;
 				// true = sprites are drawn in 2s as 8x16, false = sprites are 8x8
@@ -358,22 +355,15 @@ public class Video : ISteppable
 				var backgroundTileIndices = memory.ReadArray(backgroundTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes);
 				var windowTileIndices = memory.ReadArray(windowTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes);
 
-				// background and window offsets
-				// TODO JEFF accessors for registers
-				var registerSCX = memory.ReadUInt8(Memory.IO_SCX);
-				var registerSCY = memory.ReadUInt8(Memory.IO_SCY);
-				var registerWX = memory.ReadUInt8(Memory.IO_WX);
-				var registerWY = memory.ReadUInt8(Memory.IO_WY);
-
 				var outputPixels = new byte[ScreenWidth];
 
 				// first layer for background and window
 				if (backgroundAndWindowEnabled)
 				{
-					drawTileMap(backgroundTileIndices, background: true);
+					drawTileMap(tileIndices: backgroundTileIndices, background: true, scrollX: RegisterSCX, scrollY: RegisterSCY);
 					if (windowEnabled)
 					{
-						drawTileMap(windowTileIndices, background: true);
+						drawTileMap(tileIndices: windowTileIndices, background: true, scrollX: RegisterWX, scrollY: RegisterWY);
 					}
 				}
 
@@ -419,10 +409,10 @@ public class Video : ISteppable
 				// second layer for background and window
 				if (backgroundAndWindowEnabled)
 				{
-					drawTileMap(backgroundTileIndices, background: false);
+					drawTileMap(tileIndices: backgroundTileIndices, background: false, scrollX: RegisterSCX, scrollY: RegisterSCY);
 					if (windowEnabled)
 					{
-						drawTileMap(windowTileIndices, background: false);
+						drawTileMap(tileIndices: windowTileIndices, background: false, scrollX: RegisterWX, scrollY: RegisterWY);
 					}
 				}
 
@@ -441,12 +431,12 @@ public class Video : ISteppable
 				logger.LogTrace($"emitting scanline pixels y={RegisterLY}");
 				ScanlineAvailable?.Invoke(RegisterLY, outputPixels);
 
-				void drawTileMap(byte[] tileIndices, bool background)
+				void drawTileMap(byte[] tileIndices, bool background, int scrollX, int scrollY)
 				{
 					// in pixels on the device display, so 0 to 143
 					var screenY = RegisterLY;
 					// in pixels on the tile map, so 0 to 255
-					var tileMapPixelY = (screenY + registerSCY) % BackgroundAndWindowSizeInPixels;
+					var tileMapPixelY = (screenY + scrollY) % BackgroundAndWindowSizeInPixels;
 					// in tiles on the tile map, so 0 to 31
 					var tileMapTileY = tileMapPixelY / TileSizeInPixels;
 					// the pixel offset on that tile, so 0 to 7
@@ -455,7 +445,7 @@ public class Video : ISteppable
 					for (var screenX = 0; screenX < ScreenWidth; screenX++)
 					{
 						// in pixels on the tile map, so 0 to 255
-						var tileMapPixelX = (screenX + registerSCX) % BackgroundAndWindowSizeInPixels;
+						var tileMapPixelX = (screenX + scrollX) % BackgroundAndWindowSizeInPixels;
 						// in tiles on the tile map, so 0 to 31
 						var tileMapTileX = tileMapPixelX / TileSizeInPixels;
 						// the pixel offset on that tile, so 0 to 7
@@ -552,16 +542,6 @@ public class Video : ISteppable
 
 	// TODO register caching so we're not reading mem all the time
 
-	private byte RegisterLY
-	{
-		get => memory.ReadUInt8(Memory.IO_LY);
-		set
-		{
-			expectedLYUpdate = true;
-			memory.WriteUInt8(Memory.IO_LY, value);
-		}
-	}
-
 	private byte RegisterLCDC
 	{
 		get => memory.ReadUInt8(Memory.IO_LCDC);
@@ -573,6 +553,31 @@ public class Video : ISteppable
 		get => memory.ReadUInt8(Memory.IO_STAT);
 		set => memory.WriteUInt8(Memory.IO_STAT, value);
 	}
+
+	private byte RegisterLY
+	{
+		get => memory.ReadUInt8(Memory.IO_LY);
+		set
+		{
+			expectedLYUpdate = true;
+			memory.WriteUInt8(Memory.IO_LY, value);
+		}
+	}
+
+	private byte RegisterLYC =>
+		memory.ReadUInt8(Memory.IO_LYC);
+
+	private byte RegisterSCX =>
+		memory.ReadUInt8(Memory.IO_SCX);
+
+	private byte RegisterSCY =>
+		memory.ReadUInt8(Memory.IO_SCY);
+
+	private byte RegisterWX =>
+		memory.ReadUInt8(Memory.IO_WX);
+
+	private byte RegisterWY =>
+		memory.ReadUInt8(Memory.IO_WY);
 
 	private ColorPalette RegisterBGP =>
 		new ColorPalette(memory.ReadUInt8(Memory.IO_BGP));

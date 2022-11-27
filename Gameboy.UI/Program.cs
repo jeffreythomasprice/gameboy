@@ -11,7 +11,8 @@ public class Program
 		{
 			builder
 				.SetMinimumLevel(LogLevel.Information)
-				.AddFilter("Gameboy", LogLevel.Debug)
+				.AddFilter(typeof(Program).Namespace, LogLevel.Debug)
+				.AddFilter(typeof(Emulator).Namespace, LogLevel.Debug)
 				.AddSimpleConsole(options =>
 				{
 					options.TimestampFormat = "o";

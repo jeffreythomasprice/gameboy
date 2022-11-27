@@ -293,8 +293,15 @@ public class CPU : ISteppable
 		interruptEnableDeltas.Clear();
 	}
 
+	// TODO JEFF debugging
+	private readonly System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+	private int stopwatchCounter = 0;
+
 	public void Step()
 	{
+		// TODO JEFF debugging
+		stopwatch.Start();
+
 		var registerPCBefore = RegisterPC;
 		var shouldResetPC = false;
 
@@ -370,6 +377,16 @@ public class CPU : ISteppable
 		{
 			logger.LogTrace($"PC stuck, resetting back to {ToHex(registerPCBefore)}");
 			RegisterPC = registerPCBefore;
+		}
+
+		// TODO JEFF debugging
+		stopwatch.Stop();
+		stopwatchCounter++;
+		if (Clock % ClockTicksPerSecond == 0)
+		{
+			var totalTime = stopwatch.Elapsed;
+			var avgTime = stopwatch.Elapsed / stopwatchCounter;
+			logger.LogInformation($"TODO JEFF total time = {totalTime}, average time = {avgTime}");
 		}
 	}
 

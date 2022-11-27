@@ -5,6 +5,7 @@ namespace Gameboy;
 public class Emulator : IDisposable, ISteppable
 {
 	private readonly ILogger logger;
+
 	private readonly Memory memory;
 	private readonly CPU cpu;
 	private readonly SerialIO serialIO;

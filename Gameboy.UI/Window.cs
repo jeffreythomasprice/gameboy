@@ -190,9 +190,9 @@ public class Window : GameWindow
 			);
 	}
 
-	protected override void OnUpdateFrame(FrameEventArgs args)
+	protected override void OnRenderFrame(FrameEventArgs args)
 	{
-		base.OnUpdateFrame(args);
+		base.OnRenderFrame(args);
 
 		GL.Clear(ClearBufferMask.ColorBufferBit);
 
@@ -246,6 +246,7 @@ public class Window : GameWindow
 			.ToArray();
 		lock (textureUpdates)
 		{
+			// TODO JEFF write incoming scanline data to a pixel buffer, and remember only the rectangle we have to submit, don't do a TexSubImage per scanline
 			textureUpdates.Add(() =>
 			{
 				GL.TexSubImage2D<byte>(

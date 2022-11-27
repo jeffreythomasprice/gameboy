@@ -315,16 +315,21 @@ public class Video : ISteppable
 				// tile data is 8x8 but 2 bits per pixel
 				const int TileLengthInBytes = 16;
 				// how many tiles are there in the block of data that makes up the tile data
-				const int TileDataLengthInBytes = 256 * TileLengthInBytes;
+				// there are two overlapping tile data sections
+				// there's a section of 128 tiles in one, then a section of 128 they share, then a section of 128 in the other
+				const int TileDataSegmentLength = 128 * TileLengthInBytes;
+				const int OneTileDataSectionLengthInBytes = TileDataSegmentLength * 2;
+				const int BothTileDataSectionsLengthInBytes = TileDataSegmentLength * 3;
 
 				// TODO this method is full of reading big blocks of data, even when not needed, maybe only read the specific bytes required for a particular line
 
+				var combinedTileData = memory.ReadArray(Memory.VIDEO_RAM_START, BothTileDataSectionsLengthInBytes);
 				/*
 				unsigned indices, values from 0 to 255
 				tile 0 is at 0x8000
 				tile 255 is at 0x8ff0
 				*/
-				var tileData1 = memory.ReadArray(Memory.VIDEO_RAM_START, TileDataLengthInBytes);
+				var tileData1 = combinedTileData.AsSpan(0, OneTileDataSectionLengthInBytes);
 				/*
 				signed indices, values from -128 to 127
 				tile -128 is at 0x8800
@@ -333,7 +338,7 @@ public class Video : ISteppable
 
 				the two tile data do overlap
 				*/
-				var tileData2 = memory.ReadArray(Memory.VIDEO_RAM_START + 0x0800, TileDataLengthInBytes);
+				var tileData2 = combinedTileData.AsSpan(TileDataSegmentLength, OneTileDataSectionLengthInBytes);
 
 				// LCDC flags
 				var backgroundAndWindowEnabled = (RegisterLCDC & 0b0000_0001) != 0;
@@ -343,7 +348,7 @@ public class Video : ISteppable
 				// where in video memory the indices of the background tiles are
 				var backgroundTileIndicesAddress = (UInt16)((RegisterLCDC & 0b0000_1000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
 				// where in video memory are the actual 8x8 graphics for background and window
-				byte[] backgroundAndWindowTileData;
+				Span<byte> backgroundAndWindowTileData;
 				bool backgroundAndWindowTileDataIsSigned;
 				if ((RegisterLCDC & 0b0001_0000) != 0)
 				{
@@ -368,10 +373,22 @@ public class Video : ISteppable
 
 				if (backgroundAndWindowEnabled)
 				{
-					drawTileMap(tileIndices: backgroundTileIndices, scrollX: RegisterSCX, scrollY: RegisterSCY, wrap: true);
+					drawTileMap(
+						tileData: backgroundAndWindowTileData,
+						tileIndices: backgroundTileIndices,
+						scrollX: RegisterSCX,
+						scrollY: RegisterSCY,
+						wrap: true
+					);
 					if (windowEnabled)
 					{
-						drawTileMap(tileIndices: windowTileIndices, scrollX: -(RegisterWX - 7), scrollY: -RegisterWY, wrap: false);
+						drawTileMap(
+							tileData: backgroundAndWindowTileData,
+							tileIndices: windowTileIndices,
+							scrollX: -(RegisterWX - 7),
+							scrollY: -RegisterWY,
+							wrap: false
+						);
 					}
 				}
 
@@ -415,14 +432,14 @@ public class Video : ISteppable
 
 					foreach (var sprite in visibleSprites)
 					{
-						drawSpriteLine(sprite);
+						drawSpriteLine(tileData1, sprite);
 					}
 				}
 
 				logger.LogTrace($"emitting scanline pixels y={RegisterLY}");
 				ScanlineAvailable?.Invoke(RegisterLY, outputPixels);
 
-				void drawTileMap(byte[] tileIndices, int scrollX, int scrollY, bool wrap)
+				void drawTileMap(Span<byte> tileData, byte[] tileIndices, int scrollX, int scrollY, bool wrap)
 				{
 					// in pixels on the device display, so 0 to 143
 					var screenY = RegisterLY;
@@ -469,13 +486,13 @@ public class Video : ISteppable
 							tileIndex = (byte)((sbyte)tileIndex + 128);
 						}
 						// remember both the actual color and the index
-						var colorIndex = getColorIndexFromTile(backgroundAndWindowTileData, tileIndex, tileX, tileY);
+						var colorIndex = getColorIndexFromTile(tileData, tileIndex, tileX, tileY);
 						outputPixels[screenX] = RegisterBGP[colorIndex];
 						backgroundAndWindowColorIndex[screenX] = colorIndex;
 					}
 				}
 
-				void drawSpriteLine(Sprite sprite)
+				void drawSpriteLine(Span<byte> tileData, Sprite sprite)
 				{
 					// in pixels on the device display, so 0 to 143
 					var screenY = RegisterLY;
@@ -512,7 +529,7 @@ public class Video : ISteppable
 							tileX = 7 - tileX;
 						}
 						// draw the pixel, but index 0 is transparent
-						var colorIndex = getColorIndexFromTile(tileData1, tileIndex, tileX, tileY);
+						var colorIndex = getColorIndexFromTile(tileData, tileIndex, tileX, tileY);
 						if (colorIndex != 0)
 						{
 							bool shouldDraw;
@@ -540,7 +557,7 @@ public class Video : ISteppable
 					}
 				}
 
-				byte getColorIndexFromTile(byte[] tileData, int tileIndex, int tileX, int tileY)
+				byte getColorIndexFromTile(Span<byte> tileData, int tileIndex, int tileX, int tileY)
 				{
 					// the index into the tile data for the row of pixels we're drawing
 					var tileDataIndex = tileIndex * TileLengthInBytes + tileY * 2;

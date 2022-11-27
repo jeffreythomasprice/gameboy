@@ -2,8 +2,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Gameboy;
 
-public class Emulator : ISteppable
+public class Emulator : IDisposable, ISteppable
 {
+	private readonly ILogger logger;
 	private readonly Memory memory;
 	private readonly CPU cpu;
 	private readonly SerialIO serialIO;
@@ -11,8 +12,14 @@ public class Emulator : ISteppable
 	private readonly Timer timer;
 	private readonly Video video;
 
+	private bool isDisposed = false;
+	private Thread? thread = null;
+	private bool threadShouldExit;
+
 	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge)
 	{
+		logger = loggerFactory.CreateLogger<Emulator>();
+
 		memory = cartridge.CreateMemory(loggerFactory);
 		cpu = new CPU(loggerFactory, memory);
 		serialIO = new SerialIO(loggerFactory, memory);
@@ -37,6 +44,17 @@ public class Emulator : ISteppable
 		{
 			memory.SpriteAttributeMemoryEnabled = enabled;
 		};
+	}
+
+	~Emulator()
+	{
+		Dispose(false);
+	}
+
+	public void Dispose()
+	{
+		Dispose(true);
+		GC.SuppressFinalize(true);
 	}
 
 	public IMemory Memory => memory;
@@ -73,6 +91,68 @@ public class Emulator : ISteppable
 		Step(timer);
 		Step(video);
 		cpu.Step();
+	}
+
+	public void Start()
+	{
+		lock (this)
+		{
+			if (thread != null)
+			{
+				logger.LogTrace("already running");
+				return;
+			}
+			logger.LogDebug("starting emulation thread");
+			threadShouldExit = false;
+			thread = new Thread(() =>
+			{
+				while (!threadShouldExit)
+				{
+					Step();
+					// TODO wait for configurable amounts of time if we want a speed other than "fastest possible"
+					Thread.Yield();
+				}
+				logger.LogDebug("thread stopped");
+				thread = null;
+			});
+			thread.Start();
+		}
+	}
+
+	public void Stop()
+	{
+		lock (this)
+		{
+			if (thread == null)
+			{
+				logger.LogTrace("not running");
+				return;
+			}
+			logger.LogDebug("stopping");
+			threadShouldExit = true;
+		}
+	}
+
+	public void Join(TimeSpan? timeout = null)
+	{
+		Stop();
+		if (timeout.HasValue)
+		{
+			thread?.Join(timeout.Value);
+		}
+		else
+		{
+			thread?.Join();
+		}
+	}
+
+	private void Dispose(bool disposing)
+	{
+		if (!isDisposed)
+		{
+			isDisposed = true;
+			Stop();
+		}
 	}
 
 	private void Step(ISteppable s)

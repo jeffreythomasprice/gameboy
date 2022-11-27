@@ -62,10 +62,12 @@ public class Window : GameWindow
 		this.keypad = keypad;
 
 		logger = loggerFactory.CreateLogger<Window>();
-		logger.LogDebug("window properties");
-		logger.LogDebug($"APIVersion = {APIVersion}");
-		logger.LogDebug($"Profile = {Profile}");
-		logger.LogDebug($"Flags = {Flags}");
+		logger.LogTrace($"""
+		window properties:
+		APIVersion = {APIVersion}
+		Profile = {Profile}
+		Flags = {Flags}
+		""");
 	}
 
 	protected override void OnLoad()

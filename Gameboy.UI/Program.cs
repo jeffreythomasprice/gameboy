@@ -12,7 +12,6 @@ public class Program
 			builder
 				.SetMinimumLevel(LogLevel.Information)
 				.AddFilter("Gameboy", LogLevel.Debug)
-				.AddFilter("Gameboy.UI", LogLevel.Trace)
 				.AddSimpleConsole(options =>
 				{
 					options.TimestampFormat = "o";
@@ -28,56 +27,25 @@ public class Program
 			}
 			using var stream = new FileStream(args[0], FileMode.Open);
 			var cartridge = new Cartridge(stream);
-			logger.LogDebug($"title = {cartridge.Title}");
-			logger.LogDebug($"type = {cartridge.CartridgeType}");
-			logger.LogDebug($"ROM = {cartridge.ROMBanks}");
-			logger.LogDebug($"RAM = {cartridge.RAMBanks}");
-			logger.LogDebug($"color? {cartridge.IsColorGameboy}");
-			logger.LogDebug($"super? {cartridge.IsSuperGameboy}");
+			logger.LogDebug($"""
+			title = {cartridge.Title}
+			type = {cartridge.CartridgeType}
+			ROM = {cartridge.ROMBanks}
+			RAM = {cartridge.RAMBanks}
+			color? {cartridge.IsColorGameboy}
+			super? {cartridge.IsSuperGameboy}
+			""");
 
 			var emulator = new Emulator(loggerFactory, cartridge);
 
 			using var window = new Window(loggerFactory, emulator.Video, emulator.Keypad);
 
-			emulator.SerialIO.DataAvailable += (data) =>
-			{
-				logger.LogTrace($"TODO JEFF serial IO data = {(char)data}");
-			};
-
-			emulator.Keypad.KeypadRegisterDelta += (oldValue, newValue) =>
-			{
-				logger.LogTrace($"TODO JEFF keypad register {NumberUtils.ToBinary(newValue)}");
-			};
-
-			// TODO emulator thread should be its own class with a Start and Stop method
-			var emulatorThreadRunning = true;
-			var emulatorThread = new Thread(() =>
-			{
-				var logInterval = TimeSpan.FromSeconds(1);
-				var nextLogTime = DateTime.Now + logInterval;
-				while (emulatorThreadRunning)
-				{
-					emulator.Step();
-
-					var now = DateTime.Now;
-					if (now >= nextLogTime)
-					{
-						nextLogTime = now + logInterval;
-						var state = emulator.CPU.IsStopped ? "STOP" : (emulator.CPU.IsHalted ? "HALT" : "running");
-						logger.LogTrace($"TODO JEFF clock time = {emulator.ClockTime}, state: {state}");
-					}
-				}
-			});
-			logger.LogTrace("starting emulating thread");
-			emulatorThread.Start();
+			emulator.Start();
 
 			logger.LogTrace("starting window");
 			window.Run();
 
-			logger.LogDebug("stopping emulation thread");
-			emulatorThreadRunning = false;
-			emulatorThread.Join();
-			logger.LogDebug("emulation thread stopped");
+			emulator.Join();
 		}
 		catch (Exception e)
 		{

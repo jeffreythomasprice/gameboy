@@ -94,9 +94,10 @@ public class Timer : ISteppable
 		}
 	}
 
-	public void ResetDIV()
+	public void RegisterDIVWrite(byte oldValue, ref byte newValue)
 	{
 		logger.LogTrace("DIV reset");
 		divLow = 0;
+		newValue = 0;
 	}
 }

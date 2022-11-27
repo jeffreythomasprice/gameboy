@@ -52,6 +52,7 @@ public class Cartridge
 
 	public ReadOnlySpan<byte> GetBytes(Range range) => data.AsSpan(range);
 
+	// TODO cut title off when it looks like junk after the ascii characters
 	public string Title => Encoding.ASCII.GetString(GetBytes(new Range(0x0134, 0x0142 + 1)));
 
 	public bool IsColorGameboy => data[0x0143] == 0x80;

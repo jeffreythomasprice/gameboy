@@ -22,13 +22,11 @@ public class Emulator : ISteppable
 
 		memory.IORegisterDIVWrite += (byte oldValue, ref byte newValue) =>
 		{
-			timer.ResetDIV();
-			newValue = 0;
+			timer.RegisterDIVWrite(oldValue, ref newValue);
 		};
 		memory.IORegisterLYWrite += (byte oldValue, ref byte newValue) =>
 		{
-			video.ResetLY();
-			newValue = 0;
+			video.RegisterLYWrite(oldValue, ref newValue);
 		};
 
 		video.SetVideoMemoryEnabled += (enabled) =>

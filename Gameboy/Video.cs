@@ -17,14 +17,18 @@ public class Video : ISteppable
 	state machine:
 
 	LY tracks the current scan line, with an extra 10 invisible scan lines outside the screen
-	for LY=0; LY<=153; LY++ {
+	for LY=0; LY<=ScreenHeight; LY++ {
 		mode = 00 = H blank, lasts 201 ticks
 		mode = 10 = sprite attr memory is disabled, lasts 77 ticks
 		mode = 11 = sprite and video is disabled, lasts 169 ticks
 	}
-	mode = 01 = V blank, lasts 1386 ticks, i.e. until this total operation has taken 70224 total ticks
+	for LY=ScreenHeight; LY<=ScreenHeight + 9; LY++ {
+		mode = 01 = V blank, lasts 585 ticks
+	}
+	last extra line line, LY = ScreenHeight + 10, mode = 01 = V blank, lasts 591 ticks
 
-	so at 60 FPS thats 70224 * 60 = 4213440 ticks per second
+	total frame time is therefore 70224 total ticks
+	4194304 ticks per second / 70224 ~= 59.73 FPS
 	*/
 
 	private enum State
@@ -73,8 +77,9 @@ public class Video : ISteppable
 	private UInt64 clock;
 
 	private State state;
-	private byte registerLY;
 	private UInt64 ticksRemainingInCurrentState;
+
+	private bool expectedLYUpdate;
 
 	public Video(ILoggerFactory loggerFactory, IMemory memory)
 	{
@@ -93,18 +98,24 @@ public class Video : ISteppable
 		Clock = 0;
 
 		state = State.VBlank;
-		registerLY = 0;
+		RegisterLY = 0;
 		ticksRemainingInCurrentState = 0;
 	}
 
 	public void Step()
 	{
-		const double FramesPerSecond = 59.73;
-		const UInt64 ClockTicksPerFrame = (UInt64)(CPU.ClockTicksPerSecond / FramesPerSecond);
+		// total time between screen redraws, including V blank mode
+		const UInt64 ClockTicksPerFrame = 70224;
+		// how long it stays in each mode when drawing a real scan line
 		const UInt64 HBlankTime = 201;
 		const UInt64 SpriteAttrCopyTime = 77;
 		const UInt64 AllVideoMemCopyTime = 169;
-		const UInt64 VBlankTime = ClockTicksPerFrame - (HBlankTime + SpriteAttrCopyTime + AllVideoMemCopyTime) * (ScreenHeight + 10);
+		// how many extra values of LY during which it's in V blank mode
+		const int ExtraVBlankScanLines = 10;
+		// how long it stays in V blank mode per "extra" scan line
+		const UInt64 VBlankTime = (ClockTicksPerFrame - (HBlankTime + SpriteAttrCopyTime + AllVideoMemCopyTime) * ScreenHeight) / ExtraVBlankScanLines;
+		// doesn't divide evenly, so some extra time on the last one
+		const UInt64 VBlankTimeOnLastLine = VBlankTime + (ClockTicksPerFrame - (HBlankTime + SpriteAttrCopyTime + AllVideoMemCopyTime) * ScreenHeight - VBlankTime * ExtraVBlankScanLines);
 
 		// advance time
 		var advance = Math.Min(ticksRemainingInCurrentState, 4);
@@ -115,10 +126,12 @@ public class Video : ISteppable
 		if (ticksRemainingInCurrentState == 0)
 		{
 			// control registers
+			// TODO JEFF accessors for registers
 			var registerLCDC = memory.ReadUInt8(Memory.IO_LCDC);
 			var registerSTAT = memory.ReadUInt8(Memory.IO_STAT);
 
 			// color palettes
+			// TODO JEFF accessors for registers
 			var registerBGP = extractColorPalette(memory.ReadUInt8(Memory.IO_BGP));
 			var registerOBP0 = extractColorPalette(memory.ReadUInt8(Memory.IO_OBP0));
 			var registerOBP1 = extractColorPalette(memory.ReadUInt8(Memory.IO_OBP1));
@@ -138,10 +151,9 @@ public class Video : ISteppable
 					// end of mode 00, transition to mode 10, copy sprite attributes
 					state = State.SpriteAttrCopy;
 					ticksRemainingInCurrentState = SpriteAttrCopyTime;
-					logger.LogTrace($"state={state}, ticks={ticksRemainingInCurrentState}");
+					logger.LogTrace($"state={state}, LY={RegisterLY}, ticks={ticksRemainingInCurrentState}");
 					setStatMode(0b10);
 					triggerSTATInterruptIfMaskSet(0b0010_0000);
-					enableVideoMemory();
 					disableSpriteAttributeMemory();
 					break;
 
@@ -149,37 +161,34 @@ public class Video : ISteppable
 					// end of mode 10, transition to mode 11, copy video memory
 					state = State.AllVideoMemCopy;
 					ticksRemainingInCurrentState = AllVideoMemCopyTime;
-					logger.LogTrace($"state={state}, ticks={ticksRemainingInCurrentState}");
+					logger.LogTrace($"state={state}, LY={RegisterLY}, ticks={ticksRemainingInCurrentState}");
 					setStatMode(0b11);
 					disableVideoMemory();
-					disableSpriteAttributeMemory();
 					break;
 
 				case State.AllVideoMemCopy:
 					// actually draw some stuff
-					if (registerLY < ScreenHeight)
+					if (RegisterLY < ScreenHeight)
 					{
 						drawScanLine();
 					}
-
-					// TODO JEFF supposed to go into v blank mode during those extra 10 LY lines?
 					// end of mode 11, either transition to mode 00 for a new scan line, or to mode 01 V blank
-					registerLY++;
-					if (registerLY < ScreenHeight + 10)
+					RegisterLY++;
+					if (RegisterLY < ScreenHeight)
 					{
 						// more scan lines remaining, back to mode 00, H blank
 						state = State.HBlank;
 						ticksRemainingInCurrentState = HBlankTime;
 						setStatMode(0b00);
 						triggerSTATInterruptIfMaskSet(0b0000_1000);
-						logger.LogTrace($"state={state}, LY={registerLY}, ticks={ticksRemainingInCurrentState}");
+						logger.LogTrace($"state={state}, LY={RegisterLY}, ticks={ticksRemainingInCurrentState}");
 					}
 					else
 					{
 						// no scan lines remain, to mode 01, V blank
 						state = State.VBlank;
 						ticksRemainingInCurrentState = VBlankTime;
-						logger.LogTrace($"state={state}, ticks={ticksRemainingInCurrentState}");
+						logger.LogTrace($"state={state}, LY={RegisterLY}, ticks={ticksRemainingInCurrentState}");
 						setStatMode(0b01);
 						triggerVBlankInterrupt();
 						triggerSTATInterruptIfMaskSet(0b0001_0000);
@@ -192,16 +201,31 @@ public class Video : ISteppable
 					break;
 
 				case State.VBlank:
-					logger.LogTrace("end V blank");
-					state = State.HBlank;
-					registerLY = 0;
-					ticksRemainingInCurrentState = HBlankTime;
-					logger.LogTrace($"state={state}, LY={registerLY}, ticks={ticksRemainingInCurrentState}");
-					setStatMode(0b00);
-					triggerSTATInterruptIfMaskSet(0b0000_1000);
-					triggerSTATInterruptBasedOnLYAndLYC();
-					enableVideoMemory();
-					enableSpriteAttributeMemory();
+					RegisterLY++;
+					if (RegisterLY < ScreenHeight + ExtraVBlankScanLines)
+					{
+						logger.LogTrace("stay in V blank");
+						if (RegisterLY == ScreenHeight + ExtraVBlankScanLines - 1)
+						{
+							ticksRemainingInCurrentState = VBlankTimeOnLastLine;
+						}
+						else
+						{
+							ticksRemainingInCurrentState = VBlankTime;
+						}
+						logger.LogTrace($"state={state}, LY={RegisterLY}, ticks={ticksRemainingInCurrentState}");
+					}
+					else
+					{
+						logger.LogTrace("end V blank");
+						state = State.HBlank;
+						RegisterLY = 0;
+						ticksRemainingInCurrentState = HBlankTime;
+						logger.LogTrace($"state={state}, LY={RegisterLY}, ticks={ticksRemainingInCurrentState}");
+						setStatMode(0b00);
+						triggerSTATInterruptIfMaskSet(0b0000_1000);
+						triggerSTATInterruptBasedOnLYAndLYC();
+					}
 					break;
 			}
 
@@ -229,10 +253,11 @@ public class Video : ISteppable
 				if ((registerSTAT & 0b0100_0000) != 0)
 				{
 					var statConditionFlag = (registerSTAT & 0b0000_0100) != 0;
+					// TODO JEFF accessors for registers
 					var registerLYC = memory.ReadUInt8(Memory.IO_LYC);
 					if (
-						(statConditionFlag && registerLY == registerLYC) ||
-						(!statConditionFlag && registerLY != registerLYC)
+						(statConditionFlag && RegisterLY == registerLYC) ||
+						(!statConditionFlag && RegisterLY != registerLYC)
 					)
 					{
 						triggerLCDCInterrupt();
@@ -305,6 +330,7 @@ public class Video : ISteppable
 				var tileData2 = memory.ReadArray(Memory.VIDEO_RAM_START + 0x0800, TileDataLengthInBytes);
 
 				// LCDC flags
+				// TODO JEFF accessors for registers
 				var backgroundAndWindowEnabled = (registerLCDC & 0b0000_0001) != 0;
 				var spritesEnabled = (registerLCDC & 0b0000_0010) != 0;
 				// true = sprites are drawn in 2s as 8x16, false = sprites are 8x8
@@ -333,6 +359,7 @@ public class Video : ISteppable
 				var windowTileIndices = memory.ReadArray(windowTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes);
 
 				// background and window offsets
+				// TODO JEFF accessors for registers
 				var registerSCX = memory.ReadUInt8(Memory.IO_SCX);
 				var registerSCY = memory.ReadUInt8(Memory.IO_SCY);
 				var registerWX = memory.ReadUInt8(Memory.IO_WX);
@@ -411,13 +438,13 @@ public class Video : ISteppable
 					}
 				}
 
-				logger.LogTrace($"emitting scanline pixels y={registerLY}");
-				ScanlineAvailable?.Invoke(registerLY, outputPixels);
+				logger.LogTrace($"emitting scanline pixels y={RegisterLY}");
+				ScanlineAvailable?.Invoke(RegisterLY, outputPixels);
 
 				void drawTileMap(byte[] tileIndices, bool background)
 				{
 					// in pixels on the device display, so 0 to 143
-					var screenY = registerLY;
+					var screenY = RegisterLY;
 					// in pixels on the tile map, so 0 to 255
 					var tileMapPixelY = (screenY + registerSCY) % BackgroundAndWindowSizeInPixels;
 					// in tiles on the tile map, so 0 to 31
@@ -460,7 +487,7 @@ public class Video : ISteppable
 				void drawSpriteLine(Sprite sprite)
 				{
 					// in pixels on the device display, so 0 to 143
-					var screenY = registerLY;
+					var screenY = RegisterLY;
 					// actual sprite coordinates in pixels
 					var spriteX = sprite.X - 8;
 					var spriteY = sprite.Y - 16;
@@ -507,11 +534,29 @@ public class Video : ISteppable
 		}
 	}
 
-	public void ResetLY()
+	public void RegisterLYWrite(byte oldValue, ref byte newValue)
 	{
-		logger.LogTrace("LY reset");
-		// docs are unclear about what this does to the video state machine, just says
-		// "Writing will reset the counter."
-		registerLY = 0;
+		if (expectedLYUpdate)
+		{
+			logger.LogTrace($"TODO JEFF expected LY update to {newValue}");
+			expectedLYUpdate = false;
+		}
+		else
+		{
+			logger.LogTrace("LY reset");
+			// docs are unclear about what this does to the video state machine, just says
+			// "Writing will reset the counter."
+			newValue = 0;
+		}
+	}
+
+	private byte RegisterLY
+	{
+		get => memory.ReadUInt8(Memory.IO_LY);
+		set
+		{
+			expectedLYUpdate = true;
+			memory.WriteUInt8(Memory.IO_LY, value);
+		}
 	}
 }

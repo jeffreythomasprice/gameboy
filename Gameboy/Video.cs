@@ -359,18 +359,17 @@ public class Video : ISteppable
 				var windowTileIndices = memory.ReadArray(windowTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes);
 
 				var outputPixels = new byte[ScreenWidth];
+				var backgroundAndWindowColorIndex = new byte[ScreenWidth];
 
-				// first layer for background and window
 				if (backgroundAndWindowEnabled)
 				{
-					drawTileMap(tileIndices: backgroundTileIndices, onlyColor0: true, scrollX: RegisterSCX, scrollY: RegisterSCY, wrap: true);
+					drawTileMap(tileIndices: backgroundTileIndices, scrollX: RegisterSCX, scrollY: RegisterSCY, wrap: true);
 					if (windowEnabled)
 					{
-						drawTileMap(tileIndices: windowTileIndices, onlyColor0: true, scrollX: -RegisterWX, scrollY: -RegisterWY, wrap: false);
+						drawTileMap(tileIndices: windowTileIndices, scrollX: -RegisterWX, scrollY: -RegisterWY, wrap: false);
 					}
 				}
 
-				// figure out what sprites are visible and draw the ones in between the two layers
 				const int MaxSprites = 40;
 				const int MaxVisibleSprites = 10;
 				var spriteHeight = spritesAreBig ? TileSizeInPixels * 2 : TileSizeInPixels;
@@ -403,39 +402,14 @@ public class Video : ISteppable
 
 					foreach (var sprite in visibleSprites)
 					{
-						if ((sprite.Flags & 0b1000_0000) != 0)
-						{
-							drawSpriteLine(sprite);
-						}
-					}
-				}
-
-				// second layer for background and window
-				if (backgroundAndWindowEnabled)
-				{
-					drawTileMap(tileIndices: backgroundTileIndices, onlyColor0: false, scrollX: RegisterSCX, scrollY: RegisterSCY, wrap: true);
-					if (windowEnabled)
-					{
-						drawTileMap(tileIndices: windowTileIndices, onlyColor0: false, scrollX: -RegisterWX, scrollY: -RegisterWY, wrap: false);
-					}
-				}
-
-				// sprites on top of second layer
-				if (spritesEnabled)
-				{
-					foreach (var sprite in visibleSprites)
-					{
-						if ((sprite.Flags & 0b1000_0000) == 0)
-						{
-							drawSpriteLine(sprite);
-						}
+						drawSpriteLine(sprite);
 					}
 				}
 
 				logger.LogTrace($"emitting scanline pixels y={RegisterLY}");
 				ScanlineAvailable?.Invoke(RegisterLY, outputPixels);
 
-				void drawTileMap(byte[] tileIndices, bool onlyColor0, int scrollX, int scrollY, bool wrap)
+				void drawTileMap(byte[] tileIndices, int scrollX, int scrollY, bool wrap)
 				{
 					// in pixels on the device display, so 0 to 143
 					var screenY = RegisterLY;
@@ -489,12 +463,10 @@ public class Video : ISteppable
 						// the index into the palette for this pixel
 						int colorShift = 7 - tileX;
 						int colorMask = 1 << colorShift;
-						var colorIndex = ((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1);
-						// if this pixel is one we want to draw
-						if ((colorIndex == 0 && onlyColor0) || (colorIndex != 0 && !onlyColor0))
-						{
-							outputPixels[screenX] = RegisterBGP[colorIndex];
-						}
+						var colorIndex = (byte)(((tileDataLow & colorMask) >> colorShift) | (((tileDataHigh & colorMask) >> colorShift) << 1));
+						// remember both the actual color and the index
+						outputPixels[screenX] = RegisterBGP[colorIndex];
+						backgroundAndWindowColorIndex[screenX] = colorIndex;
 					}
 				}
 
@@ -546,9 +518,28 @@ public class Video : ISteppable
 						// draw the pixel, but index 0 is transparent
 						if (colorIndex != 0)
 						{
-							// which palette are we using
-							var palette = (sprite.Flags & 0b0001_0000) == 0 ? RegisterOBP0 : RegisterOBP1;
-							outputPixels[screenX] = palette[colorIndex];
+							bool shouldDraw;
+							if (!backgroundAndWindowEnabled)
+							{
+								// only sprites are visible
+								shouldDraw = true;
+							}
+							else if ((sprite.Flags & 0b1000_0000) == 0)
+							{
+								// always draw this sprite on top of background and window
+								shouldDraw = true;
+							}
+							else
+							{
+								// only draw sprites on top of color 0, behind other colors
+								shouldDraw = backgroundAndWindowColorIndex[screenX] == 0;
+							}
+							if (shouldDraw)
+							{
+								// which palette are we using
+								var palette = (sprite.Flags & 0b0001_0000) == 0 ? RegisterOBP0 : RegisterOBP1;
+								outputPixels[screenX] = palette[colorIndex];
+							}
 						}
 					}
 				}

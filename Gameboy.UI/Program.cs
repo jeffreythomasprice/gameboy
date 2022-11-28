@@ -42,7 +42,7 @@ public class Program
 
 			emulator.Keypad.KeypadRegisterDelta += (oldValue, newValue) =>
 			{
-				logger.LogInformation($"TODO JEFF keypad delta {oldValue} -> {newValue}");
+				logger.LogInformation($"TODO JEFF keypad delta {NumberUtils.ToBinary(oldValue)} -> {NumberUtils.ToBinary(newValue)}");
 			};
 
 			using var window = new Window(loggerFactory, emulator.Video, emulator.Keypad);

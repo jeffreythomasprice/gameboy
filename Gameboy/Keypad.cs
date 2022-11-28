@@ -57,7 +57,7 @@ public class Keypad : ISteppable
 		var oldValue = memory.ReadUInt8(Memory.IO_P1);
 		var p14 = (oldValue & 0b0001_0000) != 0;
 		var p15 = (oldValue & 0b0010_0000) != 0;
-		byte newValue = (byte)(0b0000_1111 | (oldValue & 0b1111_0000));
+		byte newValue = (byte)(0b0000_1111 | (oldValue & 0b0011_0000));
 		if (!p14 || p15)
 		{
 			newValue &= arrowKeyMask;

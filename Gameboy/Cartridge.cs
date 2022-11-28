@@ -118,6 +118,13 @@ public class Cartridge
 			Type.ROM_MBC3_TIMER_BATTERY or
 			Type.ROM_MBC3_TIMER_RAM_BATTERY =>
 				new MemoryMBC3(loggerFactory, this),
+			Type.ROM_MBC5 or
+			Type.ROM_MBC5_RAM or
+			Type.ROM_MBC5_RAM_BATTERY or
+			Type.ROM_MBC5_RUMBLE or
+			Type.ROM_MBC5_RUMBLE_SRAM or
+			Type.ROM_MBC5_RUMBLE_SRAM_BATTERY =>
+				new MemoryMBC5(loggerFactory, this),
 			_ => throw new NotImplementedException($"unimplemented cartridge type {CartridgeType}"),
 		};
 }

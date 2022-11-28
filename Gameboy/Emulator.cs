@@ -26,6 +26,8 @@ public class Emulator : IDisposable, ISteppable
 	private Stopwatch timerStopwatch = new();
 	private Stopwatch videoStopwatch = new();
 	private Stopwatch cpuStopwatch = new();
+	private TimeSpan emitDebugInterval = TimeSpan.FromSeconds(2);
+	private UInt64 nextEmitDebugClock;
 
 	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge)
 	{
@@ -84,6 +86,24 @@ public class Emulator : IDisposable, ISteppable
 
 	public TimeSpan ClockTime => TimeUtils.ToTimeSpan(Clock);
 
+	/// <summary>
+	/// If true periodically logs debug info
+	/// </summary>
+	public bool EmitDebugStatsEnabled { get; set; } = false;
+
+	/// <summary>
+	/// The interval on which to emit debug info. Measured in CPU time, not real time.
+	/// </summary>
+	public TimeSpan EmitDebugInterval
+	{
+		get => emitDebugInterval;
+		set
+		{
+			emitDebugInterval = value;
+			nextEmitDebugClock = 0;
+		}
+	}
+
 	public void Reset()
 	{
 		memory.Reset();
@@ -100,6 +120,7 @@ public class Emulator : IDisposable, ISteppable
 		timerStopwatch.Reset();
 		videoStopwatch.Reset();
 		cpuStopwatch.Reset();
+		nextEmitDebugClock = 0;
 	}
 
 	public void Step()
@@ -132,10 +153,27 @@ public class Emulator : IDisposable, ISteppable
 
 		totalStopwatch.Stop();
 
-		if (cpu.Clock % (CPU.ClockTicksPerSecond * 5) == 0)
+		if (EmitDebugStatsEnabled && Clock >= nextEmitDebugClock)
 		{
+			nextEmitDebugClock = Clock + TimeUtils.ToClockTicks(EmitDebugInterval);
+
+			string cpuState;
+			if (cpu.IsStopped)
+			{
+				cpuState = "STOP";
+			}
+			else if (cpu.IsHalted)
+			{
+				cpuState = "HALT";
+			}
+			else
+			{
+				cpuState = "active";
+			}
+
 			logger.LogDebug($"""
-			TODO JEFF total = {totalStopwatch.Elapsed}
+			CPU state = {cpuState}
+			total CPU time = {totalStopwatch.Elapsed} ({cpu.Clock} clock ticks)
 				memory = {StopwatchString(memoryStopwatch, totalStopwatch)}
 				serialIO = {StopwatchString(serialIOStopwatch, totalStopwatch)}
 				keypad = {StopwatchString(keypadStopwatch, totalStopwatch)}

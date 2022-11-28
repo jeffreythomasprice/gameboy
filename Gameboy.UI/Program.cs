@@ -38,6 +38,12 @@ public class Program
 			""");
 
 			var emulator = new Emulator(loggerFactory, cartridge);
+			emulator.EmitDebugStatsEnabled = true;
+
+			emulator.Keypad.KeypadRegisterDelta += (oldValue, newValue) =>
+			{
+				logger.LogInformation($"TODO JEFF keypad delta {oldValue} -> {newValue}");
+			};
 
 			using var window = new Window(loggerFactory, emulator.Video, emulator.Keypad);
 

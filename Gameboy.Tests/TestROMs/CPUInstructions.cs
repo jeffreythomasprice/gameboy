@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Gameboy.Tests.TestROMs;
 
-public class TestROMs
+public class CPUInstructions
 {
 	[Fact]
 	public void Combined()

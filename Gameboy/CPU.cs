@@ -356,6 +356,7 @@ public class CPU : ISteppable
 			logger.LogTrace("CPU is in state STOP");
 #endif
 			// stopped CPU has no clock running, only keypad will break out of this
+			Clock += 4;
 		}
 		else if (IsHalted)
 		{

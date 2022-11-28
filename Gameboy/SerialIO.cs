@@ -37,6 +37,9 @@ public class SerialIO : ISteppable
 
 	public void Step()
 	{
+		// TODO JEFF can we cheat time and do 4 clocks at a time?
+		Clock++;
+
 		// current value of transfer control
 		var serialControl = memory.ReadUInt8(Memory.IO_SC);
 
@@ -77,7 +80,5 @@ public class SerialIO : ISteppable
 				memory.WriteUInt8(Memory.IO_IF, (byte)(memory.ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_SERIAL));
 			}
 		}
-
-		Clock++;
 	}
 }

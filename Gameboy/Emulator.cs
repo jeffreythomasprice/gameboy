@@ -20,6 +20,10 @@ public class Emulator : IDisposable, ISteppable
 
 	// TODO JEFF timing debugging
 	private Stopwatch totalStopwatch = new();
+	private Stopwatch memoryStopwatch = new();
+	private Stopwatch serialIOStopwatch = new();
+	private Stopwatch keypadStopwatch = new();
+	private Stopwatch timerStopwatch = new();
 	private Stopwatch videoStopwatch = new();
 	private Stopwatch cpuStopwatch = new();
 
@@ -90,6 +94,10 @@ public class Emulator : IDisposable, ISteppable
 		video.Reset();
 
 		totalStopwatch.Reset();
+		memoryStopwatch.Reset();
+		serialIOStopwatch.Reset();
+		keypadStopwatch.Reset();
+		timerStopwatch.Reset();
 		videoStopwatch.Reset();
 		cpuStopwatch.Reset();
 	}
@@ -98,13 +106,21 @@ public class Emulator : IDisposable, ISteppable
 	{
 		totalStopwatch.Start();
 
+		memoryStopwatch.Start();
 		Step(memory);
+		memoryStopwatch.Stop();
 
+		serialIOStopwatch.Start();
 		Step(serialIO);
+		serialIOStopwatch.Stop();
 
+		keypadStopwatch.Start();
 		Step(keypad);
+		keypadStopwatch.Stop();
 
+		timerStopwatch.Start();
 		Step(timer);
+		timerStopwatch.Stop();
 
 		videoStopwatch.Start();
 		Step(video);
@@ -120,12 +136,16 @@ public class Emulator : IDisposable, ISteppable
 		{
 			logger.LogDebug($"""
 			TODO JEFF total = {totalStopwatch.Elapsed}
-				cpu = {StopwatchString(cpuStopwatch, totalStopwatch)})
-				video = {StopwatchString(videoStopwatch, totalStopwatch)})
-					tile data = {StopwatchString(video.TileDataReadStopwatch, videoStopwatch)})
-					bg and window = {StopwatchString(video.BackgroundAndWindowStopwatch, videoStopwatch)})
-					sprites = {StopwatchString(video.SpritesStopwatch, videoStopwatch)})
-					emit scanline = {StopwatchString(video.EmitScanlineStopwatch, videoStopwatch)})
+				memory = {StopwatchString(memoryStopwatch, totalStopwatch)}
+				serialIO = {StopwatchString(serialIOStopwatch, totalStopwatch)}
+				keypad = {StopwatchString(keypadStopwatch, totalStopwatch)}
+				timer = {StopwatchString(timerStopwatch, totalStopwatch)}
+				video = {StopwatchString(videoStopwatch, totalStopwatch)}
+					tile data = {StopwatchString(video.TileDataReadStopwatch, videoStopwatch)}
+					bg and window = {StopwatchString(video.BackgroundAndWindowStopwatch, videoStopwatch)}
+					sprites = {StopwatchString(video.SpritesStopwatch, videoStopwatch)}
+					emit scanline = {StopwatchString(video.EmitScanlineStopwatch, videoStopwatch)}
+				cpu = {StopwatchString(cpuStopwatch, totalStopwatch)}
 			""");
 
 			string StopwatchString(Stopwatch s1, Stopwatch s2)

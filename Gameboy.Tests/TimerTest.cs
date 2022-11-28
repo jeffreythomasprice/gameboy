@@ -194,6 +194,13 @@ public class TimerTest
 			Assert.False(overflowed);
 		}
 
+		// trigger the callback that would normally be done by memory when writing to div
+		// this should clear internal state so the next time we call it it looks like a normal memory call, and invokes the reset behavior
+		{
+			byte newValue = 0x42;
+			timer.RegisterDIVWrite(0, ref newValue);
+		}
+
 		// simulate a write to the div register, normally this would be triggered by an event on the memory
 		{
 			byte newValue = 0x42;

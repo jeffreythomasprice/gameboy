@@ -14,6 +14,8 @@ public class Timer : ISteppable
 	private UInt64 clock;
 	private byte divLow;
 
+	private bool expectedDIVUpdate;
+
 	public Timer(ILoggerFactory loggerFactory, IMemory memory)
 	{
 		logger = loggerFactory.CreateLogger<Timer>();
@@ -34,6 +36,7 @@ public class Timer : ISteppable
 
 	public void Step()
 	{
+		// TODO JEFF can we cheat time and do 4 clocks at a time?
 		Clock++;
 
 		/*
@@ -47,10 +50,10 @@ public class Timer : ISteppable
 
 		DIV isn't controllable, it just always goes up
 		*/
-		var divHigh = memory.ReadUInt8(Memory.IO_DIV);
+		var divHigh = RegisterDIV;
 		var div16Before = (UInt16)((divHigh << 8) | divLow);
 		var div16After = (UInt16)(div16Before + 1);
-		memory.WriteUInt8(Memory.IO_DIV, (byte)((div16After & 0xff00) >> 8));
+		RegisterDIV = (byte)((div16After & 0xff00) >> 8);
 		divLow = (byte)(div16After & 0xff);
 
 		/*
@@ -58,12 +61,11 @@ public class Timer : ISteppable
 		if TAC enabled, increment TIMA based on TAC clock speed selector
 		if overflows, load TMA into TIMA
 		*/
-		var tac = memory.ReadUInt8(Memory.IO_TAC);
-		var enabled = (tac & 0b0000_0100) != 0;
+		var enabled = (RegisterTAC & 0b0000_0100) != 0;
 		if (enabled)
 		{
 			// if incrementing 16-bit div overflows specific bits, that means increment TIMA
-			var maskToCheck = (tac & 0b0000_0011) switch
+			var maskToCheck = (RegisterTAC & 0b0000_0011) switch
 			{
 				// every 1024 CPU clocks, so check bit 9 of 16-bit DIV
 				0b0000_0000 => 0b0000_0010_0000_0000,
@@ -79,25 +81,68 @@ public class Timer : ISteppable
 			if (((div16Before & maskToCheck) != 0) && ((div16After & maskToCheck) == 0))
 			{
 				// increment TIMA
-				var timaBefore = memory.ReadUInt8(Memory.IO_TIMA);
+				var timaBefore = RegisterTIMA;
 				var timaAfter = (byte)(timaBefore + 1);
 				if (timaAfter == 0)
 				{
+#if DEBUG
 					logger.LogTrace("timer overflow");
-					timaAfter = memory.ReadUInt8(Memory.IO_TMA);
+#endif
+					timaAfter = RegisterTMA;
 					Overflow?.Invoke();
 					// set interrupt flag
-					memory.WriteUInt8(Memory.IO_IF, (byte)(memory.ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_TIMER));
+					RegisterIF = (byte)(RegisterIF | Memory.IF_MASK_TIMER);
 				}
-				memory.WriteUInt8(Memory.IO_TIMA, timaAfter);
+				RegisterTIMA = timaAfter;
 			}
 		}
 	}
 
 	public void RegisterDIVWrite(byte oldValue, ref byte newValue)
 	{
-		logger.LogTrace("DIV reset");
-		divLow = 0;
-		newValue = 0;
+		// if update flag is true we're updating this as part of normal timer increments
+		// if it's false somebody else wrote to DIV and the CPU expects a reset
+		if (expectedDIVUpdate)
+		{
+			expectedDIVUpdate = false;
+		}
+		else
+		{
+#if DEBUG
+			logger.LogTrace("DIV reset");
+#endif
+			divLow = 0;
+			newValue = 0;
+		}
+	}
+
+	private byte RegisterDIV
+	{
+		get => memory.ReadUInt8(Memory.IO_DIV);
+		set
+		{
+			// we need to update this register value, but memory will emit events when we do
+			// this flag gets checked when we're handling the memory write event
+			expectedDIVUpdate = true;
+			memory.WriteUInt8(Memory.IO_DIV, value);
+		}
+	}
+
+	private byte RegisterTAC =>
+		memory.ReadUInt8(Memory.IO_TAC);
+
+	private byte RegisterTIMA
+	{
+		get => memory.ReadUInt8(Memory.IO_TIMA);
+		set => memory.WriteUInt8(Memory.IO_TIMA, value);
+	}
+
+	private byte RegisterTMA =>
+		memory.ReadUInt8(Memory.IO_TMA);
+
+	private byte RegisterIF
+	{
+		get => memory.ReadUInt8(Memory.IO_IF);
+		set => memory.WriteUInt8(Memory.IO_IF, value);
 	}
 }

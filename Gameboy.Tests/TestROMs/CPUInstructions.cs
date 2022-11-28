@@ -7,7 +7,8 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/cpu_instrs.gb",
-			1000000000,
+			TimeSpan.FromSeconds(54),
+			TimeSpan.FromSeconds(60),
 			"""
 			cpu_instrs
 
@@ -15,7 +16,8 @@ public class CPUInstructions
 
 			Passed all tests
 
-			"""
+			""",
+			"40c12bfd4b43f52dd3064efc7baf8919fb52cc79"
 		);
 	}
 
@@ -24,14 +26,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/01-special.gb",
-			10000000,
+			TimeSpan.FromSeconds(3),
+			TimeSpan.FromSeconds(5),
 			"""
 			01-special
 
 
 			Passed
 
-			"""
+			""",
+			"8b057dcd972f7c6e35e79a2b222a9093f6b79ce3"
 		);
 	}
 
@@ -40,14 +44,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/02-interrupts.gb",
-			10000000,
+			TimeSpan.FromSeconds(0.5),
+			TimeSpan.FromSeconds(1),
 			"""
 			02-interrupts
 
 
 			Passed
 
-			"""
+			""",
+			"fb4e299f9de0c1715294921a9b8c7a27bf26cfa9"
 		);
 	}
 
@@ -56,14 +62,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb",
-			100000000,
+			TimeSpan.FromSeconds(3),
+			TimeSpan.FromSeconds(5),
 			"""
 			03-op sp,hl
 
 
 			Passed
 
-			"""
+			""",
+			"11a6c910d32b716d7c206803e3dba322ce27bb19"
 		);
 	}
 
@@ -72,14 +80,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/04-op r,imm.gb",
-			100000000,
+			TimeSpan.FromSeconds(3),
+			TimeSpan.FromSeconds(5),
 			"""
 			04-op r,imm
 
 
 			Passed
 
-			"""
+			""",
+			"b34bf3f5a1c760f1d6d68630013a89780b9e62c0"
 		);
 	}
 
@@ -88,14 +98,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/05-op rp.gb",
-			100000000,
+			TimeSpan.FromSeconds(4),
+			TimeSpan.FromSeconds(6),
 			"""
 			05-op rp
 
 
 			Passed
 
-			"""
+			""",
+			"5433d27ba25466e0cd28737952583bb22abb452b"
 		);
 	}
 
@@ -104,14 +116,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/06-ld r,r.gb",
-			10000000,
+			TimeSpan.FromSeconds(1),
+			TimeSpan.FromSeconds(2),
 			"""
 			06-ld r,r
 
 
 			Passed
 
-			"""
+			""",
+			"37f5c837cf92d9c54484c29a9e76e0421aefe028"
 		);
 	}
 
@@ -120,14 +134,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb",
-			10000000,
+			TimeSpan.FromSeconds(1),
+			TimeSpan.FromSeconds(2),
 			"""
 			07-jr,jp,call,ret,rst
 
 
 			Passed
 
-			"""
+			""",
+			"f9fbdad51868369bf14c0130b809364cc7c0661f"
 		);
 	}
 
@@ -136,14 +152,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/08-misc instrs.gb",
-			10000000,
+			TimeSpan.FromSeconds(1),
+			TimeSpan.FromSeconds(2),
 			"""
 			08-misc instrs
 
 
 			Passed
 
-			"""
+			""",
+			"a52a8526d022555a78fd01ad0cdbb3663a8eaaa3"
 		);
 	}
 
@@ -152,14 +170,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/09-op r,r.gb",
-			100000000,
+			TimeSpan.FromSeconds(10),
+			TimeSpan.FromSeconds(12),
 			"""
 			09-op r,r
 
 
 			Passed
 
-			"""
+			""",
+			"d9597cd7b81dcaab8a51d0e5aceb8f41b82a9f60"
 		);
 	}
 
@@ -168,14 +188,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/10-bit ops.gb",
-			100000000,
+			TimeSpan.FromSeconds(14),
+			TimeSpan.FromSeconds(16),
 			"""
 			10-bit ops
 
 
 			Passed
 
-			"""
+			""",
+			"57d1407fd63c1393d23e19ab4b1f0f92bfd05a78"
 		);
 	}
 
@@ -184,14 +206,16 @@ public class CPUInstructions
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb",
-			100000000,
+			TimeSpan.FromSeconds(18),
+			TimeSpan.FromSeconds(20),
 			"""
 			11-op a,(hl)
 
 
 			Passed
 
-			"""
+			""",
+			"544f97e7b323372e72c0313bfb4985f03d0967c5"
 		);
 	}
 }

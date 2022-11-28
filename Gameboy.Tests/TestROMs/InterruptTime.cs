@@ -7,10 +7,10 @@ public class InterruptTime
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/interrupt_time/interrupt_time.gb",
-			1000000,
-			"""
-			TODO JEFF
-			"""
+			TimeSpan.FromSeconds(5),
+			TimeSpan.FromSeconds(10),
+			"",
+			"TODO JEFF hash goes here"
 		);
 	}
 }

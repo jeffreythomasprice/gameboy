@@ -40,13 +40,6 @@ public class Program
 			var emulator = new Emulator(loggerFactory, cartridge);
 			emulator.EmitDebugStatsEnabled = true;
 
-			var serialOutput = new MemoryStream();
-			emulator.SerialIO.DataAvailable += (value) =>
-			{
-				serialOutput.WriteByte(value);
-				logger.LogDebug($"TODO JEFF serial output so far:\n{System.Text.Encoding.ASCII.GetString(serialOutput.ToArray())}");
-			};
-
 			using var window = new Window(loggerFactory, emulator.Video, emulator.Keypad);
 
 			emulator.Start();

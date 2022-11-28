@@ -16,45 +16,57 @@ public static class TestROMUtils
 		var logger = loggerFactory.CreateLogger(typeof(TestROMUtils).FullName!);
 		var cartridge = new Cartridge(stream);
 		var emulator = new Emulator(loggerFactory, cartridge);
+
 		var serialDataOutput = new MemoryStream();
+		string serialIOAsText() => System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray());
+		var serialDataComplete = false;
 		emulator.SerialIO.DataAvailable += (value) =>
 		{
 			serialDataOutput.WriteByte(value);
-		};
-		string serialIOAsText() => System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray());
-		var foundSerialIOExitCondition = false;
-		while (emulator.Clock < maxClock)
-		{
-			emulator.Keypad.ClearKeys();
-
-			emulator.Step();
-			Console.Out.Flush();
-
-			// if we've output exactly the right thing, or the wrong charcters, or too many characters we can stop executing
-			if (
-				// first time only, that starts the final countdown until we time out
-				!foundSerialIOExitCondition &&
-				(
-					// found exactly the right number of characters, or too many
-					serialIOAsText().Length >= expectedSerialOutput.Length ||
-					// found the wrong characters
-					serialIOAsText() != expectedSerialOutput.Substring(0, serialIOAsText().Length)
-				)
-			)
+			if (!serialDataComplete)
 			{
-				foundSerialIOExitCondition = true;
-				// keep executing a short time to see if we output any extra spurrious characters
-				maxClock = emulator.Clock + 10000;
+				const UInt64 extraClocks = 100000;
+				var actual = serialIOAsText();
+				if (actual == expectedSerialOutput)
+				{
+					logger.LogTrace($"found the expected serial output, marking done in {extraClocks} additional clock ticks");
+					maxClock = emulator.Clock + extraClocks;
+					serialDataComplete = true;
+				}
+				else if (expectedSerialOutput.Length >= actual.Length && !expectedSerialOutput.StartsWith(actual))
+				{
+					logger.LogWarning($"found mismatch in expected serial output, marking done in {extraClocks} additional clock ticks");
+					maxClock = emulator.Clock + extraClocks;
+					serialDataComplete = true;
+				}
 			}
+		};
 
+		// wait until the exit condition
+		emulator.OnTick += (clock) =>
+		{
+			if (clock >= maxClock)
+			{
+				logger.LogTrace("reached max clock, exiting");
+				emulator.Stop();
+			}
 			// test programs tend to HALT when they're testing interrupts like timer
 			// STOP can only be resumed with a key press
-			if (emulator.CPU.IsStopped)
+			else if (emulator.CPU.IsStopped)
 			{
 				emulator.Keypad.SetPressed(Key.Start, true);
-				emulator.Step();
 			}
-		}
+			// just waiting for one of those other conditions, so clear the keypad so we can trigger a key press again later if needed
+			else
+			{
+				emulator.Keypad.ClearKeys();
+			}
+		};
+
+		// run it, and wait for it to finish
+		emulator.Start();
+		emulator.Join();
+
 		logger.LogTrace($"wrote {serialDataOutput.Length} bytes to serial IO");
 		if (serialDataOutput.Length > 0)
 		{

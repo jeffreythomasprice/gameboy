@@ -5,6 +5,10 @@ namespace Gameboy;
 
 public class Emulator : IDisposable, ISteppable
 {
+	public delegate void OnTickDelegate(UInt64 clock);
+
+	public event OnTickDelegate? OnTick;
+
 	private readonly ILogger logger;
 
 	private readonly Memory memory;
@@ -153,6 +157,8 @@ public class Emulator : IDisposable, ISteppable
 
 		totalStopwatch.Stop();
 
+		OnTick?.Invoke(Clock);
+
 		if (EmitDebugStatsEnabled && Clock >= nextEmitDebugClock)
 		{
 			nextEmitDebugClock = Clock + TimeUtils.ToClockTicks(EmitDebugInterval);
@@ -236,7 +242,6 @@ public class Emulator : IDisposable, ISteppable
 
 	public void Join(TimeSpan? timeout = null)
 	{
-		Stop();
 		if (timeout.HasValue)
 		{
 			thread?.Join(timeout.Value);
@@ -258,7 +263,7 @@ public class Emulator : IDisposable, ISteppable
 
 	private void Step(ISteppable s)
 	{
-		while (s.Clock < cpu.Clock)
+		while (s.Clock <= cpu.Clock)
 		{
 			s.Step();
 		}

@@ -4203,18 +4203,6 @@ public class CPU : ISteppable
 #if DEBUG
 		logger.LogWarning($"INVALID {ToHex(instruction)}");
 #endif
-		if (instruction == 0xfd)
-		{
-			// 			var skip = ReadNextPCUInt8();
-			// #if DEBUG
-			// 			logger.LogWarning($"TODO JEFF skipping {ToHex(skip)}");
-			// #endif
-
-#if DEBUG
-			logger.LogWarning($"TODO JEFF special case unknown, treat as prefix?");
-#endif
-			ExecuteInstruction();
-		}
 		Clock += 4;
 	}
 

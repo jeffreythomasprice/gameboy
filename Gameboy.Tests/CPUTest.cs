@@ -9297,7 +9297,7 @@ public class CPUTest
 			actualBuilder,
 			expectedMemory,
 			expected => expectedBuilder(expected)
-				.AddClock(16)
+				.AddClock(12)
 				.AddPC(2)
 		);
 	}

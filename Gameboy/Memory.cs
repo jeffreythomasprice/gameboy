@@ -129,7 +129,7 @@ public abstract class Memory : IMemory, ISteppable
 			<= ROM_BANK_0_END => cartridge.GetROMBankBytes(0)[address],
 			<= SWITCHABLE_ROM_BANK_END => cartridge.GetROMBankBytes(ActiveROMBank)[address - SWITCHABLE_ROM_BANK_START],
 			<= VIDEO_RAM_END => VideoMemoryEnabled ? videoRAM[address - VIDEO_RAM_START] : (byte)0xff,
-			<= SWITCHABLE_RAM_BANK_END => RAMBankEnabled ? switchableRAMBanks[ActiveRAMBank, address - SWITCHABLE_RAM_BANK_START] : (byte)0,
+			<= SWITCHABLE_RAM_BANK_END => RAMBankEnabled && ActiveRAMBank < switchableRAMBanks.Length ? switchableRAMBanks[ActiveRAMBank, address - SWITCHABLE_RAM_BANK_START] : (byte)0,
 			<= INTERNAL_RAM_1_END => internalRAM1[address - INTERNAL_RAM_1_START],
 			<= ECHO_INTERNAL_RAM_END => internalRAM1[address - ECHO_INTERNAL_RAM_START],
 			<= SPRITE_ATTRIBUTES_END => SpriteAttributeMemoryEnabled ? spriteAttributes[address - SPRITE_ATTRIBUTES_START] : (byte)0xff,
@@ -155,7 +155,7 @@ public abstract class Memory : IMemory, ISteppable
 				}
 				break;
 			case <= SWITCHABLE_RAM_BANK_END:
-				if (RAMBankEnabled)
+				if (RAMBankEnabled && ActiveRAMBank < switchableRAMBanks.Length)
 				{
 					switchableRAMBanks[ActiveRAMBank, address - SWITCHABLE_RAM_BANK_START] = value;
 				}

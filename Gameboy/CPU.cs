@@ -4151,7 +4151,7 @@ public class CPU : ISteppable
 		ZeroFlag = (value & (1 << bit)) == 0;
 		SubtractFlag = false;
 		HalfCarryFlag = true;
-		Clock += 16;
+		Clock += 12;
 	}
 
 	private void ResetBit(Register8 register, int bit)
@@ -4203,6 +4203,18 @@ public class CPU : ISteppable
 #if DEBUG
 		logger.LogWarning($"INVALID {ToHex(instruction)}");
 #endif
+		if (instruction == 0xfd)
+		{
+			// 			var skip = ReadNextPCUInt8();
+			// #if DEBUG
+			// 			logger.LogWarning($"TODO JEFF skipping {ToHex(skip)}");
+			// #endif
+
+#if DEBUG
+			logger.LogWarning($"TODO JEFF special case unknown, treat as prefix?");
+#endif
+			ExecuteInstruction();
+		}
 		Clock += 4;
 	}
 

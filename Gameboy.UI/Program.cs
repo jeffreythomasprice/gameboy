@@ -40,9 +40,11 @@ public class Program
 			var emulator = new Emulator(loggerFactory, cartridge);
 			emulator.EmitDebugStatsEnabled = true;
 
-			emulator.Keypad.KeypadRegisterDelta += (oldValue, newValue) =>
+			var serialOutput = new MemoryStream();
+			emulator.SerialIO.DataAvailable += (value) =>
 			{
-				logger.LogInformation($"TODO JEFF keypad delta {NumberUtils.ToBinary(oldValue)} -> {NumberUtils.ToBinary(newValue)}");
+				serialOutput.WriteByte(value);
+				logger.LogDebug($"TODO JEFF serial output so far:\n{System.Text.Encoding.ASCII.GetString(serialOutput.ToArray())}");
 			};
 
 			using var window = new Window(loggerFactory, emulator.Video, emulator.Keypad);

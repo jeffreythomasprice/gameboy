@@ -26,7 +26,7 @@ public class Program
 				logger.LogError("provide a rom path");
 				return;
 			}
-			using var stream = new FileStream(args[0], FileMode.Open);
+			using var stream = new FileStream(args[0], FileMode.Open, FileAccess.Read);
 			var cartridge = new Cartridge(stream);
 			logger.LogDebug($"""
 			title = {cartridge.Title}

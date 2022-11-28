@@ -23,7 +23,17 @@ public class Window : GameWindow
 	private Matrix4 orthoMatrix;
 	private Matrix4 modelviewMatrix;
 
-	private List<Action> textureUpdates = new();
+	private class ScanlineUpdateBuffer
+	{
+		public readonly byte[] Pixels = new byte[Video.ScreenWidth * Video.ScreenHeight * 4];
+		public int MinimumY;
+		public int MaximumY;
+	}
+
+	// this one is where we'll write new scanline data to as it comes in
+	private ScanlineUpdateBuffer incomingScanlineBuffer = new();
+	// this one is where we'll copy tex data to opengl
+	private ScanlineUpdateBuffer copyToTextureBuffer = new();
 
 	// TODO multiple palettes to switch between
 	private readonly Color[] palette = new[]
@@ -207,13 +217,26 @@ public class Window : GameWindow
 			GL.UniformMatrix4(shader.Uniforms["projectionMatrixUniform"].Location, false, ref orthoMatrix);
 			GL.UniformMatrix4(shader.Uniforms["modelviewMatrixUniform"].Location, false, ref modelviewMatrix);
 
-			lock (textureUpdates)
+			// swap the buffers
+			copyToTextureBuffer = Interlocked.Exchange<ScanlineUpdateBuffer>(ref incomingScanlineBuffer, copyToTextureBuffer);
+			// copy this data to video
+			if (copyToTextureBuffer.MinimumY >= 0 && copyToTextureBuffer.MinimumY <= copyToTextureBuffer.MaximumY)
 			{
-				foreach (var udpate in textureUpdates)
-				{
-					udpate();
-				}
-				textureUpdates.Clear();
+				GL.PixelStore(PixelStoreParameter.UnpackSkipRows, copyToTextureBuffer.MinimumY);
+				GL.TexSubImage2D<byte>(
+					TextureTarget.Texture2D,
+					0,
+					0,
+					copyToTextureBuffer.MinimumY,
+					Video.ScreenWidth,
+					copyToTextureBuffer.MaximumY - copyToTextureBuffer.MinimumY + 1,
+					PixelFormat.Rgba,
+					PixelType.UnsignedByte,
+					copyToTextureBuffer.Pixels
+				);
+				// done copying, when this one gets used next it has no rows in int
+				copyToTextureBuffer.MinimumY = Video.ScreenHeight;
+				copyToTextureBuffer.MaximumY = -1;
 			}
 
 			GL.BindVertexArray(vertexArray.Value);
@@ -240,27 +263,17 @@ public class Window : GameWindow
 
 	private void ScanlineAvailable(int y, byte[] data)
 	{
-		var rgbaData = data
-			.Select(color => palette[color])
-			.SelectMany(c => new byte[] { c.R, c.G, c.B, c.A })
-			.ToArray();
-		lock (textureUpdates)
+		var buffer = incomingScanlineBuffer;
+		var bufferOffset = y * Video.ScreenWidth * 4;
+		for (var x = 0; x < Video.ScreenWidth; x++)
 		{
-			// TODO JEFF write incoming scanline data to a pixel buffer, and remember only the rectangle we have to submit, don't do a TexSubImage per scanline
-			textureUpdates.Add(() =>
-			{
-				GL.TexSubImage2D<byte>(
-					TextureTarget.Texture2D,
-					0,
-					0,
-					y,
-					Video.ScreenWidth,
-					1,
-					PixelFormat.Rgba,
-					PixelType.UnsignedByte,
-					rgbaData
-				);
-			});
+			var color = palette[data[x]];
+			buffer.Pixels[bufferOffset++] = color.R;
+			buffer.Pixels[bufferOffset++] = color.G;
+			buffer.Pixels[bufferOffset++] = color.B;
+			buffer.Pixels[bufferOffset++] = color.A;
 		}
+		buffer.MinimumY = Math.Min(buffer.MinimumY, y);
+		buffer.MaximumY = Math.Max(buffer.MaximumY, y);
 	}
 }

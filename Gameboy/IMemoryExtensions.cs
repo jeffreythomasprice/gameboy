@@ -20,10 +20,7 @@ public static class IMemoryExtensions
 	public static byte[] ReadArray(this IMemory memory, UInt16 address, int length)
 	{
 		var result = new byte[length];
-		for (var i = 0; i < length; i++)
-		{
-			result[i] = memory.ReadUInt8((UInt16)(address + i));
-		}
+		memory.ReadArray(result, 0, address, length);
 		return result;
 	}
 

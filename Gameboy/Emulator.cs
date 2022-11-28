@@ -88,6 +88,10 @@ public class Emulator : IDisposable, ISteppable
 		keypad.Reset();
 		timer.Reset();
 		video.Reset();
+
+		totalStopwatch.Reset();
+		videoStopwatch.Reset();
+		cpuStopwatch.Reset();
 	}
 
 	public void Step()
@@ -112,11 +116,23 @@ public class Emulator : IDisposable, ISteppable
 
 		totalStopwatch.Stop();
 
-		if (cpu.Clock % CPU.ClockTicksPerSecond == 0)
+		if (cpu.Clock % (CPU.ClockTicksPerSecond * 5) == 0)
 		{
-			var videoPercentage = ((double)videoStopwatch.ElapsedTicks / (double)totalStopwatch.ElapsedTicks * 100.0).ToString("N2") + "%";
-			var cpuPercentage = ((double)cpuStopwatch.ElapsedTicks / (double)totalStopwatch.ElapsedTicks * 100.0).ToString("N2") + "%";
-			logger.LogDebug($"TODO JEFF total={totalStopwatch.Elapsed}, video={videoStopwatch.Elapsed} ({videoPercentage}) cpu={cpuStopwatch.Elapsed} ({cpuPercentage})");
+			logger.LogDebug($"""
+			TODO JEFF total = {totalStopwatch.Elapsed}
+				cpu = {StopwatchString(cpuStopwatch, totalStopwatch)})
+				video = {StopwatchString(videoStopwatch, totalStopwatch)})
+					tile data = {StopwatchString(video.TileDataReadStopwatch, videoStopwatch)})
+					bg and window = {StopwatchString(video.BackgroundAndWindowStopwatch, videoStopwatch)})
+					sprites = {StopwatchString(video.SpritesStopwatch, videoStopwatch)})
+					emit scanline = {StopwatchString(video.EmitScanlineStopwatch, videoStopwatch)})
+			""");
+
+			string StopwatchString(Stopwatch s1, Stopwatch s2)
+			{
+				var percentage = ((double)s1.ElapsedTicks / (double)s2.ElapsedTicks * 100.0).ToString("N2");
+				return $"{s1.Elapsed} ({percentage}%)";
+			}
 		}
 	}
 

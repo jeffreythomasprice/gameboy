@@ -216,6 +216,39 @@ public abstract class Memory : IMemory, ISteppable
 		};
 	}
 
+	public void ReadArray(byte[] destination, int destinationIndex, UInt16 address, int length)
+	{
+		if (length == 0)
+		{
+			return;
+		}
+		if (specialCase(VIDEO_RAM_START, VIDEO_RAM_END, videoRAM))
+		{
+			return;
+		}
+		if (specialCase(SPRITE_ATTRIBUTES_START, SPRITE_ATTRIBUTES_END, spriteAttributes))
+		{
+			return;
+		}
+#if DEBUG
+		logger.LogWarning($"slow array copy from {NumberUtils.ToHex(address)}, len={length}");
+#endif
+		for (var i = 0; i < length; i++)
+		{
+			destination[destinationIndex + i] = ReadUInt8((UInt16)(address + i));
+		}
+
+		bool specialCase(UInt16 start, UInt16 end, byte[] source)
+		{
+			if (address >= start && address + length - 1 <= end)
+			{
+				Array.Copy(source, address - start, destination, destinationIndex, length);
+				return true;
+			}
+			return false;
+		}
+	}
+
 	public virtual void Reset()
 	{
 		ioPorts[IO_P1 - IO_PORTS_START] = 0x00;

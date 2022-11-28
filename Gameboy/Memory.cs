@@ -127,8 +127,10 @@ public abstract class Memory : IMemory, ISteppable
 		address switch
 		{
 			<= ROM_BANK_0_END => cartridge.GetROMBankBytes(0)[address],
+			// TODO should mod by ROM bank count as long as there is at least one?
 			<= SWITCHABLE_ROM_BANK_END => cartridge.GetROMBankBytes(ActiveROMBank)[address - SWITCHABLE_ROM_BANK_START],
 			<= VIDEO_RAM_END => VideoMemoryEnabled ? videoRAM[address - VIDEO_RAM_START] : (byte)0xff,
+			// TODO should mod by RAM bank count as long as there is at least one?
 			<= SWITCHABLE_RAM_BANK_END => RAMBankEnabled && ActiveRAMBank < switchableRAMBanks.Length ? switchableRAMBanks[ActiveRAMBank, address - SWITCHABLE_RAM_BANK_START] : (byte)0,
 			<= INTERNAL_RAM_1_END => internalRAM1[address - INTERNAL_RAM_1_START],
 			<= ECHO_INTERNAL_RAM_END => internalRAM1[address - ECHO_INTERNAL_RAM_START],
@@ -155,6 +157,7 @@ public abstract class Memory : IMemory, ISteppable
 				}
 				break;
 			case <= SWITCHABLE_RAM_BANK_END:
+				// TODO should mod by RAM bank count as long as there is at least one?
 				if (RAMBankEnabled && ActiveRAMBank < switchableRAMBanks.Length)
 				{
 					switchableRAMBanks[ActiveRAMBank, address - SWITCHABLE_RAM_BANK_START] = value;

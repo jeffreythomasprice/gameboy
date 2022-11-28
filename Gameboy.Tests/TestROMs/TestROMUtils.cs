@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 
 namespace Gameboy.Tests.TestROMs;
@@ -42,6 +43,16 @@ public static class TestROMUtils
 			}
 		};
 
+		// keep a video buffer up to date
+		var pixels = new byte[Video.ScreenWidth * Video.ScreenHeight];
+		emulator.Video.ScanlineAvailable += (y, data) =>
+		{
+			for (var x = 0; x < Video.ScreenWidth; x++)
+			{
+				pixels[x] = data[x].Value;
+			}
+		};
+
 		// wait until the exit condition
 		emulator.OnTick += (clock) =>
 		{
@@ -67,6 +78,7 @@ public static class TestROMUtils
 		emulator.Start();
 		emulator.Join();
 
+		// validate the serial output
 		logger.LogTrace($"wrote {serialDataOutput.Length} bytes to serial IO");
 		if (serialDataOutput.Length > 0)
 		{
@@ -74,5 +86,10 @@ public static class TestROMUtils
 		}
 		Console.Out.Flush();
 		Assert.Equal(expectedSerialOutput, serialIOAsText());
+
+		// validate the video output
+		using var hashAlgorithm = SHA256.Create();
+		var actualHash = string.Join("", hashAlgorithm.ComputeHash(pixels).Select(x => x.ToString("x2")));
+		logger.LogInformation($"TODO JEFF hash = {actualHash}");
 	}
 }

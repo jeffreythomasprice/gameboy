@@ -261,13 +261,13 @@ public class Window : GameWindow
 		keypad.SetPressed(Key.B, KeyboardState.IsKeyDown(Keys.X));
 	}
 
-	private void ScanlineAvailable(int y, byte[] data)
+	private void ScanlineAvailable(int y, Video.Color[] data)
 	{
 		var buffer = incomingScanlineBuffer;
 		var bufferOffset = y * Video.ScreenWidth * 4;
 		for (var x = 0; x < Video.ScreenWidth; x++)
 		{
-			var color = palette[data[x]];
+			var color = palette[data[x].Value];
 			buffer.Pixels[bufferOffset++] = color.R;
 			buffer.Pixels[bufferOffset++] = color.G;
 			buffer.Pixels[bufferOffset++] = color.B;

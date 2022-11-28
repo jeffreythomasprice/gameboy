@@ -47,6 +47,7 @@ public class Program
 			logger.LogTrace("starting window");
 			window.Run();
 
+			emulator.Stop();
 			emulator.Join();
 		}
 		catch (Exception e)

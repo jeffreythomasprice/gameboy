@@ -6,11 +6,28 @@ namespace Gameboy;
 
 public class Video : ISteppable
 {
+	public enum Palette
+	{
+		None,
+		Background,
+		Window,
+		SpriteOBJ0,
+		SpriteOBJ1
+	}
+
+	/// <param name="Value">a 2-bit value, high 6 bits will be 0</param>
+	/// <param name="Palette">which type of rendering produced this</param>
+	public record struct Color(
+		byte Value,
+		Palette Palette
+	)
+	{ }
+
 	public delegate void SetMemoryRegionEnabledDelegate(bool enabled);
 
 	/// <param name="y">in range 0 to ScreenHeight-1, inclusive</param>
 	/// <param name="data">a color, each element is a 2-bit value, so the high 6 bits are unused</param>
-	public delegate void ScanlineAvailableDelegate(int y, byte[] data);
+	public delegate void ScanlineAvailableDelegate(int y, Color[] data);
 
 	public delegate void VSyncDelegate();
 
@@ -145,7 +162,7 @@ public class Video : ISteppable
 	private readonly byte[] spriteAttributeData = new byte[Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1];
 
 	// used during output of a scanline
-	private readonly byte[] outputPixels = new byte[ScreenWidth];
+	private readonly Color[] outputPixels = new Color[ScreenWidth];
 	private readonly byte[] backgroundAndWindowColorIndex = new byte[ScreenWidth];
 
 	// TODO JEFF timing debugging
@@ -420,7 +437,8 @@ public class Video : ISteppable
 						tileIndices: backgroundTileIndices,
 						scrollX: RegisterSCX,
 						scrollY: RegisterSCY,
-						wrap: true
+						wrap: true,
+						palette: Palette.Background
 					);
 					if (windowEnabled)
 					{
@@ -431,7 +449,8 @@ public class Video : ISteppable
 							tileIndices: windowTileIndices,
 							scrollX: -(RegisterWX - 7),
 							scrollY: -RegisterWY,
-							wrap: false
+							wrap: false,
+							palette: Palette.Window
 						);
 					}
 				}
@@ -440,7 +459,7 @@ public class Video : ISteppable
 					// background disabled, so init the output arrays so sprites can always draw on top correctly
 					for (var i = 0; i < ScreenWidth; i++)
 					{
-						outputPixels[i] = 0;
+						outputPixels[i] = new Color(0, Palette.None);
 						backgroundAndWindowColorIndex[i] = 0;
 					}
 				}
@@ -499,7 +518,7 @@ public class Video : ISteppable
 				ScanlineAvailable?.Invoke(RegisterLY, outputPixels);
 				EmitScanlineStopwatch.Stop();
 
-				void drawTileMap(Span<byte> tileData, byte[] tileIndices, int scrollX, int scrollY, bool wrap)
+				void drawTileMap(Span<byte> tileData, byte[] tileIndices, int scrollX, int scrollY, bool wrap, Palette palette)
 				{
 					// in pixels on the device display, so 0 to 143
 					var screenY = RegisterLY;
@@ -547,7 +566,7 @@ public class Video : ISteppable
 						}
 						// remember both the actual color and the index
 						var colorIndex = getColorIndexFromTile(tileData, tileIndex, tileX, tileY);
-						outputPixels[screenX] = RegisterBGP[colorIndex];
+						outputPixels[screenX] = new(RegisterBGP[colorIndex], palette);
 						backgroundAndWindowColorIndex[screenX] = colorIndex;
 					}
 				}
@@ -610,8 +629,14 @@ public class Video : ISteppable
 							}
 							if (shouldDraw)
 							{
-								var palette = sprite.PaletteIsOBP0 ? RegisterOBP0 : RegisterOBP1;
-								outputPixels[screenX] = palette[colorIndex];
+								if (sprite.PaletteIsOBP0)
+								{
+									outputPixels[screenX] = new(RegisterOBP0[colorIndex], Palette.SpriteOBJ0);
+								}
+								else
+								{
+									outputPixels[screenX] = new(RegisterOBP1[colorIndex], Palette.SpriteOBJ1);
+								}
 							}
 						}
 					}

@@ -355,7 +355,7 @@ public class CPU : ISteppable
 #if DEBUG
 			logger.LogTrace("CPU is in state STOP");
 #endif
-			// stopped CPU has no clock running, only keypad will break out of this
+			// advance time, because other devices are synced to CPU time, and will be required to generate the interrupt to break out of this
 			Clock += 4;
 		}
 		else if (IsHalted)
@@ -363,7 +363,7 @@ public class CPU : ISteppable
 #if DEBUG
 			logger.LogTrace("CPU is in state HALT");
 #endif
-			// stop does advance time, because we might be jumped out by a timer interrupt
+			// advance time, because other devices are synced to CPU time, and will be required to generate the interrupt to break out of this
 			Clock += 4;
 		}
 		else
@@ -1761,6 +1761,15 @@ public class CPU : ISteppable
 				break;
 			case 0xf0:
 				{
+					/*
+					TODO JEFF comment here because this fails memory-timings-2 test 1, but presumably many instructions have this issue
+					https://www.reddit.com/r/EmuDev/comments/j4xn0s/comment/g7o8muc/?utm_source=share&utm_medium=web2x&context=3
+					have to advance all the other things that have a clock in between parts of an instruction
+					in this case advance clock 4 after each:
+					- read offset
+					- read 0xff00 + offset
+					- set reg A
+					*/
 					var offset = ReadNextPCUInt8();
 #if DEBUG
 					logger.LogTrace($"LDH A, ({ToHex(0xff00)}+{ToHex(offset)})");
@@ -4202,7 +4211,9 @@ public class CPU : ISteppable
 	{
 #if DEBUG
 		logger.LogWarning($"INVALID {ToHex(instruction)}");
+		logger.LogWarning($"TODO JEFF next: {string.Join(" ", memory.ReadArray(RegisterPC, 3).Select(x => ToHex(x)))}");
 #endif
+		IsHalted = true;
 		Clock += 4;
 	}
 

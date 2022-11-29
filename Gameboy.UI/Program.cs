@@ -13,6 +13,8 @@ public class Program
 				.SetMinimumLevel(LogLevel.Information)
 				.AddFilter(typeof(Program).Namespace, LogLevel.Debug)
 				.AddFilter(typeof(Emulator).Namespace, LogLevel.Debug)
+				// TODO JEFF no trace
+				.AddFilter(typeof(CPU).FullName, LogLevel.Trace)
 				.AddSimpleConsole(options =>
 				{
 					options.TimestampFormat = "o";

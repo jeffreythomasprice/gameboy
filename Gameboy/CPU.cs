@@ -4211,9 +4211,7 @@ public class CPU : ISteppable
 	{
 #if DEBUG
 		logger.LogWarning($"INVALID {ToHex(instruction)}");
-		logger.LogWarning($"TODO JEFF next: {string.Join(" ", memory.ReadArray(RegisterPC, 3).Select(x => ToHex(x)))}");
 #endif
-		IsHalted = true;
 		Clock += 4;
 	}
 

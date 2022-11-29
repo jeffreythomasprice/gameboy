@@ -25,11 +25,17 @@ public class MemoryMBC3 : Memory
 		ramBank = 0x00;
 	}
 
-	protected override int ActiveROMBank => romBank == 0 ? 1 : romBank;
+	protected override int ActiveLowROMBank =>
+		0;
 
-	protected override int ActiveRAMBank => ramBank;
+	protected override int ActiveHighROMBank =>
+		romBank == 0 ? 1 : romBank;
 
-	protected override bool RAMBankEnabled => (ramBankEnabled & 0b0000_1111) == 0b0000_1010;
+	protected override int ActiveRAMBank =>
+		ramBank;
+
+	protected override bool RAMBankEnabled =>
+		(ramBankEnabled & 0b0000_1111) == 0b0000_1010;
 
 	protected override void ROMWrite(ushort address, byte value)
 	{

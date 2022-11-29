@@ -6,14 +6,14 @@ public abstract class Memory : IMemory, ISteppable
 {
 	public delegate void MemoryWriteDelegate(byte oldValue, ref byte newValue);
 
-	public const UInt16 ROM_BANK_0_START = 0x0000;
-	public const UInt16 ROM_BANK_0_END = SWITCHABLE_ROM_BANK_START - 1;
-	public const UInt16 SWITCHABLE_ROM_BANK_START = 0x4000;
-	public const UInt16 SWITCHABLE_ROM_BANK_END = VIDEO_RAM_START - 1;
+	public const UInt16 ROM_BANK_1_START = 0x0000;
+	public const UInt16 ROM_BANK_1_END = ROM_BANK_2_START - 1;
+	public const UInt16 ROM_BANK_2_START = 0x4000;
+	public const UInt16 ROM_BANK_2_END = VIDEO_RAM_START - 1;
 	public const UInt16 VIDEO_RAM_START = 0x8000;
-	public const UInt16 VIDEO_RAM_END = SWITCHABLE_RAM_BANK_START - 1;
-	public const UInt16 SWITCHABLE_RAM_BANK_START = 0xa000;
-	public const UInt16 SWITCHABLE_RAM_BANK_END = INTERNAL_RAM_1_START - 1;
+	public const UInt16 VIDEO_RAM_END = RAM_BANK_START - 1;
+	public const UInt16 RAM_BANK_START = 0xa000;
+	public const UInt16 RAM_BANK_END = INTERNAL_RAM_1_START - 1;
 	public const UInt16 INTERNAL_RAM_1_START = 0xc000;
 	public const UInt16 INTERNAL_RAM_1_END = ECHO_INTERNAL_RAM_START - 1;
 	public const UInt16 ECHO_INTERNAL_RAM_START = 0xe000;
@@ -97,7 +97,7 @@ public abstract class Memory : IMemory, ISteppable
 	private readonly byte[] internalRAM1 = new byte[INTERNAL_RAM_1_END - INTERNAL_RAM_1_START + 1];
 	private readonly byte[] internalRAM2 = new byte[INTERNAL_RAM_2_END - INTERNAL_RAM_2_START + 1];
 	private readonly byte[] ioPorts = new byte[IO_PORTS_END + 1];
-	private readonly byte[,] switchableRAMBanks;
+	private readonly byte[,] ramBanks;
 	private byte interruptsEnabled;
 
 	private UInt64 clock;
@@ -113,7 +113,7 @@ public abstract class Memory : IMemory, ISteppable
 	{
 		logger = loggerFactory.CreateLogger<Memory>();
 		this.cartridge = cartridge;
-		switchableRAMBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
+		ramBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
 		Reset();
 	}
 
@@ -123,15 +123,14 @@ public abstract class Memory : IMemory, ISteppable
 		internal set => clock = value;
 	}
 
-	public byte ReadUInt8(ushort address) =>
-		address switch
+	public byte ReadUInt8(ushort address)
+	{
+		return address switch
 		{
-			<= ROM_BANK_0_END => cartridge.GetROMBankBytes(0)[address],
-			// TODO should mod by ROM bank count as long as there is at least one?
-			<= SWITCHABLE_ROM_BANK_END => cartridge.GetROMBankBytes(ActiveROMBank)[address - SWITCHABLE_ROM_BANK_START],
+			<= ROM_BANK_1_END => cartridge.GetROMBankBytes(ActiveLowROMBank % cartridge.ROMBanks.Count)[address],
+			<= ROM_BANK_2_END => cartridge.GetROMBankBytes(ActiveHighROMBank % cartridge.ROMBanks.Count)[address - ROM_BANK_2_START],
 			<= VIDEO_RAM_END => VideoMemoryEnabled ? videoRAM[address - VIDEO_RAM_START] : (byte)0xff,
-			// TODO should mod by RAM bank count as long as there is at least one?
-			<= SWITCHABLE_RAM_BANK_END => RAMBankEnabled && ActiveRAMBank < switchableRAMBanks.Length ? switchableRAMBanks[ActiveRAMBank, address - SWITCHABLE_RAM_BANK_START] : (byte)0,
+			<= RAM_BANK_END => RAMBankEnabled && ramBanks.Length >= 1 ? ramBanks[ActiveRAMBank % ramBanks.Length, address - RAM_BANK_START] : (byte)0xff,
 			<= INTERNAL_RAM_1_END => internalRAM1[address - INTERNAL_RAM_1_START],
 			<= ECHO_INTERNAL_RAM_END => internalRAM1[address - ECHO_INTERNAL_RAM_START],
 			<= SPRITE_ATTRIBUTES_END => SpriteAttributeMemoryEnabled ? spriteAttributes[address - SPRITE_ATTRIBUTES_START] : (byte)0xff,
@@ -141,13 +140,14 @@ public abstract class Memory : IMemory, ISteppable
 			<= INTERNAL_RAM_2_END => internalRAM2[address - INTERNAL_RAM_2_START],
 			IO_IE => interruptsEnabled,
 		};
+	}
 
 	public void WriteUInt8(ushort address, byte value)
 	{
 		switch (address)
 		{
-			case <= ROM_BANK_0_END:
-			case <= SWITCHABLE_ROM_BANK_END:
+			case <= ROM_BANK_1_END:
+			case <= ROM_BANK_2_END:
 				ROMWrite(address, value);
 				break;
 			case <= VIDEO_RAM_END:
@@ -156,11 +156,10 @@ public abstract class Memory : IMemory, ISteppable
 					videoRAM[address - VIDEO_RAM_START] = value;
 				}
 				break;
-			case <= SWITCHABLE_RAM_BANK_END:
-				// TODO should mod by RAM bank count as long as there is at least one?
-				if (RAMBankEnabled && ActiveRAMBank < switchableRAMBanks.Length)
+			case <= RAM_BANK_END:
+				if (RAMBankEnabled && ramBanks.Length >= 1)
 				{
-					switchableRAMBanks[ActiveRAMBank, address - SWITCHABLE_RAM_BANK_START] = value;
+					ramBanks[ActiveRAMBank % ramBanks.Length, address - RAM_BANK_START] = value;
 				}
 				break;
 			case <= INTERNAL_RAM_1_END:
@@ -343,12 +342,17 @@ public abstract class Memory : IMemory, ISteppable
 	}
 
 	/// <summary>
-	/// Which ROM bank should be used in the switchable area.
+	/// Which ROM bank is active from 0x0000 to 0x3fff
 	/// </summary>
-	protected abstract int ActiveROMBank { get; }
+	protected abstract int ActiveLowROMBank { get; }
 
 	/// <summary>
-	/// Which RAM bank should be used in the switchable area.
+	/// Which ROM bank is active from 0x4000 to 0x7fff
+	/// </summary>
+	protected abstract int ActiveHighROMBank { get; }
+
+	/// <summary>
+	/// Which RAM bank is active
 	/// </summary>
 	protected abstract int ActiveRAMBank { get; }
 

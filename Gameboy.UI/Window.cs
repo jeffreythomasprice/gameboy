@@ -34,6 +34,7 @@ public class Window : GameWindow
 	private ScanlineUpdateBuffer incomingScanlineBuffer = new();
 	// this one is where we'll copy tex data to opengl
 	private ScanlineUpdateBuffer copyToTextureBuffer = new();
+	private bool needsTextureUpdate = false;
 
 	// TODO multiple palettes to switch between
 	private readonly Color[] palette = new[]
@@ -159,13 +160,15 @@ public class Window : GameWindow
 		GL.BindTexture(TextureTarget.Texture2D, 0);
 
 		video.ScanlineAvailable += ScanlineAvailable;
+		video.VSync += VSync;
 	}
 
 	protected override void OnUnload()
 	{
 		base.OnUnload();
 
-		video.ScanlineAvailable += ScanlineAvailable;
+		video.ScanlineAvailable -= ScanlineAvailable;
+		video.VSync -= VSync;
 
 		shader?.Dispose();
 		if (vertexBuffer.HasValue)
@@ -217,10 +220,8 @@ public class Window : GameWindow
 			GL.UniformMatrix4(shader.Uniforms["projectionMatrixUniform"].Location, false, ref orthoMatrix);
 			GL.UniformMatrix4(shader.Uniforms["modelviewMatrixUniform"].Location, false, ref modelviewMatrix);
 
-			// swap the buffers
-			copyToTextureBuffer = Interlocked.Exchange<ScanlineUpdateBuffer>(ref incomingScanlineBuffer, copyToTextureBuffer);
-			// copy this data to video
-			if (copyToTextureBuffer.MinimumY >= 0 && copyToTextureBuffer.MinimumY <= copyToTextureBuffer.MaximumY)
+			// copy the new texture data
+			if (needsTextureUpdate)
 			{
 				GL.PixelStore(PixelStoreParameter.UnpackSkipRows, copyToTextureBuffer.MinimumY);
 				GL.TexSubImage2D<byte>(
@@ -275,5 +276,12 @@ public class Window : GameWindow
 		}
 		buffer.MinimumY = Math.Min(buffer.MinimumY, y);
 		buffer.MaximumY = Math.Max(buffer.MaximumY, y);
+	}
+
+	private void VSync()
+	{
+		// swap the buffers
+		copyToTextureBuffer = Interlocked.Exchange<ScanlineUpdateBuffer>(ref incomingScanlineBuffer, copyToTextureBuffer);
+		needsTextureUpdate = copyToTextureBuffer.MinimumY >= 0 && copyToTextureBuffer.MinimumY <= copyToTextureBuffer.MaximumY;
 	}
 }

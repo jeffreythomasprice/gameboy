@@ -6,68 +6,62 @@ public class MemoryMBC1 : Memory
 {
 	private const UInt16 RAM_DISABLE_START = 0x0000;
 	private const UInt16 RAM_DISABLE_END = 0x1fff;
-	private const UInt16 ROM_BANK_SELECTOR_START = 0x2000;
-	private const UInt16 ROM_BANK_SELECTOR_END = 0x3fff;
-	private const UInt16 RAM_BANK_SELECTOR_START = 0x4000;
-	private const UInt16 RAM_BANK_SELECTOR_END = 0x5fff;
+	private const UInt16 LOW_BITS_SELECTOR_START = 0x2000;
+	private const UInt16 LOW_BITS_SELECTOR_END = 0x3fff;
+	private const UInt16 HIGH_BITS_SELECTOR_START = 0x4000;
+	private const UInt16 HIGH_BITS_SELECTOR_END = 0x5fff;
 	private const UInt16 MEMORY_MODEL_SELECT_START = 0x6000;
 	private const UInt16 MEMORY_MODEL_SELECT_END = 0x7fff;
 
-	private byte ramBankEnabled;
-	private byte romBankLow;
-	private byte romBankHigh;
-	private byte ramBank;
-	private byte memoryModelSelector;
+	private bool ramBankEnabled;
+	private byte lowBits;
+	private byte highBits;
+	// 0 = low ROM and RAM locked to 0, high ROM is banked on combination of low and high bits
+	// 1 = low ROM and RAM use high bits, high ROM uses low bits
+	private bool memoryMode;
 
 	public MemoryMBC1(ILoggerFactory loggerFactory, Cartridge cartridge) : base(loggerFactory, cartridge) { }
 
 	public override void Reset()
 	{
 		base.Reset();
-		ramBankEnabled = 0x00;
-		romBankLow = 0x00;
-		romBankHigh = 0x00;
-		ramBank = 0x00;
-		memoryModelSelector = 0x00;
+		ramBankEnabled = false;
+		lowBits = 0x01;
+		highBits = 0x00;
+		memoryMode = false;
 	}
 
-	protected override int ActiveROMBank
-	{
-		get
-		{
-			var result = (romBankHigh << 5) | romBankLow;
-			return result == 0 ? 1 : result;
-		}
-	}
+	protected override int ActiveLowROMBank =>
+		memoryMode ? highBits : 0;
 
-	protected override int ActiveRAMBank => ramBank;
+	protected override int ActiveHighROMBank =>
+		memoryMode ? lowBits : lowBits | (highBits << 5);
 
-	protected override bool RAMBankEnabled => (ramBankEnabled & 0b0000_1111) == 0b0000_1010;
+	protected override int ActiveRAMBank =>
+		memoryMode ? highBits : 0;
+
+	protected override bool RAMBankEnabled =>
+		ramBankEnabled;
 
 	protected override void ROMWrite(ushort address, byte value)
 	{
 		switch (address)
 		{
 			case <= RAM_DISABLE_END:
-				ramBankEnabled = value;
+				ramBankEnabled = (value & 0b0000_1111) == 0b0000_1010;
 				break;
-			case <= ROM_BANK_SELECTOR_END:
-				romBankLow = (byte)(value & 0b0001_1111);
+			case <= LOW_BITS_SELECTOR_END:
+				lowBits = (byte)(value & 0b0001_1111);
+				if (lowBits == 0)
+				{
+					lowBits = 1;
+				}
 				break;
-			case <= RAM_BANK_SELECTOR_END:
-				// "16/8 mode"
-				if ((memoryModelSelector & 1) == 0)
-				{
-					romBankHigh = (byte)(value & 0b0000_0011);
-				}
-				// "4/32 mode"
-				else
-				{
-					ramBank = (byte)(value & 0b0000_0011);
-				}
+			case <= HIGH_BITS_SELECTOR_END:
+				highBits = (byte)(value & 0b0000_0011);
 				break;
 			case <= MEMORY_MODEL_SELECT_END:
-				memoryModelSelector = value;
+				memoryMode = (value & 0b0000_0001) != 0;
 				break;
 		}
 	}

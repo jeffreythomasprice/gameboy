@@ -108,10 +108,22 @@ public class Cartridge
 	public Memory CreateMemory(ILoggerFactory loggerFactory) =>
 		CartridgeType switch
 		{
+			Type.ROM =>
+				new MemoryROM(loggerFactory, this),
 			Type.ROM_MBC1 or
 			Type.ROM_MBC1_RAM or
 			Type.ROM_MBC1_RAM_BATTERY =>
 				new MemoryMBC1(loggerFactory, this),
+			/*
+			TODO remaining cart types
+			ROM_MBC2 = 0x05,
+			ROM_MBC2_BATTERY = 0x06,
+			ROM_RAM = 0x08,
+			ROM_RAM_BATTERY = 0x09,
+			ROM_MMM01 = 0x0b,
+			ROM_MMM01_SRAM = 0x0c,
+			ROM_MMM01_SRAM_BATTERY = 0x0d,
+			*/
 			Type.ROM_MBC3 or
 			Type.ROM_MBC3_RAM or
 			Type.ROM_MBC3_RAM_BATTERY or
@@ -125,6 +137,13 @@ public class Cartridge
 			Type.ROM_MBC5_RUMBLE_SRAM or
 			Type.ROM_MBC5_RUMBLE_SRAM_BATTERY =>
 				new MemoryMBC5(loggerFactory, this),
+			/*
+			TODO remaining cart types
+			POCKET_CAMERA = 0x1f,
+			BANDAI_TAMA5 = 0xfd,
+			HUDSON_HUC_3 = 0xfe,
+			HUDSON_HUC_1 = 0xff,
+			*/
 			_ => throw new NotImplementedException($"unimplemented cartridge type {CartridgeType}"),
 		};
 }

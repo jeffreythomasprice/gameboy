@@ -113,19 +113,9 @@ public class Emulator : IDisposable, ISteppable
 	{
 		totalStopwatch.Start();
 
-		// TODO JEFF does order matter here? if not, sort by init order
-
 		serialIOStopwatch.Start();
 		Step(serialIO);
 		serialIOStopwatch.Stop();
-
-		memoryStopwatch.Start();
-		Step(memory);
-		memoryStopwatch.Stop();
-
-		keypadStopwatch.Start();
-		Step(keypad);
-		keypadStopwatch.Stop();
 
 		timerStopwatch.Start();
 		Step(timer);
@@ -135,9 +125,17 @@ public class Emulator : IDisposable, ISteppable
 		Step(video);
 		videoStopwatch.Stop();
 
+		memoryStopwatch.Start();
+		Step(memory);
+		memoryStopwatch.Stop();
+
 		cpuStopwatch.Start();
 		cpu.Step();
 		cpuStopwatch.Stop();
+
+		keypadStopwatch.Start();
+		Step(keypad);
+		keypadStopwatch.Stop();
 
 		totalStopwatch.Stop();
 

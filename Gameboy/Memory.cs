@@ -84,6 +84,8 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	public const byte IF_MASK_SERIAL = 0b0000_1000;
 	public const byte IF_MASK_KEYPAD = 0b0001_0000;
 
+	private bool isDisposed = false;
+
 	private readonly ILogger logger;
 	private readonly Cartridge cartridge;
 	private readonly SerialIO serialIO;
@@ -122,14 +124,15 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		video.LCDCInterrupt += VideoLCDCInterrupt;
 	}
 
-	// TODO JEFF destructor
+	~Memory()
+	{
+		Dispose(false);
+	}
 
 	public void Dispose()
 	{
-		serialIO.DataAvailable -= SerialIODataAvailable;
-		timer.Overflow -= TimerOverflow;
-		video.VBlankInterrupt -= VideoVBlankInterrupt;
-		video.LCDCInterrupt -= VideoLCDCInterrupt;
+		Dispose(true);
+		GC.SuppressFinalize(true);
 	}
 
 	public UInt64 Clock
@@ -504,6 +507,18 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	/// <param name="address">guaranteed to be in the range 0x0000 to 0x7fff, inclusive</param>
 	/// <param name="value"></param>
 	protected abstract void ROMWrite(UInt16 address, byte value);
+
+	private void Dispose(bool disposing)
+	{
+		if (!isDisposed)
+		{
+			isDisposed = true;
+			serialIO.DataAvailable -= SerialIODataAvailable;
+			timer.Overflow -= TimerOverflow;
+			video.VBlankInterrupt -= VideoVBlankInterrupt;
+			video.LCDCInterrupt -= VideoLCDCInterrupt;
+		}
+	}
 
 	private void SerialIODataAvailable(byte value)
 	{

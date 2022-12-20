@@ -15,7 +15,7 @@ public class MemoryMBC3 : Memory
 	private byte romBank;
 	private byte ramBank;
 
-	public MemoryMBC3(ILoggerFactory loggerFactory, Cartridge cartridge) : base(loggerFactory, cartridge) { }
+	public MemoryMBC3(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO) : base(loggerFactory, cartridge, serialIO) { }
 
 	public override void Reset()
 	{

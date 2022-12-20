@@ -6,8 +6,7 @@ public class SerialIOTest
 	public void ObservingOutgoingBytes()
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		var memory = new SimpleMemory();
-		var serialIO = new SerialIO(loggerFactory, memory);
+		var serialIO = new SerialIO(loggerFactory);
 		var outgoingByteStream = new MemoryStream();
 		serialIO.DataAvailable += (value) =>
 		{
@@ -16,9 +15,9 @@ public class SerialIOTest
 
 		// bit 0 = 1 = internal clock
 		// bit 7 = 1 = start transfer
-		memory.WriteUInt8(Memory.IO_SC, 0b1000_0001);
+		serialIO.RegisterSC = 0b1000_0001;
 		// data byte
-		memory.WriteUInt8(Memory.IO_SB, 0b1010_1100);
+		serialIO.RegisterSB = 0b1010_1100;
 
 		// 8 ticks for each bit of the output, on the 8th tick it should emit the byte
 		serialIO.Step();
@@ -40,8 +39,8 @@ public class SerialIOTest
 		Assert.Equal(new byte[] { 0b1010_1100 }, outgoingByteStream.ToArray());
 
 		// 2nd byte
-		memory.WriteUInt8(Memory.IO_SC, 0b1000_0001);
-		memory.WriteUInt8(Memory.IO_SB, 0b0001_1011);
+		serialIO.RegisterSC = 0b1000_0001;
+		serialIO.RegisterSB = 0b0001_1011;
 		serialIO.Step();
 		Assert.Equal(1, outgoingByteStream.Length);
 		serialIO.Step();
@@ -65,8 +64,7 @@ public class SerialIOTest
 	public void ExternalClockNotImplemented()
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		var memory = new SimpleMemory();
-		var serialIO = new SerialIO(loggerFactory, memory);
+		var serialIO = new SerialIO(loggerFactory);
 		var outgoingByteStream = new MemoryStream();
 		serialIO.DataAvailable += (value) =>
 		{
@@ -75,9 +73,9 @@ public class SerialIOTest
 
 		// bit 0 = 0 = external clock
 		// bit 7 = 1 = start transfer
-		memory.WriteUInt8(Memory.IO_SC, 0b1000_0000);
+		serialIO.RegisterSC = 0b1000_0000;
 		// data byte
-		memory.WriteUInt8(Memory.IO_SB, 0b1010_1100);
+		serialIO.RegisterSB = 0b1010_1100;
 
 		// 8 ticks for each bit of the output, on the 8th tick it should emit the byte
 		// since we don't support external clock, it should just always stay at zero bytes
@@ -103,8 +101,8 @@ public class SerialIOTest
 	public void Interrupt()
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		var memory = new SimpleMemory();
-		var serialIO = new SerialIO(loggerFactory, memory);
+		var serialIO = new SerialIO(loggerFactory);
+		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, serialIO, new byte[0]);
 		var cpu = new CPU(loggerFactory, memory);
 		var interruptTriggered = false;
 		serialIO.DataAvailable += (value) =>

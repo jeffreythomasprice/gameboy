@@ -9,7 +9,7 @@ public class MemoryTest
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
 		using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 		var cartridge = new Cartridge(stream);
-		var memory = cartridge.CreateMemory(loggerFactory);
+		var memory = cartridge.CreateMemory(loggerFactory, new SerialIO(loggerFactory));
 
 		// test data for when reads are disabled
 		var expectedWhenDisabled = CreateUniformArray(160, 0xff);
@@ -55,7 +55,7 @@ public class MemoryTest
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
 		using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 		var cartridge = new Cartridge(stream);
-		var memory = cartridge.CreateMemory(loggerFactory);
+		var memory = cartridge.CreateMemory(loggerFactory, new SerialIO(loggerFactory));
 
 		// intentionally longer than the DMA length, so we can prove it cuts off there
 		var data1 = CreateIncrementingArray(200, 0x11);

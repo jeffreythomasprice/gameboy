@@ -11,9 +11,9 @@ public class Emulator : IDisposable, ISteppable
 
 	private readonly ILogger logger;
 
+	private readonly SerialIO serialIO;
 	private readonly Memory memory;
 	private readonly CPU cpu;
-	private readonly SerialIO serialIO;
 	private readonly Keypad keypad;
 	private readonly Timer timer;
 	private readonly Video video;
@@ -24,8 +24,8 @@ public class Emulator : IDisposable, ISteppable
 
 	// TODO JEFF timing debugging
 	private Stopwatch totalStopwatch = new();
-	private Stopwatch memoryStopwatch = new();
 	private Stopwatch serialIOStopwatch = new();
+	private Stopwatch memoryStopwatch = new();
 	private Stopwatch keypadStopwatch = new();
 	private Stopwatch timerStopwatch = new();
 	private Stopwatch videoStopwatch = new();
@@ -37,9 +37,9 @@ public class Emulator : IDisposable, ISteppable
 	{
 		logger = loggerFactory.CreateLogger<Emulator>();
 
-		memory = cartridge.CreateMemory(loggerFactory);
+		serialIO = new SerialIO(loggerFactory);
+		memory = cartridge.CreateMemory(loggerFactory, serialIO);
 		cpu = new CPU(loggerFactory, memory);
-		serialIO = new SerialIO(loggerFactory, memory);
 		keypad = new Keypad(loggerFactory, memory);
 		timer = new Timer(loggerFactory, memory);
 		video = new Video(loggerFactory, memory);
@@ -110,16 +110,16 @@ public class Emulator : IDisposable, ISteppable
 
 	public void Reset()
 	{
+		serialIO.Reset();
 		memory.Reset();
 		cpu.Reset();
-		serialIO.Reset();
 		keypad.Reset();
 		timer.Reset();
 		video.Reset();
 
 		totalStopwatch.Reset();
-		memoryStopwatch.Reset();
 		serialIOStopwatch.Reset();
+		memoryStopwatch.Reset();
 		keypadStopwatch.Reset();
 		timerStopwatch.Reset();
 		videoStopwatch.Reset();
@@ -131,13 +131,13 @@ public class Emulator : IDisposable, ISteppable
 	{
 		totalStopwatch.Start();
 
-		memoryStopwatch.Start();
-		Step(memory);
-		memoryStopwatch.Stop();
-
 		serialIOStopwatch.Start();
 		Step(serialIO);
 		serialIOStopwatch.Stop();
+
+		memoryStopwatch.Start();
+		Step(memory);
+		memoryStopwatch.Stop();
 
 		keypadStopwatch.Start();
 		Step(keypad);
@@ -179,9 +179,9 @@ public class Emulator : IDisposable, ISteppable
 
 			logger.LogDebug($"""
 			CPU state = {cpuState}
-			total CPU time = {totalStopwatch.Elapsed} ({cpu.Clock} clock ticks)
-				memory = {StopwatchString(memoryStopwatch, totalStopwatch)}
+			total time = {totalStopwatch.Elapsed} ({cpu.Clock} clock ticks)
 				serialIO = {StopwatchString(serialIOStopwatch, totalStopwatch)}
+				memory = {StopwatchString(memoryStopwatch, totalStopwatch)}
 				keypad = {StopwatchString(keypadStopwatch, totalStopwatch)}
 				timer = {StopwatchString(timerStopwatch, totalStopwatch)}
 				video = {StopwatchString(videoStopwatch, totalStopwatch)}

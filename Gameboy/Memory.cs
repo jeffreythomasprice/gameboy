@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Gameboy;
 
-public abstract class Memory : IMemory, ISteppable
+public abstract class Memory : IDisposable, IMemory, ISteppable
 {
 	public delegate void MemoryWriteDelegate(byte oldValue, ref byte newValue);
 
@@ -91,11 +91,13 @@ public abstract class Memory : IMemory, ISteppable
 
 	private readonly ILogger logger;
 	private readonly Cartridge cartridge;
+	private readonly SerialIO serialIO;
 
 	private readonly byte[] videoRAM = new byte[VIDEO_RAM_END - VIDEO_RAM_START + 1];
 	private readonly byte[] spriteAttributes = new byte[SPRITE_ATTRIBUTES_END - SPRITE_ATTRIBUTES_START + 1];
 	private readonly byte[] internalRAM1 = new byte[INTERNAL_RAM_1_END - INTERNAL_RAM_1_START + 1];
 	private readonly byte[] internalRAM2 = new byte[INTERNAL_RAM_2_END - INTERNAL_RAM_2_START + 1];
+	// TODO JEFF move all IO ports to their respective component classes
 	private readonly byte[] ioPorts = new byte[IO_PORTS_END + 1];
 	private readonly byte[,] ramBanks;
 	private byte interruptsEnabled;
@@ -109,12 +111,20 @@ public abstract class Memory : IMemory, ISteppable
 	private int dmaDestinationIndex;
 	private int dmaCopiesRemaining;
 
-	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge)
+	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO)
 	{
 		logger = loggerFactory.CreateLogger<Memory>();
 		this.cartridge = cartridge;
+		this.serialIO = serialIO;
 		ramBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
 		Reset();
+
+		serialIO.DataAvailable += SerialIODataAvailable;
+	}
+
+	public void Dispose()
+	{
+		serialIO.DataAvailable -= SerialIODataAvailable;
 	}
 
 	public UInt64 Clock
@@ -135,6 +145,8 @@ public abstract class Memory : IMemory, ISteppable
 			<= ECHO_INTERNAL_RAM_END => internalRAM1[address - ECHO_INTERNAL_RAM_START],
 			<= SPRITE_ATTRIBUTES_END => SpriteAttributeMemoryEnabled ? spriteAttributes[address - SPRITE_ATTRIBUTES_START] : (byte)0xff,
 			<= UNUSED_1_END => 0,
+			IO_SB => serialIO.RegisterSB,
+			IO_SC => serialIO.RegisterSC,
 			<= IO_PORTS_END => ioPorts[address - IO_PORTS_START],
 			<= UNUSED_2_END => 0,
 			<= INTERNAL_RAM_2_END => internalRAM2[address - INTERNAL_RAM_2_START],
@@ -175,6 +187,12 @@ public abstract class Memory : IMemory, ISteppable
 				}
 				break;
 			case <= UNUSED_1_END:
+				break;
+			case IO_SB:
+				serialIO.RegisterSB = value;
+				break;
+			case IO_SC:
+				serialIO.RegisterSC = value;
 				break;
 			case <= IO_PORTS_END:
 				{
@@ -254,8 +272,11 @@ public abstract class Memory : IMemory, ISteppable
 	public virtual void Reset()
 	{
 		ioPorts[IO_P1 - IO_PORTS_START] = 0x00;
-		ioPorts[IO_SB - IO_PORTS_START] = 0x00;
-		ioPorts[IO_SC - IO_PORTS_START] = 0x00;
+
+		// serial IO
+		// IO_SB
+		// IO_SC
+
 		ioPorts[IO_DIV - IO_PORTS_START] = 0x00;
 		ioPorts[IO_TIMA - IO_PORTS_START] = 0x00;
 		ioPorts[IO_TMA - IO_PORTS_START] = 0x00;
@@ -367,4 +388,10 @@ public abstract class Memory : IMemory, ISteppable
 	/// <param name="address">guaranteed to be in the range 0x0000 to 0x7fff, inclusive</param>
 	/// <param name="value"></param>
 	protected abstract void ROMWrite(UInt16 address, byte value);
+
+	private void SerialIODataAvailable(byte value)
+	{
+		// set interrupt flag
+		WriteUInt8(Memory.IO_IF, (byte)(ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_SERIAL));
+	}
 }

@@ -11,6 +11,13 @@ public class SerialIO : ISteppable
 	private ILogger logger;
 
 	private UInt64 clock;
+	private byte registerSB;
+	private byte registerSC;
+
+	// bits from SC
+	private bool transferStartFlag;
+	private bool clockModeFlagIsInternal;
+
 	// how many clock ticks are required to finish the current byte
 	private int transferClocksRemaining;
 	private byte outgoingByte;
@@ -26,32 +33,46 @@ public class SerialIO : ISteppable
 		internal set => clock = value;
 	}
 
+	public byte RegisterSB
+	{
+		get => registerSB;
+		set => registerSB = value;
+	}
+
+	public byte RegisterSC
+	{
+		get => registerSC;
+		set
+		{
+			registerSC = value;
+			transferStartFlag = (value & 0b1000_0000) != 0;
+			clockModeFlagIsInternal = (value & 0b0000_0001) != 0;
+		}
+	}
+
 	public void Reset()
 	{
 		Clock = 0;
-		transferClocksRemaining = 0;
-		outgoingByte = 0;
 		RegisterSB = 0;
 		RegisterSC = 0;
+		transferClocksRemaining = 0;
+		outgoingByte = 0;
 	}
 
 	public void Step()
 	{
-		// TODO JEFF can we cheat time and do 4 clocks at a time?
-		Clock++;
-
 		// if no transfer is in progress see if we need to start one
+		if (TransferStartFlag && ClockModeFlagIsInternal && transferClocksRemaining == 0)
+		{
+			transferClocksRemaining = 8;
+		}
+
 		if (transferClocksRemaining == 0)
 		{
-			// 0 = external clock, 1 = internal clock
-			var clockModeIsInternal = (RegisterSC & 0b0000_0001) != 0;
-			// 1 = start a new transfer
-			var transferStart = (RegisterSC & 0b1000_0000) != 0;
-			if (transferStart && clockModeIsInternal)
-			{
-				transferClocksRemaining = 8;
-			}
+			Clock += 4;
+			return;
 		}
+		Clock++;
 
 		// is there a transfer in progress?
 		if (transferClocksRemaining > 0)
@@ -64,8 +85,7 @@ public class SerialIO : ISteppable
 			transferClocksRemaining--;
 			if (transferClocksRemaining == 0)
 			{
-				// reset the transfer start flag
-				RegisterSC &= 0b0111_1111;
+				TransferStartFlag = false;
 				// emit the result
 				DataAvailable?.Invoke(outgoingByte);
 				outgoingByte = 0;
@@ -73,7 +93,35 @@ public class SerialIO : ISteppable
 		}
 	}
 
-	public byte RegisterSB { get; set; }
+	private bool TransferStartFlag
+	{
+		get => transferStartFlag;
+		set
+		{
+			if (value)
+			{
+				RegisterSC |= 0b1000_0000;
+			}
+			else
+			{
+				RegisterSC &= 0b0111_1111;
+			}
+		}
+	}
 
-	public byte RegisterSC { get; set; }
+	private bool ClockModeFlagIsInternal
+	{
+		get => clockModeFlagIsInternal;
+		set
+		{
+			if (value)
+			{
+				RegisterSC |= 0b0000_0001;
+			}
+			else
+			{
+				RegisterSC &= 0b1111_1110;
+			}
+		}
+	}
 }

@@ -38,16 +38,12 @@ public class Emulator : IDisposable, ISteppable
 		logger = loggerFactory.CreateLogger<Emulator>();
 
 		serialIO = new SerialIO(loggerFactory);
-		memory = cartridge.CreateMemory(loggerFactory, serialIO);
+		timer = new Timer(loggerFactory);
+		memory = cartridge.CreateMemory(loggerFactory, serialIO, timer);
 		cpu = new CPU(loggerFactory, memory);
 		keypad = new Keypad(loggerFactory, memory);
-		timer = new Timer(loggerFactory, memory);
 		video = new Video(loggerFactory, memory);
 
-		memory.IORegisterDIVWrite += (byte oldValue, ref byte newValue) =>
-		{
-			timer.RegisterDIVWrite(oldValue, ref newValue);
-		};
 		memory.IORegisterLYWrite += (byte oldValue, ref byte newValue) =>
 		{
 			video.RegisterLYWrite(oldValue, ref newValue);

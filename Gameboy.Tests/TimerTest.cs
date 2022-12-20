@@ -7,8 +7,8 @@ public class TimerTest
 	public void IncrementClock(byte tac, byte tma, int numberOfStepsPerIncrement, int numberOfIncrementsToOverflow)
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		var memory = new SimpleMemory();
-		var timer = new Timer(loggerFactory, memory);
+		var timer = new Timer(loggerFactory);
+		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), timer, new byte[0]);
 		var overflowed = false;
 		timer.Overflow += () =>
 		{
@@ -124,22 +124,21 @@ public class TimerTest
 	public void TimerDisabled(byte tac, int iterations)
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		var memory = new SimpleMemory();
-		var timer = new Timer(loggerFactory, memory);
+		var timer = new Timer(loggerFactory);
 		var overflowed = false;
 		timer.Overflow += () =>
 		{
 			overflowed = true;
 		};
 
-		memory.WriteUInt8(Memory.IO_TAC, tac);
-		memory.WriteUInt8(Memory.IO_TMA, 0);
-		memory.WriteUInt8(Memory.IO_TIMA, 0);
+		timer.RegisterTAC = tac;
+		timer.RegisterTMA = 0;
+		timer.RegisterTIMA = 0;
 
 		for (var i = 0; i < iterations; i++)
 		{
 			timer.Step();
-			Assert.Equal(0, memory.ReadUInt8(Memory.IO_TIMA));
+			Assert.Equal(0, timer.RegisterTIMA);
 			Assert.False(overflowed);
 		}
 	}
@@ -175,8 +174,7 @@ public class TimerTest
 	public void ResetDiv()
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		var memory = new SimpleMemory();
-		var timer = new Timer(loggerFactory, memory);
+		var timer = new Timer(loggerFactory);
 		var overflowed = false;
 		timer.Overflow += () =>
 		{
@@ -184,9 +182,9 @@ public class TimerTest
 		};
 
 		// TAC, enabled, increment every 1024 ticks
-		memory.WriteUInt8(Memory.IO_TAC, 0b0000_0100);
-		memory.WriteUInt8(Memory.IO_TMA, 0);
-		memory.WriteUInt8(Memory.IO_TIMA, 0);
+		timer.RegisterTAC = 0b0000_0100;
+		timer.RegisterTMA = 0;
+		timer.RegisterTIMA = 0;
 
 		for (var i = 0; i < 512; i++)
 		{
@@ -194,20 +192,17 @@ public class TimerTest
 			Assert.False(overflowed);
 		}
 
+		// TODO JEFF is this required?
 		// trigger the callback that would normally be done by memory when writing to div
 		// this should clear internal state so the next time we call it it looks like a normal memory call, and invokes the reset behavior
-		{
-			byte newValue = 0x42;
-			timer.RegisterDIVWrite(0, ref newValue);
-		}
+		// {
+		// 	byte newValue = 0x42;
+		// 	timer.RegisterDIVWrite(0, ref newValue);
+		// }
 
 		// simulate a write to the div register, normally this would be triggered by an event on the memory
-		{
-			byte newValue = 0x42;
-			timer.RegisterDIVWrite(memory.ReadUInt8(Memory.IO_DIV), ref newValue);
-			memory.WriteUInt8(Memory.IO_DIV, newValue);
-		}
-		Assert.Equal(0, memory.ReadUInt8(Memory.IO_DIV));
+		timer.RegisterDIV = 0x42;
+		Assert.Equal(0, timer.RegisterDIV);
 
 		// advance until one setp remaining until overflow
 		for (var i = 0; i < 1024 * 256 - 1; i++)
@@ -225,8 +220,7 @@ public class TimerTest
 	public void DisableAndReenable()
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		var memory = new SimpleMemory();
-		var timer = new Timer(loggerFactory, memory);
+		var timer = new Timer(loggerFactory);
 		var overflowed = false;
 		timer.Overflow += () =>
 		{
@@ -234,9 +228,9 @@ public class TimerTest
 		};
 
 		// TAC, enabled, increment every 1024 ticks
-		memory.WriteUInt8(Memory.IO_TAC, 0b0000_0100);
-		memory.WriteUInt8(Memory.IO_TMA, 0);
-		memory.WriteUInt8(Memory.IO_TIMA, 0);
+		timer.RegisterTAC = 0b0000_0100;
+		timer.RegisterTMA = 0;
+		timer.RegisterTIMA = 0;
 
 		for (var i = 0; i < 1024 * 64; i++)
 		{
@@ -245,7 +239,7 @@ public class TimerTest
 		}
 
 		// TAC, disabled, increment every 1024 ticks
-		memory.WriteUInt8(Memory.IO_TAC, 0b0000_0000);
+		timer.RegisterTAC = 0b0000_0000;
 
 		for (var i = 0; i < 1024 * 256 * 2; i++)
 		{
@@ -254,7 +248,7 @@ public class TimerTest
 		}
 
 		// TAC, enabled, increment every 1024 ticks
-		memory.WriteUInt8(Memory.IO_TAC, 0b0000_0100);
+		timer.RegisterTAC = 0b0000_0100;
 
 		for (var i = 0; i < 1024 * 192 - 1; i++)
 		{

@@ -1,3 +1,5 @@
+// TODO JEFF move IO registers to this class instead of in memory
+
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;

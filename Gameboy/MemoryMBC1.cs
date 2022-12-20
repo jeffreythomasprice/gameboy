@@ -20,7 +20,7 @@ public class MemoryMBC1 : Memory
 	// 1 = low ROM and RAM use high bits, high ROM uses low bits
 	private bool memoryMode;
 
-	public MemoryMBC1(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO) : base(loggerFactory, cartridge, serialIO) { }
+	public MemoryMBC1(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer) : base(loggerFactory, cartridge, serialIO, timer) { }
 
 	public override void Reset()
 	{

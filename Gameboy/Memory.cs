@@ -86,12 +86,12 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	public const byte IF_MASK_SERIAL = 0b0000_1000;
 	public const byte IF_MASK_KEYPAD = 0b0001_0000;
 
-	public event MemoryWriteDelegate? IORegisterDIVWrite;
 	public event MemoryWriteDelegate? IORegisterLYWrite;
 
 	private readonly ILogger logger;
 	private readonly Cartridge cartridge;
 	private readonly SerialIO serialIO;
+	private readonly Timer timer;
 
 	private readonly byte[] videoRAM = new byte[VIDEO_RAM_END - VIDEO_RAM_START + 1];
 	private readonly byte[] spriteAttributes = new byte[SPRITE_ATTRIBUTES_END - SPRITE_ATTRIBUTES_START + 1];
@@ -111,20 +111,23 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	private int dmaDestinationIndex;
 	private int dmaCopiesRemaining;
 
-	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO)
+	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer)
 	{
 		logger = loggerFactory.CreateLogger<Memory>();
 		this.cartridge = cartridge;
 		this.serialIO = serialIO;
+		this.timer = timer;
 		ramBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
 		Reset();
 
 		serialIO.DataAvailable += SerialIODataAvailable;
+		timer.Overflow += TimerOverflow;
 	}
 
 	public void Dispose()
 	{
 		serialIO.DataAvailable -= SerialIODataAvailable;
+		timer.Overflow -= TimerOverflow;
 	}
 
 	public UInt64 Clock
@@ -147,6 +150,10 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 			<= UNUSED_1_END => 0,
 			IO_SB => serialIO.RegisterSB,
 			IO_SC => serialIO.RegisterSC,
+			IO_DIV => timer.RegisterDIV,
+			IO_TIMA => timer.RegisterTIMA,
+			IO_TMA => timer.RegisterTMA,
+			IO_TAC => timer.RegisterTAC,
 			<= IO_PORTS_END => ioPorts[address - IO_PORTS_START],
 			<= UNUSED_2_END => 0,
 			<= INTERNAL_RAM_2_END => internalRAM2[address - INTERNAL_RAM_2_START],
@@ -194,15 +201,24 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 			case IO_SC:
 				serialIO.RegisterSC = value;
 				break;
+			case IO_DIV:
+				timer.RegisterDIV = value;
+				break;
+			case IO_TIMA:
+				timer.RegisterTIMA = value;
+				break;
+			case IO_TMA:
+				timer.RegisterTMA = value;
+				break;
+			case IO_TAC:
+				timer.RegisterTAC = value;
+				break;
 			case <= IO_PORTS_END:
 				{
 					var oldValue = ioPorts[address - IO_PORTS_START];
 					// special cases for events that might modify this value
 					switch (address)
 					{
-						case IO_DIV:
-							IORegisterDIVWrite?.Invoke(oldValue, ref value);
-							break;
 						case IO_LY:
 							IORegisterLYWrite?.Invoke(oldValue, ref value);
 							break;
@@ -277,11 +293,15 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		// IO_SB
 		// IO_SC
 
-		ioPorts[IO_DIV - IO_PORTS_START] = 0x00;
-		ioPorts[IO_TIMA - IO_PORTS_START] = 0x00;
-		ioPorts[IO_TMA - IO_PORTS_START] = 0x00;
-		ioPorts[IO_TAC - IO_PORTS_START] = 0x00;
+		// timer
+		// IO_DIV
+		// IO_TIMA
+		// IO_TMA
+		// IO_TAC
+
 		ioPorts[IO_IF - IO_PORTS_START] = 0x00;
+
+		// sound
 		ioPorts[IO_NR10 - IO_PORTS_START] = 0x80;
 		ioPorts[IO_NR11 - IO_PORTS_START] = 0xbf;
 		ioPorts[IO_NR12 - IO_PORTS_START] = 0xf3;
@@ -307,6 +327,8 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		{
 			ioPorts[i - IO_PORTS_START] = 0x00;
 		}
+
+		// video
 		ioPorts[IO_LCDC - IO_PORTS_START] = 0x91;
 		ioPorts[IO_STAT - IO_PORTS_START] = 0x00;
 		ioPorts[IO_SCY - IO_PORTS_START] = 0x00;
@@ -319,6 +341,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		ioPorts[IO_OBP1 - IO_PORTS_START] = 0xff;
 		ioPorts[IO_WY - IO_PORTS_START] = 0x00;
 		ioPorts[IO_WX - IO_PORTS_START] = 0x00;
+
 		// 0xffff
 		interruptsEnabled = 0x00;
 
@@ -393,5 +416,11 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	{
 		// set interrupt flag
 		WriteUInt8(Memory.IO_IF, (byte)(ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_SERIAL));
+	}
+
+	private void TimerOverflow()
+	{
+		// set interrupt flag
+		WriteUInt8(Memory.IO_IF, (byte)(ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_TIMER));
 	}
 }

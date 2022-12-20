@@ -9,17 +9,21 @@ public class Timer : ISteppable
 	public event OverflowDelegate? Overflow;
 
 	private readonly ILogger logger;
-	private readonly IMemory memory;
 
 	private UInt64 clock;
+
+	private byte registerDIV;
+	private byte registerTIMA;
+	private byte registerTMA;
+	private byte registerTAC;
+
 	private byte divLow;
+	// the mask to apply to the full 16-bit div to determine if an overflow has occurred
+	private UInt16 tacMask;
 
-	private bool expectedDIVUpdate;
-
-	public Timer(ILoggerFactory loggerFactory, IMemory memory)
+	public Timer(ILoggerFactory loggerFactory)
 	{
 		logger = loggerFactory.CreateLogger<Timer>();
-		this.memory = memory;
 	}
 
 	public UInt64 Clock
@@ -31,7 +35,11 @@ public class Timer : ISteppable
 	public void Reset()
 	{
 		clock = 0;
-		divLow = 0;
+
+		RegisterDIV = 0;
+		RegisterTIMA = 0;
+		RegisterTMA = 0;
+		RegisterTAC = 0;
 	}
 
 	public void Step()
@@ -53,7 +61,8 @@ public class Timer : ISteppable
 		var divHigh = RegisterDIV;
 		var div16Before = (UInt16)((divHigh << 8) | divLow);
 		var div16After = (UInt16)(div16Before + 1);
-		RegisterDIV = (byte)((div16After & 0xff00) >> 8);
+		// don't use the accessor, we don't want to trigger the div clear behavior
+		registerDIV = (byte)((div16After & 0xff00) >> 8);
 		divLow = (byte)(div16After & 0xff);
 
 		/*
@@ -65,20 +74,8 @@ public class Timer : ISteppable
 		if (enabled)
 		{
 			// if incrementing 16-bit div overflows specific bits, that means increment TIMA
-			var maskToCheck = (RegisterTAC & 0b0000_0011) switch
-			{
-				// every 1024 CPU clocks, so check bit 9 of 16-bit DIV
-				0b0000_0000 => 0b0000_0010_0000_0000,
-				// every 16 CPU clocks, so check bit 3 of 16-bit DIV
-				0b0000_0001 => 0b0000_0000_0000_1000,
-				// every 64 CPU clocks, so check bit 5 of 16-bit DIV
-				0b0000_0010 => 0b0000_0000_0010_0000,
-				// every 256 CPU clocks, so check bit 7 of 16-bit DIV
-				// 0b0000_0011
-				_ => 0b0000_0000_1000_0000,
-			};
 			// did that bit go from high to low?
-			if (((div16Before & maskToCheck) != 0) && ((div16After & maskToCheck) == 0))
+			if (((div16Before & tacMask) != 0) && ((div16After & tacMask) == 0))
 			{
 				// increment TIMA
 				var timaBefore = RegisterTIMA;
@@ -90,59 +87,52 @@ public class Timer : ISteppable
 #endif
 					timaAfter = RegisterTMA;
 					Overflow?.Invoke();
-					// set interrupt flag
-					RegisterIF = (byte)(RegisterIF | Memory.IF_MASK_TIMER);
 				}
 				RegisterTIMA = timaAfter;
 			}
 		}
 	}
 
-	public void RegisterDIVWrite(byte oldValue, ref byte newValue)
+	public byte RegisterDIV
 	{
-		// if update flag is true we're updating this as part of normal timer increments
-		// if it's false somebody else wrote to DIV and the CPU expects a reset
-		if (expectedDIVUpdate)
-		{
-			expectedDIVUpdate = false;
-		}
-		else
-		{
-#if DEBUG
-			logger.LogTrace("DIV reset");
-#endif
-			divLow = 0;
-			newValue = 0;
-		}
-	}
-
-	private byte RegisterDIV
-	{
-		get => memory.ReadUInt8(Memory.IO_DIV);
+		get => registerDIV;
 		set
 		{
-			// we need to update this register value, but memory will emit events when we do
-			// this flag gets checked when we're handling the memory write event
-			expectedDIVUpdate = true;
-			memory.WriteUInt8(Memory.IO_DIV, value);
+			registerDIV = 0;
+			divLow = 0;
 		}
 	}
 
-	private byte RegisterTAC =>
-		memory.ReadUInt8(Memory.IO_TAC);
-
-	private byte RegisterTIMA
+	public byte RegisterTIMA
 	{
-		get => memory.ReadUInt8(Memory.IO_TIMA);
-		set => memory.WriteUInt8(Memory.IO_TIMA, value);
+		get => registerTIMA;
+		set => registerTIMA = value;
 	}
 
-	private byte RegisterTMA =>
-		memory.ReadUInt8(Memory.IO_TMA);
-
-	private byte RegisterIF
+	public byte RegisterTMA
 	{
-		get => memory.ReadUInt8(Memory.IO_IF);
-		set => memory.WriteUInt8(Memory.IO_IF, value);
+		get => registerTMA;
+		set => registerTMA = value;
+	}
+
+	public byte RegisterTAC
+	{
+		get => registerTAC;
+		set
+		{
+			registerTAC = value;
+			tacMask = (RegisterTAC & 0b0000_0011) switch
+			{
+				// every 1024 CPU clocks, so check bit 9 of 16-bit DIV
+				0b0000_0000 => 0b0000_0010_0000_0000,
+				// every 16 CPU clocks, so check bit 3 of 16-bit DIV
+				0b0000_0001 => 0b0000_0000_0000_1000,
+				// every 64 CPU clocks, so check bit 5 of 16-bit DIV
+				0b0000_0010 => 0b0000_0000_0010_0000,
+				// every 256 CPU clocks, so check bit 7 of 16-bit DIV
+				// 0b0000_0011
+				_ => 0b0000_0000_1000_0000,
+			};
+		}
 	}
 }

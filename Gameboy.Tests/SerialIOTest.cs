@@ -102,7 +102,7 @@ public class SerialIOTest
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var serialIO = new SerialIO(loggerFactory);
-		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, serialIO, new byte[0]);
+		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, serialIO, new Timer(loggerFactory), new byte[0]);
 		var cpu = new CPU(loggerFactory, memory);
 		var interruptTriggered = false;
 		serialIO.DataAvailable += (value) =>

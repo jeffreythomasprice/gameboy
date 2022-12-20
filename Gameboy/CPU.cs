@@ -1762,7 +1762,7 @@ public class CPU : ISteppable
 			case 0xf0:
 				{
 					/*
-					TODO JEFF comment here because this fails memory-timings-2 test 1, but presumably many instructions have this issue
+					TODO comment here because this fails memory-timings-2 test 1, but presumably many instructions have this issue
 					https://www.reddit.com/r/EmuDev/comments/j4xn0s/comment/g7o8muc/?utm_source=share&utm_medium=web2x&context=3
 					have to advance all the other things that have a clock in between parts of an instruction
 					in this case advance clock 4 after each:

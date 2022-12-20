@@ -8,7 +8,7 @@ public class TimerTest
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var timer = new Timer(loggerFactory);
-		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), timer, new byte[0]);
+		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), timer, new Video(loggerFactory), new byte[0]);
 		var overflowed = false;
 		timer.Overflow += () =>
 		{

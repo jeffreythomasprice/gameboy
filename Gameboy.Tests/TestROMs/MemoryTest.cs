@@ -9,13 +9,14 @@ public class MemoryTest
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
 		using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 		var cartridge = new Cartridge(stream);
-		var memory = cartridge.CreateMemory(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory));
+		var video = new Video(loggerFactory);
+		var memory = cartridge.CreateMemory(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), video);
 
 		// test data for when reads are disabled
 		var expectedWhenDisabled = CreateUniformArray(160, 0xff);
 
-		Assert.True(memory.VideoMemoryEnabled);
-		Assert.True(memory.SpriteAttributeMemoryEnabled);
+		Assert.True(video.VideoDataWriteEnabled);
+		Assert.True(video.SpriteAttributesDataWriteEnabled);
 
 		var videoData1 = CreateIncrementingArray(Memory.VIDEO_RAM_END - Memory.VIDEO_RAM_START, 0x11);
 		var spriteAttributeData1 = CreateIncrementingArray(Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START, 0x22);
@@ -24,7 +25,7 @@ public class MemoryTest
 		memory.WriteArray(Memory.SPRITE_ATTRIBUTES_START, spriteAttributeData1);
 		AssertEqual(memory, Memory.SPRITE_ATTRIBUTES_START, spriteAttributeData1);
 
-		memory.VideoMemoryEnabled = false;
+		video.VideoDataWriteEnabled = false;
 
 		var videoData2 = CreateIncrementingArray(Memory.VIDEO_RAM_END - Memory.VIDEO_RAM_START, 0x33);
 		var spriteAttributeData2 = CreateIncrementingArray(Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START, 0x44);
@@ -33,8 +34,8 @@ public class MemoryTest
 		memory.WriteArray(Memory.SPRITE_ATTRIBUTES_START, spriteAttributeData2);
 		AssertEqual(memory, Memory.SPRITE_ATTRIBUTES_START, spriteAttributeData2);
 
-		memory.VideoMemoryEnabled = true;
-		memory.SpriteAttributeMemoryEnabled = false;
+		video.VideoDataWriteEnabled = true;
+		video.SpriteAttributesDataWriteEnabled = false;
 
 		var videoData3 = CreateIncrementingArray(Memory.VIDEO_RAM_END - Memory.VIDEO_RAM_START, 0x55);
 		var spriteAttributeData3 = CreateIncrementingArray(Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START, 0x66);
@@ -43,9 +44,9 @@ public class MemoryTest
 		memory.WriteArray(Memory.SPRITE_ATTRIBUTES_START, spriteAttributeData3);
 		AssertEqual(memory, Memory.SPRITE_ATTRIBUTES_START, expectedWhenDisabled);
 
-		memory.Reset();
-		Assert.True(memory.VideoMemoryEnabled);
-		Assert.True(memory.SpriteAttributeMemoryEnabled);
+		video.Reset();
+		Assert.True(video.VideoDataWriteEnabled);
+		Assert.True(video.SpriteAttributesDataWriteEnabled);
 	}
 
 	[Fact]
@@ -55,7 +56,8 @@ public class MemoryTest
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
 		using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 		var cartridge = new Cartridge(stream);
-		var memory = cartridge.CreateMemory(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory));
+		var video = new Video(loggerFactory);
+		var memory = cartridge.CreateMemory(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), video);
 
 		// intentionally longer than the DMA length, so we can prove it cuts off there
 		var data1 = CreateIncrementingArray(200, 0x11);
@@ -70,7 +72,7 @@ public class MemoryTest
 		AssertEqual(memory, Memory.SPRITE_ATTRIBUTES_START, data1.Take(160).ToArray());
 
 		// same thing, but also disable sprite attribute memory to prove DMA works while that's off
-		memory.SpriteAttributeMemoryEnabled = false;
+		video.SpriteAttributesDataWriteEnabled = false;
 		var data2 = CreateIncrementingArray(200, 0x22);
 		// another location in internal RAM
 		memory.WriteArray(0xd100, data2);
@@ -80,7 +82,7 @@ public class MemoryTest
 		{
 			memory.Step();
 		}
-		memory.SpriteAttributeMemoryEnabled = true;
+		video.SpriteAttributesDataWriteEnabled = true;
 		AssertEqual(memory, Memory.SPRITE_ATTRIBUTES_START, data2.Take(160).ToArray());
 
 		// but now do a weird address

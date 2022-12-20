@@ -4,8 +4,6 @@ namespace Gameboy;
 
 public abstract class Memory : IDisposable, IMemory, ISteppable
 {
-	public delegate void MemoryWriteDelegate(byte oldValue, ref byte newValue);
-
 	public const UInt16 ROM_BANK_1_START = 0x0000;
 	public const UInt16 ROM_BANK_1_END = ROM_BANK_2_START - 1;
 	public const UInt16 ROM_BANK_2_START = 0x4000;
@@ -86,48 +84,52 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	public const byte IF_MASK_SERIAL = 0b0000_1000;
 	public const byte IF_MASK_KEYPAD = 0b0001_0000;
 
-	public event MemoryWriteDelegate? IORegisterLYWrite;
-
 	private readonly ILogger logger;
 	private readonly Cartridge cartridge;
 	private readonly SerialIO serialIO;
 	private readonly Timer timer;
+	private readonly Video video;
 
-	private readonly byte[] videoRAM = new byte[VIDEO_RAM_END - VIDEO_RAM_START + 1];
-	private readonly byte[] spriteAttributes = new byte[SPRITE_ATTRIBUTES_END - SPRITE_ATTRIBUTES_START + 1];
 	private readonly byte[] internalRAM1 = new byte[INTERNAL_RAM_1_END - INTERNAL_RAM_1_START + 1];
 	private readonly byte[] internalRAM2 = new byte[INTERNAL_RAM_2_END - INTERNAL_RAM_2_START + 1];
-	// TODO JEFF move all IO ports to their respective component classes
-	private readonly byte[] ioPorts = new byte[IO_PORTS_END + 1];
+	// IO_P1
+	private byte keypadRegister;
+	// IO_IF
+	private byte interruptFlags;
 	private readonly byte[,] ramBanks;
+	// IO_IE
 	private byte interruptsEnabled;
 
 	private UInt64 clock;
 
-	private bool videoMemoryEnabled;
-	private bool spriteAttributeMemoryEnabled;
-
 	private UInt16 dmaSourceAddress;
-	private int dmaDestinationIndex;
+	private UInt16 dmaDestinationIndex;
 	private int dmaCopiesRemaining;
 
-	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer)
+	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video)
 	{
 		logger = loggerFactory.CreateLogger<Memory>();
 		this.cartridge = cartridge;
 		this.serialIO = serialIO;
 		this.timer = timer;
+		this.video = video;
 		ramBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
 		Reset();
 
 		serialIO.DataAvailable += SerialIODataAvailable;
 		timer.Overflow += TimerOverflow;
+		video.VBlankInterrupt += VideoVBlankInterrupt;
+		video.LCDCInterrupt += VideoLCDCInterrupt;
 	}
+
+	// TODO JEFF destructor
 
 	public void Dispose()
 	{
 		serialIO.DataAvailable -= SerialIODataAvailable;
 		timer.Overflow -= TimerOverflow;
+		video.VBlankInterrupt -= VideoVBlankInterrupt;
+		video.LCDCInterrupt -= VideoLCDCInterrupt;
 	}
 
 	public UInt64 Clock
@@ -142,21 +144,77 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		{
 			<= ROM_BANK_1_END => cartridge.GetROMBankBytes(ActiveLowROMBank % cartridge.ROMBanks.Count)[address],
 			<= ROM_BANK_2_END => cartridge.GetROMBankBytes(ActiveHighROMBank % cartridge.ROMBanks.Count)[address - ROM_BANK_2_START],
-			<= VIDEO_RAM_END => VideoMemoryEnabled ? videoRAM[address - VIDEO_RAM_START] : (byte)0xff,
+
+			<= VIDEO_RAM_END => video.ReadVideoUInt8((UInt16)(address - VIDEO_RAM_START)),
+
 			<= RAM_BANK_END => RAMBankEnabled && ramBanks.Length >= 1 ? ramBanks[ActiveRAMBank % ramBanks.Length, address - RAM_BANK_START] : (byte)0xff,
+
 			<= INTERNAL_RAM_1_END => internalRAM1[address - INTERNAL_RAM_1_START],
+
 			<= ECHO_INTERNAL_RAM_END => internalRAM1[address - ECHO_INTERNAL_RAM_START],
-			<= SPRITE_ATTRIBUTES_END => SpriteAttributeMemoryEnabled ? spriteAttributes[address - SPRITE_ATTRIBUTES_START] : (byte)0xff,
+
+			<= SPRITE_ATTRIBUTES_END => video.ReadSpriteAttributesUInt8((UInt16)(address - SPRITE_ATTRIBUTES_START)),
+
 			<= UNUSED_1_END => 0,
+
+			// keypad
+			IO_P1 => keypadRegister,
+
+			// serial IO
 			IO_SB => serialIO.RegisterSB,
 			IO_SC => serialIO.RegisterSC,
+
+			// timer
 			IO_DIV => timer.RegisterDIV,
 			IO_TIMA => timer.RegisterTIMA,
 			IO_TMA => timer.RegisterTMA,
 			IO_TAC => timer.RegisterTAC,
-			<= IO_PORTS_END => ioPorts[address - IO_PORTS_START],
+
+			IO_IF => interruptFlags,
+
+			// sound
+			// TODO placeholders, should be using sound controller
+			IO_NR10 => 0,
+			IO_NR11 => 0,
+			IO_NR12 => 0,
+			IO_NR13 => 0,
+			IO_NR14 => 0,
+			IO_NR21 => 0,
+			IO_NR22 => 0,
+			IO_NR23 => 0,
+			IO_NR24 => 0,
+			IO_NR30 => 0,
+			IO_NR31 => 0,
+			IO_NR32 => 0,
+			IO_NR33 => 0,
+			IO_NR34 => 0,
+			IO_NR41 => 0,
+			IO_NR42 => 0,
+			IO_NR43 => 0,
+			IO_NR44 => 0,
+			IO_NR50 => 0,
+			IO_NR51 => 0,
+			IO_NR52 => 0,
+			<= IO_WAVE_PATTERN_RAM_END => 0,
+
+			// video
+			IO_LCDC => video.RegisterLCDC,
+			IO_STAT => video.RegisterSTAT,
+			IO_SCY => video.RegisterSCY,
+			IO_SCX => video.RegisterSCX,
+			IO_LY => video.RegisterLY,
+			IO_LYC => video.RegisterLYC,
+			IO_DMA => 0,
+			IO_BGP => video.RegisterBGP,
+			IO_OBP0 => video.RegisterOBP0,
+			IO_OBP1 => video.RegisterOBP1,
+			IO_WY => video.RegisterWY,
+			IO_WX => video.RegisterWX,
+
 			<= UNUSED_2_END => 0,
+
 			<= INTERNAL_RAM_2_END => internalRAM2[address - INTERNAL_RAM_2_START],
+
 			IO_IE => interruptsEnabled,
 		};
 	}
@@ -169,38 +227,47 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 			case <= ROM_BANK_2_END:
 				ROMWrite(address, value);
 				break;
+
 			case <= VIDEO_RAM_END:
-				if (VideoMemoryEnabled)
-				{
-					videoRAM[address - VIDEO_RAM_START] = value;
-				}
+				video.WriteVideoUInt8((UInt16)(address - VIDEO_RAM_START), value);
 				break;
+
 			case <= RAM_BANK_END:
 				if (RAMBankEnabled && ramBanks.Length >= 1)
 				{
 					ramBanks[ActiveRAMBank % ramBanks.Length, address - RAM_BANK_START] = value;
 				}
 				break;
+
 			case <= INTERNAL_RAM_1_END:
 				internalRAM1[address - INTERNAL_RAM_1_START] = value;
 				break;
+
 			case <= ECHO_INTERNAL_RAM_END:
 				internalRAM1[address - ECHO_INTERNAL_RAM_START] = value;
 				break;
+
 			case <= SPRITE_ATTRIBUTES_END:
-				if (SpriteAttributeMemoryEnabled)
-				{
-					spriteAttributes[address - SPRITE_ATTRIBUTES_START] = value;
-				}
+				video.WriteSpriteAttributesUInt8((UInt16)(address - SPRITE_ATTRIBUTES_START), value);
 				break;
+
 			case <= UNUSED_1_END:
 				break;
+
+			// keypad
+			case IO_P1:
+				keypadRegister = value;
+				break;
+
+			// serial IO
 			case IO_SB:
 				serialIO.RegisterSB = value;
 				break;
 			case IO_SC:
 				serialIO.RegisterSC = value;
 				break;
+
+			// timer
 			case IO_DIV:
 				timer.RegisterDIV = value;
 				break;
@@ -213,39 +280,94 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 			case IO_TAC:
 				timer.RegisterTAC = value;
 				break;
-			case <= IO_PORTS_END:
+
+			case IO_IF:
+				interruptFlags = value;
+				break;
+
+			// sound
+			// TODO placeholders, should be using sound controller
+			case IO_NR10:
+			case IO_NR11:
+			case IO_NR12:
+			case IO_NR13:
+			case IO_NR14:
+			case IO_NR21:
+			case IO_NR22:
+			case IO_NR23:
+			case IO_NR24:
+			case IO_NR30:
+			case IO_NR31:
+			case IO_NR32:
+			case IO_NR33:
+			case IO_NR34:
+			case IO_NR41:
+			case IO_NR42:
+			case IO_NR43:
+			case IO_NR44:
+			case IO_NR50:
+			case IO_NR51:
+			case IO_NR52:
+			case <= IO_WAVE_PATTERN_RAM_END:
+				break;
+
+			// video
+			case IO_LCDC:
+				video.RegisterLCDC = value;
+				break;
+			case IO_STAT:
+				video.RegisterSTAT = value;
+				break;
+			case IO_SCY:
+				video.RegisterSCY = value;
+				break;
+			case IO_SCX:
+				video.RegisterSCX = value;
+				break;
+			case IO_LY:
+				video.RegisterLY = value;
+				break;
+			case IO_LYC:
+				video.RegisterLYC = value;
+				break;
+			case IO_DMA:
 				{
-					var oldValue = ioPorts[address - IO_PORTS_START];
-					// special cases for events that might modify this value
-					switch (address)
+					// the value written here is used to pick the high byte of the address to start reading from
+					// only actually start a new DMA transfer if one is not in progress
+					if (dmaCopiesRemaining == 0)
 					{
-						case IO_LY:
-							IORegisterLYWrite?.Invoke(oldValue, ref value);
-							break;
-						case IO_DMA:
-							// the value written here is used to pick the high byte of the address to start reading from
-							// only actually start a new DMA transfer if one is not in progress
-							if (dmaCopiesRemaining == 0)
-							{
-								dmaSourceAddress = (UInt16)(value << 8);
-								dmaDestinationIndex = 0;
-								// docs seem to indicate that it copies only the 28 used bits from the 32-bit sprite values
-								// 28 bits * 40 sprites = 140 bytes, where the whole sprite attrib area is 160 bytes
-								// other docs and code samples make no mention of having to pack or unpack data though, so I'm assuming that's nonsense
-								dmaCopiesRemaining = 160;
-							}
-							// always clear it
-							value = 0;
-							break;
+						dmaSourceAddress = (UInt16)(value << 8);
+						dmaDestinationIndex = 0;
+						// docs seem to indicate that it copies only the 28 used bits from the 32-bit sprite values
+						// 28 bits * 40 sprites = 140 bytes, where the whole sprite attrib area is 160 bytes
+						// other docs and code samples make no mention of having to pack or unpack data though, so I'm assuming that's nonsense
+						dmaCopiesRemaining = 160;
 					}
-					ioPorts[address - IO_PORTS_START] = value;
 				}
 				break;
+			case IO_BGP:
+				video.RegisterBGP = value;
+				break;
+			case IO_OBP0:
+				video.RegisterOBP0 = value;
+				break;
+			case IO_OBP1:
+				video.RegisterOBP1 = value;
+				break;
+			case IO_WY:
+				video.RegisterWY = value;
+				break;
+			case IO_WX:
+				video.RegisterWX = value;
+				break;
+
 			case <= UNUSED_2_END:
 				break;
+
 			case <= INTERNAL_RAM_2_END:
 				internalRAM2[address - INTERNAL_RAM_2_START] = value;
 				break;
+
 			case IO_IE:
 				interruptsEnabled = value;
 				break;
@@ -258,36 +380,19 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		{
 			return;
 		}
-		if (specialCase(VIDEO_RAM_START, VIDEO_RAM_END, videoRAM))
-		{
-			return;
-		}
-		if (specialCase(SPRITE_ATTRIBUTES_START, SPRITE_ATTRIBUTES_END, spriteAttributes))
-		{
-			return;
-		}
 #if DEBUG
-		logger.LogWarning($"slow array copy from {NumberUtils.ToHex(address)}, len={length}");
+		logger.LogWarning($"array copy from {NumberUtils.ToHex(address)}, len={length}");
 #endif
 		for (var i = 0; i < length; i++)
 		{
 			destination[destinationIndex + i] = ReadUInt8((UInt16)(address + i));
 		}
-
-		bool specialCase(UInt16 start, UInt16 end, byte[] source)
-		{
-			if (address >= start && address + length - 1 <= end)
-			{
-				Array.Copy(source, address - start, destination, destinationIndex, length);
-				return true;
-			}
-			return false;
-		}
 	}
 
 	public virtual void Reset()
 	{
-		ioPorts[IO_P1 - IO_PORTS_START] = 0x00;
+		// keypad
+		keypadRegister = 0x00;
 
 		// serial IO
 		// IO_SB
@@ -299,57 +404,57 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		// IO_TMA
 		// IO_TAC
 
-		ioPorts[IO_IF - IO_PORTS_START] = 0x00;
+		// IO_IF
+		interruptFlags = 0x00;
 
+		// TODO move sound to sound controller
 		// sound
-		ioPorts[IO_NR10 - IO_PORTS_START] = 0x80;
-		ioPorts[IO_NR11 - IO_PORTS_START] = 0xbf;
-		ioPorts[IO_NR12 - IO_PORTS_START] = 0xf3;
-		ioPorts[IO_NR13 - IO_PORTS_START] = 0x00;
-		ioPorts[IO_NR14 - IO_PORTS_START] = 0xbf;
-		ioPorts[IO_NR21 - IO_PORTS_START] = 0x3f;
-		ioPorts[IO_NR22 - IO_PORTS_START] = 0x00;
-		ioPorts[IO_NR23 - IO_PORTS_START] = 0x00;
-		ioPorts[IO_NR24 - IO_PORTS_START] = 0xbf;
-		ioPorts[IO_NR30 - IO_PORTS_START] = 0x7f;
-		ioPorts[IO_NR31 - IO_PORTS_START] = 0xff;
-		ioPorts[IO_NR32 - IO_PORTS_START] = 0x9f;
-		ioPorts[IO_NR33 - IO_PORTS_START] = 0x00;
-		ioPorts[IO_NR34 - IO_PORTS_START] = 0xbf;
-		ioPorts[IO_NR41 - IO_PORTS_START] = 0xff;
-		ioPorts[IO_NR42 - IO_PORTS_START] = 0x00;
-		ioPorts[IO_NR43 - IO_PORTS_START] = 0x00;
-		ioPorts[IO_NR50 - IO_PORTS_START] = 0x77;
-		ioPorts[IO_NR51 - IO_PORTS_START] = 0xf3;
-		// f1 for gameboy, f0 for super gameboy
-		ioPorts[IO_NR52 - IO_PORTS_START] = 0xf1;
-		for (var i = IO_WAVE_PATTERN_RAM_START; i <= IO_WAVE_PATTERN_RAM_END; i++)
-		{
-			ioPorts[i - IO_PORTS_START] = 0x00;
-		}
+		// ioPorts[IO_NR10 - IO_PORTS_START] = 0x80;
+		// ioPorts[IO_NR11 - IO_PORTS_START] = 0xbf;
+		// ioPorts[IO_NR12 - IO_PORTS_START] = 0xf3;
+		// ioPorts[IO_NR13 - IO_PORTS_START] = 0x00;
+		// ioPorts[IO_NR14 - IO_PORTS_START] = 0xbf;
+		// ioPorts[IO_NR21 - IO_PORTS_START] = 0x3f;
+		// ioPorts[IO_NR22 - IO_PORTS_START] = 0x00;
+		// ioPorts[IO_NR23 - IO_PORTS_START] = 0x00;
+		// ioPorts[IO_NR24 - IO_PORTS_START] = 0xbf;
+		// ioPorts[IO_NR30 - IO_PORTS_START] = 0x7f;
+		// ioPorts[IO_NR31 - IO_PORTS_START] = 0xff;
+		// ioPorts[IO_NR32 - IO_PORTS_START] = 0x9f;
+		// ioPorts[IO_NR33 - IO_PORTS_START] = 0x00;
+		// ioPorts[IO_NR34 - IO_PORTS_START] = 0xbf;
+		// ioPorts[IO_NR41 - IO_PORTS_START] = 0xff;
+		// ioPorts[IO_NR42 - IO_PORTS_START] = 0x00;
+		// ioPorts[IO_NR43 - IO_PORTS_START] = 0x00;
+		// ioPorts[IO_NR50 - IO_PORTS_START] = 0x77;
+		// ioPorts[IO_NR51 - IO_PORTS_START] = 0xf3;
+		// // f1 for gameboy, f0 for super gameboy
+		// ioPorts[IO_NR52 - IO_PORTS_START] = 0xf1;
+		// for (var i = IO_WAVE_PATTERN_RAM_START; i <= IO_WAVE_PATTERN_RAM_END; i++)
+		// {
+		// 	ioPorts[i - IO_PORTS_START] = 0x00;
+		// }
 
 		// video
-		ioPorts[IO_LCDC - IO_PORTS_START] = 0x91;
-		ioPorts[IO_STAT - IO_PORTS_START] = 0x00;
-		ioPorts[IO_SCY - IO_PORTS_START] = 0x00;
-		ioPorts[IO_SCX - IO_PORTS_START] = 0x00;
-		ioPorts[IO_LY - IO_PORTS_START] = 0x00;
-		ioPorts[IO_LYC - IO_PORTS_START] = 0x00;
-		ioPorts[IO_DMA - IO_PORTS_START] = 0x00;
-		ioPorts[IO_BGP - IO_PORTS_START] = 0xfc;
-		ioPorts[IO_OBP0 - IO_PORTS_START] = 0xff;
-		ioPorts[IO_OBP1 - IO_PORTS_START] = 0xff;
-		ioPorts[IO_WY - IO_PORTS_START] = 0x00;
-		ioPorts[IO_WX - IO_PORTS_START] = 0x00;
+		// IO_LCDC
+		// IO_STAT
+		// IO_SCY
+		// IO_SCX
+		// IO_LY
+		// IO_LYC
+		// IO_DMA is managed here, not in the video system, but doesn't have a specific byte of memory
+		// IO_BGP
+		// IO_OBP0
+		// IO_OBP1
+		// IO_WY
+		// IO_WX
 
-		// 0xffff
+		// IO_IE
 		interruptsEnabled = 0x00;
 
 		clock = 0;
 
-		videoMemoryEnabled = true;
-		spriteAttributeMemoryEnabled = true;
-
+		// stuff for IO_DMA
 		dmaSourceAddress = 0x0000;
 		dmaDestinationIndex = 0;
 		dmaCopiesRemaining = 0;
@@ -362,7 +467,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 
 		if (dmaCopiesRemaining > 0)
 		{
-			spriteAttributes[dmaDestinationIndex] = ReadUInt8(dmaSourceAddress);
+			video.WriteSpriteAttributesUInt8IgnoreWriteControl(dmaDestinationIndex, ReadUInt8(dmaSourceAddress));
 			dmaSourceAddress++;
 			dmaDestinationIndex++;
 			dmaCopiesRemaining--;
@@ -371,18 +476,6 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 				logger.LogTrace("DMA complete");
 			}
 		}
-	}
-
-	public bool VideoMemoryEnabled
-	{
-		get => videoMemoryEnabled;
-		set => videoMemoryEnabled = value;
-	}
-
-	public bool SpriteAttributeMemoryEnabled
-	{
-		get => spriteAttributeMemoryEnabled;
-		set => spriteAttributeMemoryEnabled = value;
 	}
 
 	/// <summary>
@@ -414,13 +507,21 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 
 	private void SerialIODataAvailable(byte value)
 	{
-		// set interrupt flag
-		WriteUInt8(Memory.IO_IF, (byte)(ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_SERIAL));
+		interruptFlags |= IF_MASK_SERIAL;
 	}
 
 	private void TimerOverflow()
 	{
-		// set interrupt flag
-		WriteUInt8(Memory.IO_IF, (byte)(ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_TIMER));
+		interruptFlags |= IF_MASK_TIMER;
+	}
+
+	private void VideoVBlankInterrupt()
+	{
+		interruptFlags |= IF_MASK_VBLANK;
+	}
+
+	private void VideoLCDCInterrupt()
+	{
+		interruptFlags |= IF_MASK_LCDC;
 	}
 }

@@ -1,5 +1,3 @@
-// TODO JEFF move IO registers to this class instead of in memory
-
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -25,13 +23,13 @@ public class Video : ISteppable
 	)
 	{ }
 
-	public delegate void SetMemoryRegionEnabledDelegate(bool enabled);
-
 	/// <param name="y">in range 0 to ScreenHeight-1, inclusive</param>
 	/// <param name="data">a color, each element is a 2-bit value, so the high 6 bits are unused</param>
 	public delegate void ScanlineAvailableDelegate(int y, Color[] data);
 
 	public delegate void VSyncDelegate();
+	public delegate void VBlankInterruptDelegate();
+	public delegate void LCDCInterruptDelegate();
 
 	/*
 	state machine:
@@ -92,6 +90,7 @@ public class Video : ISteppable
 			this.registerValue = registerValue;
 		}
 
+		// TODO JEFF unpack palettes ahead of time
 		public byte this[int index] =>
 			index switch
 			{
@@ -106,9 +105,6 @@ public class Video : ISteppable
 	public const int ScreenWidth = 160;
 	public const int ScreenHeight = 144;
 
-	public event SetMemoryRegionEnabledDelegate? SetVideoMemoryEnabled;
-	public event SetMemoryRegionEnabledDelegate? SetSpriteAttributeMemoryEnabled;
-
 	/// <summary>
 	/// Called when a scanline is done drawing.
 	/// </summary>
@@ -119,6 +115,8 @@ public class Video : ISteppable
 	/// </summary>
 	public event VSyncDelegate? VSync;
 
+	public event VBlankInterruptDelegate? VBlankInterrupt;
+	public event LCDCInterruptDelegate? LCDCInterrupt;
 
 	// total time between screen redraws, including V blank mode
 	private const UInt64 ClockTicksPerFrame = 70224;
@@ -148,15 +146,34 @@ public class Video : ISteppable
 	private const int BothTileDataSectionsLengthInBytes = TileDataSegmentLength * 3;
 
 	private readonly ILogger logger;
-	private readonly IMemory memory;
+	private readonly byte[] videoData = new byte[Memory.VIDEO_RAM_END - Memory.VIDEO_RAM_START + 1];
+	private readonly byte[] spriteAttributesData = new byte[Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1];
 
 	private UInt64 clock;
+
+	private bool videoDataWriteEnabled;
+	private bool spriteAttributesDataWriteEnabled;
+
+	private byte registerLCDC;
+	private byte registerSTAT;
+	private byte registerSCY;
+	private byte registerSCX;
+	private byte registerLY;
+	private byte registerLYC;
+	private byte registerBGP;
+	private byte registerOBP0;
+	private byte registerOBP1;
+	private byte registerWY;
+	private byte registerWX;
+
+	private ColorPalette registerBGPPalette;
+	private ColorPalette registerOBP0Palette;
+	private ColorPalette registerOBP1Palette;
 
 	private State state;
 	private UInt64 ticksRemainingInCurrentState;
 
-	private bool expectedLYUpdate;
-
+	// TODO JEFF don't need copies of video and sprite mem because it's actually local here?
 	// filled in during writes with copy of relevant part of video memory
 	private readonly byte[] combinedTileData = new byte[BothTileDataSectionsLengthInBytes];
 	private readonly byte[] backgroundTileIndices = new byte[BackgroundAndWindowTileIndicesLengthInBytes];
@@ -167,16 +184,16 @@ public class Video : ISteppable
 	private readonly Color[] outputPixels = new Color[ScreenWidth];
 	private readonly byte[] backgroundAndWindowColorIndex = new byte[ScreenWidth];
 
-	// TODO JEFF timing debugging
+	// TODO timing debugging
 	internal readonly Stopwatch TileDataReadStopwatch = new();
 	internal readonly Stopwatch BackgroundAndWindowStopwatch = new();
 	internal readonly Stopwatch SpritesStopwatch = new();
 	internal readonly Stopwatch EmitScanlineStopwatch = new();
 
-	public Video(ILoggerFactory loggerFactory, IMemory memory)
+	public Video(ILoggerFactory loggerFactory)
 	{
 		logger = loggerFactory.CreateLogger<Video>();
-		this.memory = memory;
+		Reset();
 	}
 
 	public UInt64 Clock
@@ -188,6 +205,21 @@ public class Video : ISteppable
 	public void Reset()
 	{
 		Clock = 0;
+
+		videoDataWriteEnabled = true;
+		spriteAttributesDataWriteEnabled = true;
+
+		RegisterLCDC = 0x91;
+		RegisterSTAT = 0x00;
+		RegisterSCY = 0x00;
+		RegisterSCX = 0x00;
+		RegisterLY = 0x00;
+		RegisterLYC = 0x00;
+		RegisterBGP = 0xfc;
+		RegisterOBP0 = 0xff;
+		RegisterOBP1 = 0xff;
+		RegisterWY = 0x00;
+		RegisterWX = 0x00;
 
 		state = State.VBlank;
 		RegisterLY = 0;
@@ -238,7 +270,8 @@ public class Video : ISteppable
 						drawScanLine();
 					}
 					// end of mode 11, either transition to mode 00 for a new scan line, or to mode 01 V blank
-					RegisterLY++;
+					// intentionally don't write to the accessors, that clears it
+					registerLY++;
 					if (RegisterLY < ScreenHeight)
 					{
 						// more scan lines remaining, back to mode 00, H blank
@@ -259,7 +292,7 @@ public class Video : ISteppable
 						logger.LogTrace($"state={state}, LY={RegisterLY}, ticks={ticksRemainingInCurrentState}");
 #endif
 						setStatMode(0b01);
-						triggerVBlankInterrupt();
+						VBlankInterrupt?.Invoke();
 						triggerSTATInterruptIfMaskSet(0b0001_0000);
 #if DEBUG
 						logger.LogTrace("emitting vsync");
@@ -272,7 +305,8 @@ public class Video : ISteppable
 					break;
 
 				case State.VBlank:
-					RegisterLY++;
+					// intentionally don't write to the accessors, that clears it
+					registerLY++;
 					if (RegisterLY < ScreenHeight + ExtraVBlankScanLines)
 					{
 #if DEBUG
@@ -308,21 +342,11 @@ public class Video : ISteppable
 					break;
 			}
 
-			void triggerVBlankInterrupt()
-			{
-				memory.WriteUInt8(Memory.IO_IF, (byte)(memory.ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_VBLANK));
-			}
-
-			void triggerLCDCInterrupt()
-			{
-				memory.WriteUInt8(Memory.IO_IF, (byte)(memory.ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_LCDC));
-			}
-
 			void triggerSTATInterruptIfMaskSet(byte mask)
 			{
 				if ((RegisterSTAT & mask) != 0)
 				{
-					triggerLCDCInterrupt();
+					LCDCInterrupt?.Invoke();
 				}
 			}
 
@@ -337,7 +361,7 @@ public class Video : ISteppable
 						(!statConditionFlag && RegisterLY != RegisterLYC)
 					)
 					{
-						triggerLCDCInterrupt();
+						LCDCInterrupt?.Invoke();
 					}
 				}
 			}
@@ -357,7 +381,7 @@ public class Video : ISteppable
 #if DEBUG
 				logger.LogTrace("enabling video memory");
 #endif
-				// SetVideoMemoryEnabled?.Invoke(true);
+				// videoRAMWriteEnabled = true;
 			}
 
 			void disableVideoMemory()
@@ -365,7 +389,7 @@ public class Video : ISteppable
 #if DEBUG
 				logger.LogTrace("disabling video memory");
 #endif
-				// SetVideoMemoryEnabled?.Invoke(false);
+				// videoRAMWriteEnabled = false;
 			}
 
 			void enableSpriteAttributeMemory()
@@ -373,7 +397,7 @@ public class Video : ISteppable
 #if DEBUG
 				logger.LogTrace("enabling sprite attribute memory");
 #endif
-				// SetSpriteAttributeMemoryEnabled?.Invoke(true);
+				// spriteAttributesWriteEnabled = true;
 			}
 
 			void disableSpriteAttributeMemory()
@@ -381,13 +405,13 @@ public class Video : ISteppable
 #if DEBUG
 				logger.LogTrace("disabling sprite attribute memory");
 #endif
-				// SetSpriteAttributeMemoryEnabled?.Invoke(false);
+				// spriteAttributesWriteEnabled = false;
 			}
 
 			void drawScanLine()
 			{
 				TileDataReadStopwatch.Start();
-				memory.ReadArray(combinedTileData, 0, Memory.VIDEO_RAM_START, combinedTileData.Length);
+				Array.Copy(videoData, 0, combinedTileData, 0, combinedTileData.Length);
 				/*
 				unsigned indices, values from 0 to 255
 				tile 0 is at 0x8000
@@ -411,7 +435,7 @@ public class Video : ISteppable
 				// true = sprites are drawn in 2s as 8x16, false = sprites are 8x8
 				var spritesAreBig = (RegisterLCDC & 0b0000_0100) != 0;
 				// where in video memory the indices of the background tiles are
-				var backgroundTileIndicesAddress = (UInt16)((RegisterLCDC & 0b0000_1000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
+				var backgroundTileIndicesAddress = (UInt16)((RegisterLCDC & 0b0000_1000) != 0 ? 0x1c00 : 0x1800);
 				// where in video memory are the actual 8x8 graphics for background and window
 				Span<byte> backgroundAndWindowTileData;
 				bool backgroundAndWindowTileDataIsSigned;
@@ -427,13 +451,13 @@ public class Video : ISteppable
 				}
 				var windowEnabled = (RegisterLCDC & 0b0010_0000) != 0;
 				// where in video memory the indices of the window tiles are
-				var windowTileIndicesAddress = (UInt16)((RegisterLCDC & 0b0100_0000) != 0 ? Memory.VIDEO_RAM_START + 0x1c00 : Memory.VIDEO_RAM_START + 0x1800);
+				var windowTileIndicesAddress = (UInt16)((RegisterLCDC & 0b0100_0000) != 0 ? 0x1c00 : 0x1800);
 				// TODO respect LCDC bit 7, display enabled
 
 				BackgroundAndWindowStopwatch.Start();
 				if (backgroundAndWindowEnabled)
 				{
-					memory.ReadArray(backgroundTileIndices, 0, backgroundTileIndicesAddress, backgroundTileIndices.Length);
+					Array.Copy(videoData, backgroundTileIndicesAddress, backgroundTileIndices, 0, backgroundTileIndices.Length);
 					drawTileMap(
 						tileData: backgroundAndWindowTileData,
 						tileIndices: backgroundTileIndices,
@@ -445,7 +469,7 @@ public class Video : ISteppable
 					if (windowEnabled)
 					{
 						// TODO window addr might be same as background, in which case we should reuse the same data
-						memory.ReadArray(windowTileIndices, 0, windowTileIndicesAddress, windowTileIndices.Length);
+						Array.Copy(videoData, windowTileIndicesAddress, windowTileIndices, 0, windowTileIndices.Length);
 						drawTileMap(
 							tileData: backgroundAndWindowTileData,
 							tileIndices: windowTileIndices,
@@ -475,7 +499,7 @@ public class Video : ISteppable
 				if (spritesEnabled)
 				{
 					// get all the sprite attributes
-					memory.ReadArray(spriteAttributeData, 0, Memory.SPRITE_ATTRIBUTES_START, spriteAttributeData.Length);
+					Array.Copy(spriteAttributesData, 0, spriteAttributeData, 0, spriteAttributeData.Length);
 					var sprites = new List<Sprite>(capacity: MaxSprites);
 					for (var i = 0; i < MaxSprites; i++)
 					{
@@ -568,7 +592,7 @@ public class Video : ISteppable
 						}
 						// remember both the actual color and the index
 						var colorIndex = getColorIndexFromTile(tileData, tileIndex, tileX, tileY);
-						outputPixels[screenX] = new(RegisterBGP[colorIndex], palette);
+						outputPixels[screenX] = new(registerBGPPalette[colorIndex], palette);
 						backgroundAndWindowColorIndex[screenX] = colorIndex;
 					}
 				}
@@ -633,11 +657,11 @@ public class Video : ISteppable
 							{
 								if (sprite.PaletteIsOBP0)
 								{
-									outputPixels[screenX] = new(RegisterOBP0[colorIndex], Palette.SpriteOBJ0);
+									outputPixels[screenX] = new(registerOBP0Palette[colorIndex], Palette.SpriteOBJ0);
 								}
 								else
 								{
-									outputPixels[screenX] = new(RegisterOBP1[colorIndex], Palette.SpriteOBJ1);
+									outputPixels[screenX] = new(registerOBP1Palette[colorIndex], Palette.SpriteOBJ1);
 								}
 							}
 						}
@@ -660,73 +684,146 @@ public class Video : ISteppable
 		}
 	}
 
-	public void RegisterLYWrite(byte oldValue, ref byte newValue)
+	public bool VideoDataWriteEnabled
 	{
-		// if update flag is true it means we're actively trying to update this value as part of the scan line state machine
-		// in that case we let the intended write go through normally
-		// if we're not in the middle of that, it means the CPU is writing here expecting to cause it to reset
-		if (expectedLYUpdate)
+		get => videoDataWriteEnabled;
+		internal set => videoDataWriteEnabled = value;
+	}
+
+	public bool SpriteAttributesDataWriteEnabled
+	{
+		get => spriteAttributesDataWriteEnabled;
+		internal set => spriteAttributesDataWriteEnabled = value;
+	}
+
+	public byte RegisterLCDC
+	{
+		get => registerLCDC;
+		set => registerLCDC = value;
+	}
+
+	public byte RegisterSTAT
+	{
+		get => registerSTAT;
+		set => registerSTAT = value;
+	}
+
+	public byte RegisterSCY
+	{
+		get => registerSCY;
+		set => registerSCY = value;
+	}
+
+	public byte RegisterSCX
+	{
+		get => registerSCX;
+		set => registerSCX = value;
+	}
+
+	public byte RegisterLY
+	{
+		get => registerLY;
+		set
 		{
-			expectedLYUpdate = false;
+			// docs are unclear about what this does to the video state machine, just says
+			// "Writing will reset the counter."
+			registerLY = 0;
+		}
+	}
+
+	public byte RegisterLYC
+	{
+		get => registerLYC;
+		set => registerLYC = value;
+	}
+
+	public byte RegisterBGP
+	{
+		get => registerBGP;
+		set
+		{
+			registerBGP = value;
+			registerBGPPalette = new(value);
+		}
+	}
+
+	public byte RegisterOBP0
+	{
+		get => registerOBP0;
+		set
+		{
+			registerOBP0 = value;
+			registerOBP0Palette = new(value);
+		}
+	}
+
+	public byte RegisterOBP1
+	{
+		get => registerOBP1;
+		set
+		{
+			registerOBP1 = value;
+			registerOBP1Palette = new(value);
+		}
+	}
+
+	public byte RegisterWY
+	{
+		get => registerWY;
+		set => registerWY = value;
+	}
+
+	public byte RegisterWX
+	{
+		get => registerWX;
+		set => registerWX = value;
+	}
+
+	public byte ReadVideoUInt8(UInt16 address)
+	{
+		if (videoDataWriteEnabled)
+		{
+			return videoData[address];
 		}
 		else
 		{
-#if DEBUG
-			logger.LogTrace("LY reset");
-#endif
-			// docs are unclear about what this does to the video state machine, just says
-			// "Writing will reset the counter."
-			newValue = 0;
+			return 0xff;
 		}
 	}
 
-	// TODO register caching so we're not reading mem all the time
-
-	private byte RegisterLCDC
+	public void WriteVideoUInt8(UInt16 address, byte value)
 	{
-		get => memory.ReadUInt8(Memory.IO_LCDC);
-		set => memory.WriteUInt8(Memory.IO_LCDC, value);
-	}
-
-	private byte RegisterSTAT
-	{
-		get => memory.ReadUInt8(Memory.IO_STAT);
-		set => memory.WriteUInt8(Memory.IO_STAT, value);
-	}
-
-	private byte RegisterLY
-	{
-		get => memory.ReadUInt8(Memory.IO_LY);
-		set
+		if (videoDataWriteEnabled)
 		{
-			// we need to update this register value, but memory will emit events when we do
-			// this flag gets checked when we're handling the memory write event
-			expectedLYUpdate = true;
-			memory.WriteUInt8(Memory.IO_LY, value);
+			videoData[address] = value;
 		}
 	}
 
-	private byte RegisterLYC =>
-		memory.ReadUInt8(Memory.IO_LYC);
+	public byte ReadSpriteAttributesUInt8(UInt16 address)
+	{
+		if (spriteAttributesDataWriteEnabled)
+		{
+			return spriteAttributesData[address];
+		}
+		else
+		{
+			return 0xff;
+		}
+	}
 
-	private byte RegisterSCX =>
-		memory.ReadUInt8(Memory.IO_SCX);
+	public void WriteSpriteAttributesUInt8(UInt16 address, byte value)
+	{
+		if (spriteAttributesDataWriteEnabled)
+		{
+			spriteAttributesData[address] = value;
+		}
+	}
 
-	private byte RegisterSCY =>
-		memory.ReadUInt8(Memory.IO_SCY);
-
-	private byte RegisterWX =>
-		memory.ReadUInt8(Memory.IO_WX);
-
-	private byte RegisterWY =>
-		memory.ReadUInt8(Memory.IO_WY);
-
-	private ColorPalette RegisterBGP =>
-		new ColorPalette(memory.ReadUInt8(Memory.IO_BGP));
-
-	private ColorPalette RegisterOBP0 =>
-		new ColorPalette(memory.ReadUInt8(Memory.IO_OBP0));
-
-	private ColorPalette RegisterOBP1 =>
-		new ColorPalette(memory.ReadUInt8(Memory.IO_OBP1));
+	/// <summary>
+	/// Intended for use by the memory controller to do DMA copies.
+	/// </summary>
+	internal void WriteSpriteAttributesUInt8IgnoreWriteControl(UInt16 address, byte value)
+	{
+		spriteAttributesData[address] = value;
+	}
 }

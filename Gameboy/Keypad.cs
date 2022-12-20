@@ -1,3 +1,5 @@
+// TODO JEFF move register P1 out of memory into here
+
 using Microsoft.Extensions.Logging;
 
 using static Gameboy.NumberUtils;

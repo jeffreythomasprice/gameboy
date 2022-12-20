@@ -10,7 +10,7 @@ public class InterruptTime
 			TimeSpan.FromSeconds(5),
 			TimeSpan.FromSeconds(10),
 			"",
-			"TODO JEFF hash goes here"
+			"TODO hash goes here"
 		);
 	}
 }

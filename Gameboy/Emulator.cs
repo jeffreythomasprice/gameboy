@@ -12,24 +12,24 @@ public class Emulator : IDisposable, ISteppable
 	private readonly ILogger logger;
 
 	private readonly SerialIO serialIO;
+	private readonly Timer timer;
+	private readonly Video video;
 	private readonly Memory memory;
 	private readonly CPU cpu;
 	private readonly Keypad keypad;
-	private readonly Timer timer;
-	private readonly Video video;
 
 	private bool isDisposed = false;
 	private Thread? thread = null;
 	private bool threadShouldExit;
 
-	// TODO JEFF timing debugging
+	// TODO timing debugging
 	private Stopwatch totalStopwatch = new();
 	private Stopwatch serialIOStopwatch = new();
-	private Stopwatch memoryStopwatch = new();
-	private Stopwatch keypadStopwatch = new();
 	private Stopwatch timerStopwatch = new();
 	private Stopwatch videoStopwatch = new();
+	private Stopwatch memoryStopwatch = new();
 	private Stopwatch cpuStopwatch = new();
+	private Stopwatch keypadStopwatch = new();
 	private TimeSpan emitDebugInterval = TimeSpan.FromSeconds(2);
 	private UInt64 nextEmitDebugClock;
 
@@ -39,24 +39,10 @@ public class Emulator : IDisposable, ISteppable
 
 		serialIO = new SerialIO(loggerFactory);
 		timer = new Timer(loggerFactory);
-		memory = cartridge.CreateMemory(loggerFactory, serialIO, timer);
+		video = new Video(loggerFactory);
+		memory = cartridge.CreateMemory(loggerFactory, serialIO, timer, video);
 		cpu = new CPU(loggerFactory, memory);
 		keypad = new Keypad(loggerFactory, memory);
-		video = new Video(loggerFactory, memory);
-
-		memory.IORegisterLYWrite += (byte oldValue, ref byte newValue) =>
-		{
-			video.RegisterLYWrite(oldValue, ref newValue);
-		};
-
-		video.SetVideoMemoryEnabled += (enabled) =>
-		{
-			memory.VideoMemoryEnabled = enabled;
-		};
-		video.SetSpriteAttributeMemoryEnabled += (enabled) =>
-		{
-			memory.SpriteAttributeMemoryEnabled = enabled;
-		};
 	}
 
 	~Emulator()
@@ -70,17 +56,17 @@ public class Emulator : IDisposable, ISteppable
 		GC.SuppressFinalize(true);
 	}
 
-	public IMemory Memory => memory;
-
-	public CPU CPU => cpu;
-
 	public SerialIO SerialIO => serialIO;
-
-	public Keypad Keypad => keypad;
 
 	public Timer Timer => timer;
 
 	public Video Video => video;
+
+	public IMemory Memory => memory;
+
+	public CPU CPU => cpu;
+
+	public Keypad Keypad => keypad;
 
 	public ulong Clock => cpu.Clock;
 
@@ -107,25 +93,27 @@ public class Emulator : IDisposable, ISteppable
 	public void Reset()
 	{
 		serialIO.Reset();
+		timer.Reset();
+		video.Reset();
 		memory.Reset();
 		cpu.Reset();
 		keypad.Reset();
-		timer.Reset();
-		video.Reset();
 
 		totalStopwatch.Reset();
 		serialIOStopwatch.Reset();
-		memoryStopwatch.Reset();
-		keypadStopwatch.Reset();
 		timerStopwatch.Reset();
 		videoStopwatch.Reset();
+		memoryStopwatch.Reset();
 		cpuStopwatch.Reset();
+		keypadStopwatch.Reset();
 		nextEmitDebugClock = 0;
 	}
 
 	public void Step()
 	{
 		totalStopwatch.Start();
+
+		// TODO JEFF does order matter here? if not, sort by init order
 
 		serialIOStopwatch.Start();
 		Step(serialIO);
@@ -177,15 +165,15 @@ public class Emulator : IDisposable, ISteppable
 			CPU state = {cpuState}
 			total time = {totalStopwatch.Elapsed} ({cpu.Clock} clock ticks)
 				serialIO = {StopwatchString(serialIOStopwatch, totalStopwatch)}
-				memory = {StopwatchString(memoryStopwatch, totalStopwatch)}
-				keypad = {StopwatchString(keypadStopwatch, totalStopwatch)}
 				timer = {StopwatchString(timerStopwatch, totalStopwatch)}
 				video = {StopwatchString(videoStopwatch, totalStopwatch)}
 					tile data = {StopwatchString(video.TileDataReadStopwatch, videoStopwatch)}
 					bg and window = {StopwatchString(video.BackgroundAndWindowStopwatch, videoStopwatch)}
 					sprites = {StopwatchString(video.SpritesStopwatch, videoStopwatch)}
 					emit scanline = {StopwatchString(video.EmitScanlineStopwatch, videoStopwatch)}
+				memory = {StopwatchString(memoryStopwatch, totalStopwatch)}
 				cpu = {StopwatchString(cpuStopwatch, totalStopwatch)}
+				keypad = {StopwatchString(keypadStopwatch, totalStopwatch)}
 			""");
 
 			string StopwatchString(Stopwatch s1, Stopwatch s2)

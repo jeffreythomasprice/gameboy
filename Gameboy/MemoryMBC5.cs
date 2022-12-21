@@ -23,23 +23,17 @@ public class MemoryMBC5 : Memory
 	public override void Reset()
 	{
 		base.Reset();
+
 		ramBankEnabled = 0x00;
 		romBankLow = 0x00;
 		romBankHigh = 0x00;
 		ramBank = 0x00;
+
+		ActiveLowROMBankChanged(ActiveLowROMBank);
+		ActiveHighROMBankChanged(ActiveHighROMBank);
+		ActiveRAMBankChanged(ActiveRAMBank);
+		RAMBankEnabledChanged(RAMBankEnabled);
 	}
-
-	protected override int ActiveLowROMBank =>
-		0;
-
-	protected override int ActiveHighROMBank =>
-		(romBankHigh << 8) | romBankLow;
-
-	protected override int ActiveRAMBank =>
-		ramBank;
-
-	protected override bool RAMBankEnabled =>
-		(ramBankEnabled & 0b0000_1111) == 0b0000_1010;
 
 	protected override void ROMWrite(ushort address, byte value)
 	{
@@ -47,16 +41,32 @@ public class MemoryMBC5 : Memory
 		{
 			case <= RAM_DISABLE_END:
 				ramBankEnabled = value;
+				RAMBankEnabledChanged(RAMBankEnabled);
 				break;
 			case <= ROM_BANK_SELECTOR_1_END:
 				romBankLow = value;
+				ActiveHighROMBankChanged(ActiveHighROMBank);
 				break;
 			case <= ROM_BANK_SELECTOR_2_END:
 				romBankHigh = (byte)(value & 0b0000_0001);
+				ActiveHighROMBankChanged(ActiveHighROMBank);
 				break;
 			case <= RAM_BANK_SELECTOR_END:
 				ramBank = (byte)(value & 0b0000_0011);
+				ActiveRAMBankChanged(ActiveRAMBank);
 				break;
 		}
 	}
+
+	private int ActiveLowROMBank =>
+		0;
+
+	private int ActiveHighROMBank =>
+		(romBankHigh << 8) | romBankLow;
+
+	private int ActiveRAMBank =>
+		ramBank;
+
+	private bool RAMBankEnabled =>
+		(ramBankEnabled & 0b0000_1111) == 0b0000_1010;
 }

@@ -48,12 +48,12 @@ public class Cartridge
 
 	public int Length => data.Length;
 
-	public ReadOnlySpan<byte> GetBytes(int start, int length) => data.AsSpan(start, length);
+	public ReadOnlyMemory<byte> GetBytes(int start, int length) => data.AsMemory(start, length);
 
-	public ReadOnlySpan<byte> GetBytes(Range range) => data.AsSpan(range);
+	public ReadOnlyMemory<byte> GetBytes(Range range) => data.AsMemory(range);
 
 	// TODO cut title off when it looks like junk after the ascii characters
-	public string Title => Encoding.ASCII.GetString(GetBytes(new Range(0x0134, 0x0142 + 1)));
+	public string Title => Encoding.ASCII.GetString(GetBytes(new Range(0x0134, 0x0142 + 1)).Span);
 
 	public bool IsColorGameboy => data[0x0143] == 0x80;
 
@@ -103,7 +103,7 @@ public class Cartridge
 		}
 	}
 
-	public ReadOnlySpan<byte> GetROMBankBytes(int i) => GetBytes(i * ROMBanks.Length, ROMBanks.Length);
+	public ReadOnlyMemory<byte> GetROMBankBytes(int i) => GetBytes(i * ROMBanks.Length, ROMBanks.Length);
 
 	public Memory CreateMemory(ILoggerFactory loggerFactory, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad) =>
 		CartridgeType switch

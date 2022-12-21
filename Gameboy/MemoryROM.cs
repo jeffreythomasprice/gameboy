@@ -6,16 +6,26 @@ public class MemoryROM : Memory
 {
 	public MemoryROM(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad) : base(loggerFactory, cartridge, serialIO, timer, video, sound, keypad) { }
 
-	protected override int ActiveLowROMBank =>
+	public override void Reset()
+	{
+		base.Reset();
+
+		ActiveLowROMBankChanged(ActiveLowROMBank);
+		ActiveHighROMBankChanged(ActiveHighROMBank);
+		ActiveRAMBankChanged(ActiveRAMBank);
+		RAMBankEnabledChanged(RAMBankEnabled);
+	}
+
+	private int ActiveLowROMBank =>
 		0;
 
-	protected override int ActiveHighROMBank =>
+	private int ActiveHighROMBank =>
 		1;
 
-	protected override int ActiveRAMBank =>
+	private int ActiveRAMBank =>
 		0;
 
-	protected override bool RAMBankEnabled =>
+	private bool RAMBankEnabled =>
 		false;
 
 	protected override void ROMWrite(ushort address, byte value)

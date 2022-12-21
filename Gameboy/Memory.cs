@@ -94,6 +94,12 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	private readonly Sound sound;
 	private readonly Keypad keypad;
 
+	private int activeLowROMBank;
+	private int activeHighROMBank;
+	private int activeRAMBank;
+	private bool ramBankEnabled;
+
+	private readonly ReadOnlyMemory<byte>[] romBanks;
 	private readonly byte[] internalRAM1 = new byte[INTERNAL_RAM_1_END - INTERNAL_RAM_1_START + 1];
 	private readonly byte[] internalRAM2 = new byte[INTERNAL_RAM_2_END - INTERNAL_RAM_2_START + 1];
 	// IO_IF
@@ -117,7 +123,19 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		this.video = video;
 		this.sound = sound;
 		this.keypad = keypad;
+
+		activeLowROMBank = 0;
+		activeHighROMBank = 0;
+		activeRAMBank = 0;
+		ramBankEnabled = false;
+
+		romBanks = new ReadOnlyMemory<byte>[cartridge.ROMBanks.Count];
+		for (var i = 0; i < romBanks.Length; i++)
+		{
+			romBanks[i] = cartridge.GetROMBankBytes(i);
+		}
 		ramBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
+
 		Reset();
 
 		serialIO.DataAvailable += SerialIODataAvailable;
@@ -148,12 +166,12 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	{
 		return address switch
 		{
-			<= ROM_BANK_1_END => cartridge.GetROMBankBytes(ActiveLowROMBank % cartridge.ROMBanks.Count)[address],
-			<= ROM_BANK_2_END => cartridge.GetROMBankBytes(ActiveHighROMBank % cartridge.ROMBanks.Count)[address - ROM_BANK_2_START],
+			<= ROM_BANK_1_END => romBanks[activeLowROMBank].Span[address],
+			<= ROM_BANK_2_END => romBanks[activeHighROMBank].Span[address - ROM_BANK_2_START],
 
 			<= VIDEO_RAM_END => video.ReadVideoUInt8((UInt16)(address - VIDEO_RAM_START)),
 
-			<= RAM_BANK_END => RAMBankEnabled && ramBanks.Length >= 1 ? ramBanks[ActiveRAMBank % ramBanks.Length, address - RAM_BANK_START] : (byte)0xff,
+			<= RAM_BANK_END => ramBankEnabled && ramBanks.Length >= 1 ? ramBanks[activeRAMBank, address - RAM_BANK_START] : (byte)0xff,
 
 			<= INTERNAL_RAM_1_END => internalRAM1[address - INTERNAL_RAM_1_START],
 
@@ -253,9 +271,9 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 				break;
 
 			case <= RAM_BANK_END:
-				if (RAMBankEnabled && ramBanks.Length >= 1)
+				if (ramBankEnabled && ramBanks.Length >= 1)
 				{
-					ramBanks[ActiveRAMBank % ramBanks.Length, address - RAM_BANK_START] = value;
+					ramBanks[activeRAMBank, address - RAM_BANK_START] = value;
 				}
 				break;
 
@@ -584,22 +602,34 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	/// <summary>
 	/// Which ROM bank is active from 0x0000 to 0x3fff
 	/// </summary>
-	protected abstract int ActiveLowROMBank { get; }
+	protected void ActiveLowROMBankChanged(int newValue)
+	{
+		activeLowROMBank = newValue % cartridge.ROMBanks.Count;
+	}
 
 	/// <summary>
 	/// Which ROM bank is active from 0x4000 to 0x7fff
 	/// </summary>
-	protected abstract int ActiveHighROMBank { get; }
+	protected void ActiveHighROMBankChanged(int newValue)
+	{
+		activeHighROMBank = newValue % cartridge.ROMBanks.Count;
+	}
 
 	/// <summary>
 	/// Which RAM bank is active
 	/// </summary>
-	protected abstract int ActiveRAMBank { get; }
+	protected void ActiveRAMBankChanged(int newValue)
+	{
+		activeRAMBank = newValue % ramBanks.Length;
+	}
 
 	/// <summary>
 	/// If false, reads and writes to RAM banks are ignored.
 	/// </summary>
-	protected abstract bool RAMBankEnabled { get; }
+	protected void RAMBankEnabledChanged(bool newValue)
+	{
+		ramBankEnabled = newValue;
+	}
 
 	/// <summary>
 	/// Called when a write is made to a ROM location.

@@ -236,7 +236,7 @@ public class KeypadTest
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var keypad = new Keypad(loggerFactory);
-		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), new Video(loggerFactory), keypad, new byte[0]);
+		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), new Video(loggerFactory), new Sound(loggerFactory), keypad, new byte[0]);
 		var cpu = new CPU(loggerFactory, memory);
 
 		// enable interrupts

@@ -91,6 +91,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	private readonly SerialIO serialIO;
 	private readonly Timer timer;
 	private readonly Video video;
+	private readonly Sound sound;
 	private readonly Keypad keypad;
 
 	private readonly byte[] internalRAM1 = new byte[INTERNAL_RAM_1_END - INTERNAL_RAM_1_START + 1];
@@ -107,13 +108,14 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	private UInt16 dmaDestinationIndex;
 	private int dmaCopiesRemaining;
 
-	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Keypad keypad)
+	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad)
 	{
 		logger = loggerFactory.CreateLogger<Memory>();
 		this.cartridge = cartridge;
 		this.serialIO = serialIO;
 		this.timer = timer;
 		this.video = video;
+		this.sound = sound;
 		this.keypad = keypad;
 		ramBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
 		Reset();
@@ -177,29 +179,43 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 			IO_IF => interruptFlags,
 
 			// sound
-			// TODO placeholders, should be using sound controller
-			IO_NR10 => 0,
-			IO_NR11 => 0,
-			IO_NR12 => 0,
-			IO_NR13 => 0,
-			IO_NR14 => 0,
-			IO_NR21 => 0,
-			IO_NR22 => 0,
-			IO_NR23 => 0,
-			IO_NR24 => 0,
-			IO_NR30 => 0,
-			IO_NR31 => 0,
-			IO_NR32 => 0,
-			IO_NR33 => 0,
-			IO_NR34 => 0,
-			IO_NR41 => 0,
-			IO_NR42 => 0,
-			IO_NR43 => 0,
-			IO_NR44 => 0,
-			IO_NR50 => 0,
-			IO_NR51 => 0,
-			IO_NR52 => 0,
-			<= IO_WAVE_PATTERN_RAM_END => 0,
+			IO_NR10 => sound.RegisterNR10,
+			IO_NR11 => sound.RegisterNR11,
+			IO_NR12 => sound.RegisterNR12,
+			IO_NR13 => sound.RegisterNR13,
+			IO_NR14 => sound.RegisterNR14,
+			IO_NR21 => sound.RegisterNR21,
+			IO_NR22 => sound.RegisterNR22,
+			IO_NR23 => sound.RegisterNR23,
+			IO_NR24 => sound.RegisterNR24,
+			IO_NR30 => sound.RegisterNR30,
+			IO_NR31 => sound.RegisterNR31,
+			IO_NR32 => sound.RegisterNR32,
+			IO_NR33 => sound.RegisterNR33,
+			IO_NR34 => sound.RegisterNR34,
+			IO_NR41 => sound.RegisterNR41,
+			IO_NR42 => sound.RegisterNR42,
+			IO_NR43 => sound.RegisterNR43,
+			IO_NR44 => sound.RegisterNR44,
+			IO_NR50 => sound.RegisterNR50,
+			IO_NR51 => sound.RegisterNR51,
+			IO_NR52 => sound.RegisterNR52,
+			IO_WAVE_PATTERN_RAM_START + 0 => sound.RegisterWavePattern0,
+			IO_WAVE_PATTERN_RAM_START + 1 => sound.RegisterWavePattern1,
+			IO_WAVE_PATTERN_RAM_START + 2 => sound.RegisterWavePattern2,
+			IO_WAVE_PATTERN_RAM_START + 3 => sound.RegisterWavePattern3,
+			IO_WAVE_PATTERN_RAM_START + 4 => sound.RegisterWavePattern4,
+			IO_WAVE_PATTERN_RAM_START + 5 => sound.RegisterWavePattern5,
+			IO_WAVE_PATTERN_RAM_START + 6 => sound.RegisterWavePattern6,
+			IO_WAVE_PATTERN_RAM_START + 7 => sound.RegisterWavePattern7,
+			IO_WAVE_PATTERN_RAM_START + 8 => sound.RegisterWavePattern8,
+			IO_WAVE_PATTERN_RAM_START + 9 => sound.RegisterWavePattern9,
+			IO_WAVE_PATTERN_RAM_START + 10 => sound.RegisterWavePattern10,
+			IO_WAVE_PATTERN_RAM_START + 11 => sound.RegisterWavePattern11,
+			IO_WAVE_PATTERN_RAM_START + 12 => sound.RegisterWavePattern12,
+			IO_WAVE_PATTERN_RAM_START + 13 => sound.RegisterWavePattern13,
+			IO_WAVE_PATTERN_RAM_START + 14 => sound.RegisterWavePattern14,
+			IO_WAVE_PATTERN_RAM_START + 15 => sound.RegisterWavePattern15,
 
 			// video
 			IO_LCDC => video.RegisterLCDC,
@@ -290,29 +306,116 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 				break;
 
 			// sound
-			// TODO placeholders, should be using sound controller
 			case IO_NR10:
+				sound.RegisterNR10 = value;
+				break;
 			case IO_NR11:
+				sound.RegisterNR11 = value;
+				break;
 			case IO_NR12:
+				sound.RegisterNR12 = value;
+				break;
 			case IO_NR13:
+				sound.RegisterNR13 = value;
+				break;
 			case IO_NR14:
+				sound.RegisterNR14 = value;
+				break;
 			case IO_NR21:
+				sound.RegisterNR21 = value;
+				break;
 			case IO_NR22:
+				sound.RegisterNR22 = value;
+				break;
 			case IO_NR23:
+				sound.RegisterNR23 = value;
+				break;
 			case IO_NR24:
+				sound.RegisterNR24 = value;
+				break;
 			case IO_NR30:
+				sound.RegisterNR30 = value;
+				break;
 			case IO_NR31:
+				sound.RegisterNR31 = value;
+				break;
 			case IO_NR32:
+				sound.RegisterNR32 = value;
+				break;
 			case IO_NR33:
+				sound.RegisterNR33 = value;
+				break;
 			case IO_NR34:
+				sound.RegisterNR34 = value;
+				break;
 			case IO_NR41:
+				sound.RegisterNR41 = value;
+				break;
 			case IO_NR42:
+				sound.RegisterNR42 = value;
+				break;
 			case IO_NR43:
+				sound.RegisterNR43 = value;
+				break;
 			case IO_NR44:
+				sound.RegisterNR44 = value;
+				break;
 			case IO_NR50:
+				sound.RegisterNR50 = value;
+				break;
 			case IO_NR51:
+				sound.RegisterNR51 = value;
+				break;
 			case IO_NR52:
-			case <= IO_WAVE_PATTERN_RAM_END:
+				sound.RegisterNR52 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 0:
+				sound.RegisterWavePattern0 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 1:
+				sound.RegisterWavePattern1 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 2:
+				sound.RegisterWavePattern2 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 3:
+				sound.RegisterWavePattern3 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 4:
+				sound.RegisterWavePattern4 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 5:
+				sound.RegisterWavePattern5 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 6:
+				sound.RegisterWavePattern6 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 7:
+				sound.RegisterWavePattern7 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 8:
+				sound.RegisterWavePattern8 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 9:
+				sound.RegisterWavePattern9 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 10:
+				sound.RegisterWavePattern10 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 11:
+				sound.RegisterWavePattern11 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 12:
+				sound.RegisterWavePattern12 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 13:
+				sound.RegisterWavePattern13 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 14:
+				sound.RegisterWavePattern14 = value;
+				break;
+			case IO_WAVE_PATTERN_RAM_START + 15:
+				sound.RegisterWavePattern15 = value;
 				break;
 
 			// video
@@ -411,33 +514,29 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		// IO_IF
 		interruptFlags = 0x00;
 
-		// TODO move sound to sound controller
 		// sound
-		// ioPorts[IO_NR10 - IO_PORTS_START] = 0x80;
-		// ioPorts[IO_NR11 - IO_PORTS_START] = 0xbf;
-		// ioPorts[IO_NR12 - IO_PORTS_START] = 0xf3;
-		// ioPorts[IO_NR13 - IO_PORTS_START] = 0x00;
-		// ioPorts[IO_NR14 - IO_PORTS_START] = 0xbf;
-		// ioPorts[IO_NR21 - IO_PORTS_START] = 0x3f;
-		// ioPorts[IO_NR22 - IO_PORTS_START] = 0x00;
-		// ioPorts[IO_NR23 - IO_PORTS_START] = 0x00;
-		// ioPorts[IO_NR24 - IO_PORTS_START] = 0xbf;
-		// ioPorts[IO_NR30 - IO_PORTS_START] = 0x7f;
-		// ioPorts[IO_NR31 - IO_PORTS_START] = 0xff;
-		// ioPorts[IO_NR32 - IO_PORTS_START] = 0x9f;
-		// ioPorts[IO_NR33 - IO_PORTS_START] = 0x00;
-		// ioPorts[IO_NR34 - IO_PORTS_START] = 0xbf;
-		// ioPorts[IO_NR41 - IO_PORTS_START] = 0xff;
-		// ioPorts[IO_NR42 - IO_PORTS_START] = 0x00;
-		// ioPorts[IO_NR43 - IO_PORTS_START] = 0x00;
-		// ioPorts[IO_NR50 - IO_PORTS_START] = 0x77;
-		// ioPorts[IO_NR51 - IO_PORTS_START] = 0xf3;
-		// // f1 for gameboy, f0 for super gameboy
-		// ioPorts[IO_NR52 - IO_PORTS_START] = 0xf1;
-		// for (var i = IO_WAVE_PATTERN_RAM_START; i <= IO_WAVE_PATTERN_RAM_END; i++)
-		// {
-		// 	ioPorts[i - IO_PORTS_START] = 0x00;
-		// }
+		// IO_NR10
+		// IO_NR11
+		// IO_NR12
+		// IO_NR13
+		// IO_NR14
+		// IO_NR21
+		// IO_NR22
+		// IO_NR23
+		// IO_NR24
+		// IO_NR30
+		// IO_NR31
+		// IO_NR32
+		// IO_NR33
+		// IO_NR34
+		// IO_NR41
+		// IO_NR42
+		// IO_NR43
+		// IO_NR44
+		// IO_NR50
+		// IO_NR51
+		// IO_NR52
+		// IO_WAVE_PATTERN_RAM
 
 		// video
 		// IO_LCDC

@@ -105,15 +105,15 @@ public class Cartridge
 
 	public ReadOnlySpan<byte> GetROMBankBytes(int i) => GetBytes(i * ROMBanks.Length, ROMBanks.Length);
 
-	public Memory CreateMemory(ILoggerFactory loggerFactory, SerialIO serialIO, Timer timer, Video video, Keypad keypad) =>
+	public Memory CreateMemory(ILoggerFactory loggerFactory, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad) =>
 		CartridgeType switch
 		{
 			Type.ROM =>
-				new MemoryROM(loggerFactory, this, serialIO, timer, video, keypad),
+				new MemoryROM(loggerFactory, this, serialIO, timer, video, sound, keypad),
 			Type.ROM_MBC1 or
 			Type.ROM_MBC1_RAM or
 			Type.ROM_MBC1_RAM_BATTERY =>
-				new MemoryMBC1(loggerFactory, this, serialIO, timer, video, keypad),
+				new MemoryMBC1(loggerFactory, this, serialIO, timer, video, sound, keypad),
 			/*
 			TODO remaining cart types
 			ROM_MBC2 = 0x05,
@@ -129,14 +129,14 @@ public class Cartridge
 			Type.ROM_MBC3_RAM_BATTERY or
 			Type.ROM_MBC3_TIMER_BATTERY or
 			Type.ROM_MBC3_TIMER_RAM_BATTERY =>
-				new MemoryMBC3(loggerFactory, this, serialIO, timer, video, keypad),
+				new MemoryMBC3(loggerFactory, this, serialIO, timer, video, sound, keypad),
 			Type.ROM_MBC5 or
 			Type.ROM_MBC5_RAM or
 			Type.ROM_MBC5_RAM_BATTERY or
 			Type.ROM_MBC5_RUMBLE or
 			Type.ROM_MBC5_RUMBLE_SRAM or
 			Type.ROM_MBC5_RUMBLE_SRAM_BATTERY =>
-				new MemoryMBC5(loggerFactory, this, serialIO, timer, video, keypad),
+				new MemoryMBC5(loggerFactory, this, serialIO, timer, video, sound, keypad),
 			/*
 			TODO remaining cart types
 			POCKET_CAMERA = 0x1f,

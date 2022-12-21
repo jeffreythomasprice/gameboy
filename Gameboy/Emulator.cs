@@ -14,6 +14,7 @@ public class Emulator : IDisposable, ISteppable
 	private readonly SerialIO serialIO;
 	private readonly Timer timer;
 	private readonly Video video;
+	private readonly Sound sound;
 	private readonly Keypad keypad;
 	private readonly Memory memory;
 	private readonly CPU cpu;
@@ -27,6 +28,7 @@ public class Emulator : IDisposable, ISteppable
 	private Stopwatch serialIOStopwatch = new();
 	private Stopwatch timerStopwatch = new();
 	private Stopwatch videoStopwatch = new();
+	private Stopwatch soundStopwatch = new();
 	private Stopwatch keypadStopwatch = new();
 	private Stopwatch memoryStopwatch = new();
 	private Stopwatch cpuStopwatch = new();
@@ -40,8 +42,9 @@ public class Emulator : IDisposable, ISteppable
 		serialIO = new SerialIO(loggerFactory);
 		timer = new Timer(loggerFactory);
 		video = new Video(loggerFactory);
+		sound = new Sound(loggerFactory);
 		keypad = new Keypad(loggerFactory);
-		memory = cartridge.CreateMemory(loggerFactory, serialIO, timer, video, keypad);
+		memory = cartridge.CreateMemory(loggerFactory, serialIO, timer, video, sound, keypad);
 		cpu = new CPU(loggerFactory, memory);
 	}
 
@@ -59,6 +62,8 @@ public class Emulator : IDisposable, ISteppable
 	public SerialIO SerialIO => serialIO;
 
 	public Timer Timer => timer;
+
+	public Sound Sound => sound;
 
 	public Video Video => video;
 
@@ -95,6 +100,7 @@ public class Emulator : IDisposable, ISteppable
 		serialIO.Reset();
 		timer.Reset();
 		video.Reset();
+		sound.Reset();
 		keypad.Reset();
 		memory.Reset();
 		cpu.Reset();
@@ -103,6 +109,7 @@ public class Emulator : IDisposable, ISteppable
 		serialIOStopwatch.Reset();
 		timerStopwatch.Reset();
 		videoStopwatch.Reset();
+		soundStopwatch.Reset();
 		keypadStopwatch.Reset();
 		memoryStopwatch.Reset();
 		cpuStopwatch.Reset();
@@ -124,6 +131,10 @@ public class Emulator : IDisposable, ISteppable
 		videoStopwatch.Start();
 		Step(video);
 		videoStopwatch.Stop();
+
+		soundStopwatch.Start();
+		Step(sound);
+		soundStopwatch.Stop();
 
 		keypadStopwatch.Start();
 		Step(keypad);
@@ -169,6 +180,7 @@ public class Emulator : IDisposable, ISteppable
 					bg and window = {StopwatchString(video.BackgroundAndWindowStopwatch, videoStopwatch)}
 					sprites = {StopwatchString(video.SpritesStopwatch, videoStopwatch)}
 					emit scanline = {StopwatchString(video.EmitScanlineStopwatch, videoStopwatch)}
+				sound = {StopwatchString(soundStopwatch, totalStopwatch)}
 				keypad = {StopwatchString(keypadStopwatch, totalStopwatch)}
 				memory = {StopwatchString(memoryStopwatch, totalStopwatch)}
 				cpu = {StopwatchString(cpuStopwatch, totalStopwatch)}

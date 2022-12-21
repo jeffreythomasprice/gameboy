@@ -171,13 +171,6 @@ public class Video : ISteppable
 	private State state;
 	private UInt64 ticksRemainingInCurrentState;
 
-	// TODO JEFF don't need copies of video and sprite mem because it's actually local here?
-	// filled in during writes with copy of relevant part of video memory
-	private readonly byte[] combinedTileData = new byte[BothTileDataSectionsLengthInBytes];
-	private readonly byte[] backgroundTileIndices = new byte[BackgroundAndWindowTileIndicesLengthInBytes];
-	private readonly byte[] windowTileIndices = new byte[BackgroundAndWindowTileIndicesLengthInBytes];
-	private readonly byte[] spriteAttributeData = new byte[Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1];
-
 	// used during output of a scanline
 	private readonly Color[] outputPixels = new Color[ScreenWidth];
 	private readonly byte[] backgroundAndWindowColorIndex = new byte[ScreenWidth];
@@ -409,13 +402,12 @@ public class Video : ISteppable
 			void drawScanLine()
 			{
 				TileDataReadStopwatch.Start();
-				Array.Copy(videoData, 0, combinedTileData, 0, combinedTileData.Length);
 				/*
 				unsigned indices, values from 0 to 255
 				tile 0 is at 0x8000
 				tile 255 is at 0x8ff0
 				*/
-				var tileData1 = combinedTileData.AsSpan(0, OneTileDataSectionLengthInBytes);
+				var tileData1 = videoData.AsSpan(0, OneTileDataSectionLengthInBytes);
 				/*
 				signed indices, values from -128 to 127
 				tile -128 is at 0x8800
@@ -424,7 +416,7 @@ public class Video : ISteppable
 
 				the two tile data do overlap
 				*/
-				var tileData2 = combinedTileData.AsSpan(TileDataSegmentLength, OneTileDataSectionLengthInBytes);
+				var tileData2 = videoData.AsSpan(TileDataSegmentLength, OneTileDataSectionLengthInBytes);
 				TileDataReadStopwatch.Stop();
 
 				// LCDC flags
@@ -455,10 +447,9 @@ public class Video : ISteppable
 				BackgroundAndWindowStopwatch.Start();
 				if (backgroundAndWindowEnabled)
 				{
-					Array.Copy(videoData, backgroundTileIndicesAddress, backgroundTileIndices, 0, backgroundTileIndices.Length);
 					drawTileMap(
 						tileData: backgroundAndWindowTileData,
-						tileIndices: backgroundTileIndices,
+						tileIndices: videoData.AsSpan(backgroundTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes),
 						scrollX: RegisterSCX,
 						scrollY: RegisterSCY,
 						wrap: true,
@@ -466,11 +457,9 @@ public class Video : ISteppable
 					);
 					if (windowEnabled)
 					{
-						// TODO window addr might be same as background, in which case we should reuse the same data
-						Array.Copy(videoData, windowTileIndicesAddress, windowTileIndices, 0, windowTileIndices.Length);
 						drawTileMap(
 							tileData: backgroundAndWindowTileData,
-							tileIndices: windowTileIndices,
+							tileIndices: videoData.AsSpan(windowTileIndicesAddress, BackgroundAndWindowTileIndicesLengthInBytes),
 							scrollX: -(RegisterWX - 7),
 							scrollY: -RegisterWY,
 							wrap: false,
@@ -497,11 +486,10 @@ public class Video : ISteppable
 				if (spritesEnabled)
 				{
 					// get all the sprite attributes
-					Array.Copy(spriteAttributesData, 0, spriteAttributeData, 0, spriteAttributeData.Length);
 					var sprites = new List<Sprite>(capacity: MaxSprites);
 					for (var i = 0; i < MaxSprites; i++)
 					{
-						var sprite = MemoryMarshal.AsRef<Sprite>(spriteAttributeData.AsSpan(i * 4, 4));
+						var sprite = MemoryMarshal.AsRef<Sprite>(spriteAttributesData.AsSpan(i * 4, 4));
 						if (sprite.X > 0 && sprite.X < ScreenWidth + 8 && sprite.Y > 0 && RegisterLY >= sprite.AdjustedY && RegisterLY < sprite.AdjustedY + spriteHeight)
 						{
 							sprites.Add(sprite);
@@ -542,7 +530,7 @@ public class Video : ISteppable
 				ScanlineAvailable?.Invoke(RegisterLY, outputPixels);
 				EmitScanlineStopwatch.Stop();
 
-				void drawTileMap(Span<byte> tileData, byte[] tileIndices, int scrollX, int scrollY, bool wrap, Palette palette)
+				void drawTileMap(Span<byte> tileData, Span<byte> tileIndices, int scrollX, int scrollY, bool wrap, Palette palette)
 				{
 					// in pixels on the device display, so 0 to 143
 					var screenY = RegisterLY;

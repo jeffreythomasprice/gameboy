@@ -4,7 +4,7 @@ namespace Gameboy.Tests;
 
 public static class MemoryUtils
 {
-	public static MemoryROM CreateMemoryROM(ILoggerFactory loggerFactory, SerialIO serialIO, Timer timer, Video video, byte[] data)
+	public static MemoryROM CreateMemoryROM(ILoggerFactory loggerFactory, SerialIO serialIO, Timer timer, Video video, Keypad keypad, byte[] data)
 	{
 		const int maxLength = 1024 * 16;
 		if (data.Length > maxLength)
@@ -18,6 +18,6 @@ public static class MemoryUtils
 			data = copy;
 		}
 		using var stream = new MemoryStream(data);
-		return new MemoryROM(loggerFactory, new Cartridge(stream), serialIO, timer, video);
+		return new MemoryROM(loggerFactory, new Cartridge(stream), serialIO, timer, video, keypad);
 	}
 }

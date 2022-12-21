@@ -91,11 +91,10 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	private readonly SerialIO serialIO;
 	private readonly Timer timer;
 	private readonly Video video;
+	private readonly Keypad keypad;
 
 	private readonly byte[] internalRAM1 = new byte[INTERNAL_RAM_1_END - INTERNAL_RAM_1_START + 1];
 	private readonly byte[] internalRAM2 = new byte[INTERNAL_RAM_2_END - INTERNAL_RAM_2_START + 1];
-	// IO_P1
-	private byte keypadRegister;
 	// IO_IF
 	private byte interruptFlags;
 	private readonly byte[,] ramBanks;
@@ -108,13 +107,14 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	private UInt16 dmaDestinationIndex;
 	private int dmaCopiesRemaining;
 
-	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video)
+	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Keypad keypad)
 	{
 		logger = loggerFactory.CreateLogger<Memory>();
 		this.cartridge = cartridge;
 		this.serialIO = serialIO;
 		this.timer = timer;
 		this.video = video;
+		this.keypad = keypad;
 		ramBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
 		Reset();
 
@@ -122,6 +122,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		timer.Overflow += TimerOverflow;
 		video.VBlankInterrupt += VideoVBlankInterrupt;
 		video.LCDCInterrupt += VideoLCDCInterrupt;
+		keypad.KeypadRegisterDelta += KeypadRegisterDelta;
 	}
 
 	~Memory()
@@ -161,7 +162,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 			<= UNUSED_1_END => 0,
 
 			// keypad
-			IO_P1 => keypadRegister,
+			IO_P1 => keypad.RegisterP1,
 
 			// serial IO
 			IO_SB => serialIO.RegisterSB,
@@ -259,7 +260,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 
 			// keypad
 			case IO_P1:
-				keypadRegister = value;
+				keypad.RegisterP1 = value;
 				break;
 
 			// serial IO
@@ -395,7 +396,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	public virtual void Reset()
 	{
 		// keypad
-		keypadRegister = 0x00;
+		// IO_P1
 
 		// serial IO
 		// IO_SB
@@ -517,6 +518,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 			timer.Overflow -= TimerOverflow;
 			video.VBlankInterrupt -= VideoVBlankInterrupt;
 			video.LCDCInterrupt -= VideoLCDCInterrupt;
+			keypad.KeypadRegisterDelta -= KeypadRegisterDelta;
 		}
 	}
 
@@ -538,5 +540,10 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	private void VideoLCDCInterrupt()
 	{
 		interruptFlags |= IF_MASK_LCDC;
+	}
+
+	private void KeypadRegisterDelta(byte oldValue, byte newValue)
+	{
+		interruptFlags |= IF_MASK_KEYPAD;
 	}
 }

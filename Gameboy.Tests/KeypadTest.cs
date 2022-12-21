@@ -6,8 +6,7 @@ public class KeypadTest
 	public void StateTracking()
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		var memory = new SimpleMemory();
-		var keypad = new Keypad(loggerFactory, memory);
+		var keypad = new Keypad(loggerFactory);
 
 		Assert.False(keypad.IsPressed(Key.Left));
 		Assert.False(keypad.IsPressed(Key.Right));
@@ -50,17 +49,16 @@ public class KeypadTest
 	public void MemoryRegister(Key[] keysPressed, byte input, byte expected)
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		var memory = new SimpleMemory();
-		var keypad = new Keypad(loggerFactory, memory);
+		var keypad = new Keypad(loggerFactory);
 
 		keypad.Reset();
 		foreach (var key in keysPressed)
 		{
 			keypad.SetPressed(key, true);
 		}
-		memory.WriteUInt8(Memory.IO_P1, input);
+		keypad.RegisterP1 = input;
 		keypad.Step();
-		Assert.Equal(expected, memory.ReadUInt8(Memory.IO_P1));
+		Assert.Equal(expected, keypad.RegisterP1);
 	}
 
 	public static IEnumerable<object?[]> MemoryRegisterData
@@ -237,8 +235,8 @@ public class KeypadTest
 	public void Interrupt(Key[] keysPressed, byte input, bool expectedInterruptToFire)
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
-		var memory = new SimpleMemory();
-		var keypad = new Keypad(loggerFactory, memory);
+		var keypad = new Keypad(loggerFactory);
+		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), new Video(loggerFactory), keypad, new byte[0]);
 		var cpu = new CPU(loggerFactory, memory);
 
 		// enable interrupts

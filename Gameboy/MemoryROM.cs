@@ -4,7 +4,7 @@ namespace Gameboy;
 
 public class MemoryROM : Memory
 {
-	public MemoryROM(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video) : base(loggerFactory, cartridge, serialIO, timer, video) { }
+	public MemoryROM(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Keypad keypad) : base(loggerFactory, cartridge, serialIO, timer, video, keypad) { }
 
 	protected override int ActiveLowROMBank =>
 		0;

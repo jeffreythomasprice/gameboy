@@ -1,5 +1,3 @@
-// TODO JEFF move register P1 out of memory into here
-
 using Microsoft.Extensions.Logging;
 
 using static Gameboy.NumberUtils;
@@ -13,17 +11,16 @@ public class Keypad : ISteppable
 	public event KeypadRegisterDeltaDelegate? KeypadRegisterDelta;
 
 	private readonly ILogger logger;
-	private readonly IMemory memory;
 
 	private UInt64 clock;
+	private byte registerP1;
 	private Dictionary<Key, bool> state = new();
 	private byte arrowKeyMask;
 	private byte otherKeyMask;
 
-	public Keypad(ILoggerFactory loggerFactory, IMemory memory)
+	public Keypad(ILoggerFactory loggerFactory)
 	{
 		logger = loggerFactory.CreateLogger<Keypad>();
-		this.memory = memory;
 	}
 
 	public UInt64 Clock
@@ -35,6 +32,7 @@ public class Keypad : ISteppable
 	public void Reset()
 	{
 		clock = 0;
+		registerP1 = 0;
 		ClearKeys();
 	}
 
@@ -56,7 +54,7 @@ public class Keypad : ISteppable
 		P14 reset and P15 set = only arrow keys
 		P14 set and P15 reset = only the other keys
 		*/
-		var oldValue = memory.ReadUInt8(Memory.IO_P1);
+		var oldValue = registerP1;
 		var p14 = (oldValue & 0b0001_0000) != 0;
 		var p15 = (oldValue & 0b0010_0000) != 0;
 		byte newValue = (byte)(0b0000_1111 | (oldValue & 0b0011_0000));
@@ -68,7 +66,7 @@ public class Keypad : ISteppable
 		{
 			newValue &= otherKeyMask;
 		}
-		memory.WriteUInt8(Memory.IO_P1, newValue);
+		registerP1 = newValue;
 
 		/*
 		interrupt occurs whenever any of P10 through P13 go from high to low
@@ -80,9 +78,13 @@ public class Keypad : ISteppable
 		{
 			logger.LogTrace($"keypad register delta {ToBinary(oldValue)} -> {ToBinary(newValue)}");
 			KeypadRegisterDelta?.Invoke(oldValue, newValue);
-			// set interrupt flag
-			memory.WriteUInt8(Memory.IO_IF, (byte)(memory.ReadUInt8(Memory.IO_IF) | Memory.IF_MASK_KEYPAD));
 		}
+	}
+
+	public byte RegisterP1
+	{
+		get => registerP1;
+		set => registerP1 = value;
 	}
 
 	public void ClearKeys()

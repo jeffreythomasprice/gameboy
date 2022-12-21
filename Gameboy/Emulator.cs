@@ -121,27 +121,27 @@ public class Emulator : IDisposable, ISteppable
 		totalStopwatch.Start();
 
 		serialIOStopwatch.Start();
-		Step(serialIO);
+		serialIO.StepTo(cpu.Clock);
 		serialIOStopwatch.Stop();
 
 		timerStopwatch.Start();
-		Step(timer);
+		timer.StepTo(cpu.Clock);
 		timerStopwatch.Stop();
 
 		videoStopwatch.Start();
-		Step(video);
+		video.StepTo(cpu.Clock);
 		videoStopwatch.Stop();
 
 		soundStopwatch.Start();
-		Step(sound);
+		sound.StepTo(cpu.Clock);
 		soundStopwatch.Stop();
 
 		keypadStopwatch.Start();
-		Step(keypad);
+		keypad.StepTo(cpu.Clock);
 		keypadStopwatch.Stop();
 
 		memoryStopwatch.Start();
-		Step(memory);
+		memory.StepTo(cpu.Clock);
 		memoryStopwatch.Stop();
 
 		cpuStopwatch.Start();
@@ -252,14 +252,6 @@ public class Emulator : IDisposable, ISteppable
 		{
 			isDisposed = true;
 			Stop();
-		}
-	}
-
-	private void Step(ISteppable s)
-	{
-		while (s.Clock <= cpu.Clock)
-		{
-			s.Step();
 		}
 	}
 }

@@ -32,7 +32,8 @@ public class TimerTest
 			for (var overflowCounter = 0; overflowCounter < numberOfIncrementsToOverflow - 1; overflowCounter++)
 			{
 				// e.g. if TAC = 00 that means 1024 clock cycles, so 1023 cycles should go by before incrementing
-				for (var incrementCounter = 0; incrementCounter < numberOfStepsPerIncrement - 1; incrementCounter++)
+				// divide by 4 because timer advances in units of 4
+				for (var incrementCounter = 0; incrementCounter < numberOfStepsPerIncrement / 4 - 1; incrementCounter++)
 				{
 					before = memory.ReadUInt8(Memory.IO_TIMA);
 					timer.Step();
@@ -46,7 +47,8 @@ public class TimerTest
 			}
 
 			// one more increment, so another round through the increment counter
-			for (var incrementCounter = 0; incrementCounter < numberOfStepsPerIncrement - 1; incrementCounter++)
+			// divide by 4 because timer advances in units of 4
+			for (var incrementCounter = 0; incrementCounter < numberOfStepsPerIncrement / 4 - 1; incrementCounter++)
 			{
 				before = memory.ReadUInt8(Memory.IO_TIMA);
 				timer.Step();
@@ -186,22 +188,16 @@ public class TimerTest
 		timer.RegisterTMA = 0;
 		timer.RegisterTIMA = 0;
 
-		for (var i = 0; i < 512; i++)
-		{
-			timer.Step();
-			Assert.False(overflowed);
-		}
+		timer.StepTo(timer.Clock + 512);
+		Assert.False(overflowed);
 
 		// simulate a write to the div register, normally this would be triggered by an event on the memory
 		timer.RegisterDIV = 0x42;
 		Assert.Equal(0, timer.RegisterDIV);
 
-		// advance until one setp remaining until overflow
-		for (var i = 0; i < 1024 * 256 - 1; i++)
-		{
-			timer.Step();
-			Assert.False(overflowed);
-		}
+		// advance until one step remaining until overflow
+		timer.StepTo(timer.Clock + 1024 * 256 - 4);
+		Assert.False(overflowed);
 
 		// and then one more overflows
 		timer.Step();
@@ -224,29 +220,20 @@ public class TimerTest
 		timer.RegisterTMA = 0;
 		timer.RegisterTIMA = 0;
 
-		for (var i = 0; i < 1024 * 64; i++)
-		{
-			timer.Step();
-			Assert.False(overflowed);
-		}
+		timer.StepTo(timer.Clock + 1024 * 64);
+		Assert.False(overflowed);
 
 		// TAC, disabled, increment every 1024 ticks
 		timer.RegisterTAC = 0b0000_0000;
 
-		for (var i = 0; i < 1024 * 256 * 2; i++)
-		{
-			timer.Step();
-			Assert.False(overflowed);
-		}
+		timer.StepTo(timer.Clock + 1024 * 256 * 2);
+		Assert.False(overflowed);
 
 		// TAC, enabled, increment every 1024 ticks
 		timer.RegisterTAC = 0b0000_0100;
 
-		for (var i = 0; i < 1024 * 192 - 1; i++)
-		{
-			timer.Step();
-			Assert.False(overflowed);
-		}
+		timer.StepTo(timer.Clock + 1024 * 192 - 4);
+		Assert.False(overflowed);
 
 		// and then one more overflows
 		timer.Step();

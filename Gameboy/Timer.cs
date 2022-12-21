@@ -44,8 +44,10 @@ public class Timer : ISteppable
 
 	public void Step()
 	{
-		// TODO JEFF can we cheat time and do 4 clocks at a time?
-		Clock++;
+		// advancing multiple clock ticks at once is fine because the mask is never looking at the low few bits
+		// we still detect overflow in the higher bits after adding a full instruction cycle at a time
+		const int clocksToAdd = 4;
+		Clock += clocksToAdd;
 
 		/*
 		note that reference material seems fond of using Hz as a timing instead of CPU clocks, but different documents seem to disagree
@@ -60,7 +62,7 @@ public class Timer : ISteppable
 		*/
 		var divHigh = RegisterDIV;
 		var div16Before = (UInt16)((divHigh << 8) | divLow);
-		var div16After = (UInt16)(div16Before + 1);
+		var div16After = (UInt16)(div16Before + clocksToAdd);
 		// don't use the accessor, we don't want to trigger the div clear behavior
 		registerDIV = (byte)((div16After & 0xff00) >> 8);
 		divLow = (byte)(div16After & 0xff);

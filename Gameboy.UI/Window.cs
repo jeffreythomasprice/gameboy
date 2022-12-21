@@ -278,7 +278,7 @@ public class Window : GameWindow
 		buffer.MaximumY = Math.Max(buffer.MaximumY, y);
 	}
 
-	private void VSync()
+	private new void VSync()
 	{
 		// swap the buffers
 		copyToTextureBuffer = Interlocked.Exchange<ScanlineUpdateBuffer>(ref incomingScanlineBuffer, copyToTextureBuffer);

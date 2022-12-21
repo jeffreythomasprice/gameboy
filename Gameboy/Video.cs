@@ -83,23 +83,21 @@ public class Video : ISteppable
 
 	private struct ColorPalette
 	{
-		private byte registerValue;
+		private byte[] values;
 
 		public ColorPalette(byte registerValue)
 		{
-			this.registerValue = registerValue;
+			values = new byte[]
+			{
+				(byte)((registerValue & 0b0000_0011) >> 0),
+				(byte)((registerValue & 0b0000_1100) >> 2),
+				(byte)((registerValue & 0b0011_0000) >> 4),
+				(byte)((registerValue & 0b1100_0000) >> 6),
+			};
 		}
 
-		// TODO JEFF unpack palettes ahead of time
 		public byte this[int index] =>
-			index switch
-			{
-				0 => (byte)((registerValue & 0b0000_0011) >> 0),
-				1 => (byte)((registerValue & 0b0000_1100) >> 2),
-				2 => (byte)((registerValue & 0b0011_0000) >> 4),
-				3 => (byte)((registerValue & 0b1100_0000) >> 6),
-				_ => throw new ArgumentOutOfRangeException(nameof(index)),
-			};
+			values[index];
 	}
 
 	public const int ScreenWidth = 160;

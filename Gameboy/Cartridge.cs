@@ -52,8 +52,18 @@ public class Cartridge
 
 	public ReadOnlyMemory<byte> GetBytes(Range range) => data.AsMemory(range);
 
-	// TODO cut title off when it looks like junk after the ascii characters
-	public string Title => Encoding.ASCII.GetString(GetBytes(new Range(0x0134, 0x0142 + 1)).Span);
+	public string Title
+	{
+		get
+		{
+			const int start = 0x0134;
+			const int end = 0x0142;
+			var bytes = GetBytes(new Range(start, end + 1)).Span;
+			var last = bytes.LastIndexOfAnyExcept((byte)0);
+			bytes = GetBytes(new Range(start, start + last + 1)).Span;
+			return Encoding.ASCII.GetString(bytes);
+		}
+	}
 
 	public bool IsColorGameboy => data[0x0143] == 0x80;
 
@@ -115,7 +125,6 @@ public class Cartridge
 			Type.ROM_MBC1_RAM_BATTERY =>
 				new MemoryMBC1(loggerFactory, this, serialIO, timer, video, sound, keypad),
 			/*
-			TODO remaining cart types
 			ROM_MBC2 = 0x05,
 			ROM_MBC2_BATTERY = 0x06,
 			ROM_RAM = 0x08,
@@ -138,7 +147,6 @@ public class Cartridge
 			Type.ROM_MBC5_RUMBLE_SRAM_BATTERY =>
 				new MemoryMBC5(loggerFactory, this, serialIO, timer, video, sound, keypad),
 			/*
-			TODO remaining cart types
 			POCKET_CAMERA = 0x1f,
 			BANDAI_TAMA5 = 0xfd,
 			HUDSON_HUC_3 = 0xfe,

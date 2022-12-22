@@ -170,9 +170,10 @@ public class Emulator : IDisposable, ISteppable
 				cpuState = "active";
 			}
 
+			var ratio = (TimeUtils.ToTimeSpan(cpu.Clock) / totalStopwatch.Elapsed * 100).ToString("0.00") + "%";
 			logger.LogDebug($"""
 			CPU state = {cpuState}
-			total time = {totalStopwatch.Elapsed} ({cpu.Clock} clock ticks)
+			total time = {totalStopwatch.Elapsed} ({cpu.Clock} clock ticks) ({ratio} real time)
 				serialIO = {StopwatchString(serialIOStopwatch, totalStopwatch)}
 				timer = {StopwatchString(timerStopwatch, totalStopwatch)}
 				video = {StopwatchString(videoStopwatch, totalStopwatch)}

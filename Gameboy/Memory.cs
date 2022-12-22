@@ -620,7 +620,14 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	/// </summary>
 	protected void ActiveRAMBankChanged(int newValue)
 	{
-		activeRAMBank = newValue % ramBanks.Length;
+		if (ramBanks.Length == 0)
+		{
+			activeRAMBank = 0;
+		}
+		else
+		{
+			activeRAMBank = newValue % ramBanks.Length;
+		}
 	}
 
 	/// <summary>

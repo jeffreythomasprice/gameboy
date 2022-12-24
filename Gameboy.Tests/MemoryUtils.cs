@@ -6,7 +6,7 @@ public static class MemoryUtils
 {
 	public static MemoryROM CreateMemoryROM(ILoggerFactory loggerFactory, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad, byte[] data)
 	{
-		const int maxLength = 1024 * 16;
+		const int maxLength = 1024 * 32;
 		if (data.Length > maxLength)
 		{
 			throw new ArgumentException($"max ROM size {maxLength}, {data.Length} provided");

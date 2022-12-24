@@ -45,7 +45,36 @@ public class Emulator : IDisposable, ISteppable
 		sound = new Sound(loggerFactory);
 		keypad = new Keypad(loggerFactory);
 		memory = cartridge.CreateMemory(loggerFactory, serialIO, timer, video, sound, keypad);
-		cpu = new CPU(loggerFactory, memory);
+		cpu = new CPU(
+			loggerFactory,
+			memory,
+			() =>
+			{
+				serialIOStopwatch.Start();
+				serialIO.StepTo(cpu!.Clock);
+				serialIOStopwatch.Stop();
+
+				timerStopwatch.Start();
+				timer.StepTo(cpu.Clock);
+				timerStopwatch.Stop();
+
+				videoStopwatch.Start();
+				video.StepTo(cpu.Clock);
+				videoStopwatch.Stop();
+
+				soundStopwatch.Start();
+				sound.StepTo(cpu.Clock);
+				soundStopwatch.Stop();
+
+				keypadStopwatch.Start();
+				keypad.StepTo(cpu.Clock);
+				keypadStopwatch.Stop();
+
+				memoryStopwatch.Start();
+				memory.StepTo(cpu.Clock);
+				memoryStopwatch.Stop();
+			}
+		);
 	}
 
 	~Emulator()
@@ -120,30 +149,6 @@ public class Emulator : IDisposable, ISteppable
 	{
 		totalStopwatch.Start();
 
-		serialIOStopwatch.Start();
-		serialIO.StepTo(cpu.Clock);
-		serialIOStopwatch.Stop();
-
-		timerStopwatch.Start();
-		timer.StepTo(cpu.Clock);
-		timerStopwatch.Stop();
-
-		videoStopwatch.Start();
-		video.StepTo(cpu.Clock);
-		videoStopwatch.Stop();
-
-		soundStopwatch.Start();
-		sound.StepTo(cpu.Clock);
-		soundStopwatch.Stop();
-
-		keypadStopwatch.Start();
-		keypad.StepTo(cpu.Clock);
-		keypadStopwatch.Stop();
-
-		memoryStopwatch.Start();
-		memory.StepTo(cpu.Clock);
-		memoryStopwatch.Stop();
-
 		cpuStopwatch.Start();
 		cpu.Step();
 		cpuStopwatch.Stop();
@@ -184,13 +189,18 @@ public class Emulator : IDisposable, ISteppable
 				sound = {StopwatchString(soundStopwatch, totalStopwatch)}
 				keypad = {StopwatchString(keypadStopwatch, totalStopwatch)}
 				memory = {StopwatchString(memoryStopwatch, totalStopwatch)}
-				cpu = {StopwatchString(cpuStopwatch, totalStopwatch)}
+				cpu = {StopwatchString(cpuStopwatch, totalStopwatch, serialIOStopwatch, timerStopwatch, videoStopwatch, soundStopwatch, keypadStopwatch, memoryStopwatch)}
 			""");
 
-			string StopwatchString(Stopwatch s1, Stopwatch s2)
+			string StopwatchString(Stopwatch s1, Stopwatch s2, params Stopwatch[] minus)
 			{
-				var percentage = ((double)s1.ElapsedTicks / (double)s2.ElapsedTicks * 100.0).ToString("N2");
-				return $"{s1.Elapsed} ({percentage}%)";
+				var timeSpan1 = s1.Elapsed;
+				foreach (var other in minus)
+				{
+					timeSpan1 -= other.Elapsed;
+				}
+				var percentage = (timeSpan1.TotalNanoseconds / s2.Elapsed.TotalNanoseconds * 100.0).ToString("N2");
+				return $"{timeSpan1} ({percentage}%)";
 			}
 		}
 	}
@@ -210,6 +220,7 @@ public class Emulator : IDisposable, ISteppable
 			{
 				while (!threadShouldExit)
 				{
+
 					Step();
 					// TODO wait for configurable amounts of time if we want a speed other than "fastest possible"
 					Thread.Yield();

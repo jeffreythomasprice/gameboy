@@ -18,7 +18,10 @@ public class CPUTest
 	[Fact]
 	public void Registers()
 	{
-		var cpu = new CPU(LoggerUtils.CreateLoggerFactory(), new SimpleMemory());
+		var cpu = new CPU(LoggerUtils.CreateLoggerFactory(), new SimpleMemory(), () =>
+		{
+			// intentionally left blank
+		});
 
 		cpu.RegisterA = 1;
 		cpu.RegisterB = 2;
@@ -7741,8 +7744,14 @@ public class CPUTest
 			// NOP,
 			0x00,
 		});
-		var actual = new CPUBuilder(loggerFactory, memory).CPU;
-		var expected = new CPUBuilder(loggerFactory, memory).Copy(actual);
+		var actual = new CPUBuilder(loggerFactory, memory, () =>
+		{
+			// intentionally left blank
+		}).CPU;
+		var expected = new CPUBuilder(loggerFactory, memory, () =>
+		{
+			// intentionally left blank
+		}).Copy(actual);
 		AssertEqual(expected.CPU, actual);
 
 		// should be about to execute DI
@@ -9614,8 +9623,14 @@ public class CPUTest
 		{
 			actualMemoryValue.WriteTo(memory);
 		}
-		var actual = actualBuilder(new CPUBuilder(loggerFactory, memory)).CPU;
-		var expected = expectedBuilder(new CPUBuilder(loggerFactory, memory).Copy(actual)).CPU;
+		var actual = actualBuilder(new CPUBuilder(loggerFactory, memory, () =>
+		{
+			// intentionally left blank
+		})).CPU;
+		var expected = expectedBuilder(new CPUBuilder(loggerFactory, memory, () =>
+		{
+			// intentionally left blank
+		}).Copy(actual)).CPU;
 		actual.Step();
 		AssertEqual(expected, actual);
 		foreach (var expectedMemoryValue in expectedMemory)

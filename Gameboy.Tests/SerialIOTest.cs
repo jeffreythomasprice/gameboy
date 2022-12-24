@@ -103,7 +103,10 @@ public class SerialIOTest
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var serialIO = new SerialIO(loggerFactory);
 		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, serialIO, new Timer(loggerFactory), new Video(loggerFactory), new Sound(loggerFactory), new Keypad(loggerFactory), new byte[0]);
-		var cpu = new CPU(loggerFactory, memory);
+		var cpu = new CPU(loggerFactory, memory, () =>
+		{
+			// intentionally left blank
+		});
 		var interruptTriggered = false;
 		serialIO.DataAvailable += (value) =>
 		{

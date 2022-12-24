@@ -6,9 +6,9 @@ public class CPUBuilder
 {
 	private CPU cpu;
 
-	public CPUBuilder(ILoggerFactory loggerFactory, IMemory memory)
+	public CPUBuilder(ILoggerFactory loggerFactory, IMemory memory, Action inbetweenStep)
 	{
-		cpu = new CPU(loggerFactory, memory);
+		cpu = new CPU(loggerFactory, memory, inbetweenStep);
 	}
 
 	public CPU CPU => cpu;

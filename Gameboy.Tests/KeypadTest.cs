@@ -237,7 +237,10 @@ public class KeypadTest
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var keypad = new Keypad(loggerFactory);
 		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), new Video(loggerFactory), new Sound(loggerFactory), keypad, new byte[0]);
-		var cpu = new CPU(loggerFactory, memory);
+		var cpu = new CPU(loggerFactory, memory, () =>
+		{
+			// intentionally left blank
+		});
 
 		// enable interrupts
 		memory.WriteUInt8(Memory.IO_IE, Memory.IF_MASK_KEYPAD);

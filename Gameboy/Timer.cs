@@ -87,9 +87,11 @@ public class Timer : ISteppable
 #if DEBUG
 					logger.LogTrace("timer overflow");
 #endif
+					logger.LogInformation($"TODO JEFF timer overflow");
 					timaAfter = RegisterTMA;
 					Overflow?.Invoke();
 				}
+				logger.LogInformation($"TODO JEFF setting tima to new value = {NumberUtils.ToHex(timaAfter)}");
 				RegisterTIMA = timaAfter;
 			}
 		}
@@ -108,13 +110,21 @@ public class Timer : ISteppable
 	public byte RegisterTIMA
 	{
 		get => registerTIMA;
-		set => registerTIMA = value;
+		set
+		{
+			logger.LogInformation($"TODO JEFF TIMA = {NumberUtils.ToHex(value)}");
+			registerTIMA = value;
+		}
 	}
 
 	public byte RegisterTMA
 	{
 		get => registerTMA;
-		set => registerTMA = value;
+		set
+		{
+			logger.LogInformation($"TODO JEFF TMA = {NumberUtils.ToHex(value)}");
+			registerTMA = value;
+		}
 	}
 
 	public byte RegisterTAC
@@ -122,6 +132,7 @@ public class Timer : ISteppable
 		get => registerTAC;
 		set
 		{
+			logger.LogInformation($"TODO JEFF TAC = {NumberUtils.ToBinary(value)}");
 			registerTAC = value;
 			tacMask = (RegisterTAC & 0b0000_0011) switch
 			{

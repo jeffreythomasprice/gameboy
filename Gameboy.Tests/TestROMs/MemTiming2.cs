@@ -27,14 +27,8 @@ public class MemTiming2
 			"gb-test-roms/mem_timing-2/rom_singles/01-read_timing.gb",
 			TimeSpan.FromSeconds(1),
 			TimeSpan.FromSeconds(2),
-			"""
-			instr_timing
-
-
-			Passed
-			
-			""",
-			"TODO hash goes here"
+			"",
+			"84c85b363412d95be66b419a122a2d985519df06"
 		);
 	}
 
@@ -45,14 +39,8 @@ public class MemTiming2
 			"gb-test-roms/mem_timing-2/rom_singles/02-write_timing.gb",
 			TimeSpan.FromSeconds(1),
 			TimeSpan.FromSeconds(2),
-			"""
-			instr_timing
-
-
-			Passed
-			
-			""",
-			"TODO hash goes here"
+			"",
+			"2bb3eb6f02a2ae9c37decf905cec40793fac5d38"
 		);
 	}
 

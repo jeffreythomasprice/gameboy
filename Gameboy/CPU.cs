@@ -5,9 +5,6 @@ using static NumberUtils;
 
 public class CPU : ISteppable
 {
-	// TODO JEFF delete me
-	private UInt64 lastClockForF0;
-
 	private enum Register8
 	{
 		A,
@@ -398,7 +395,6 @@ public class CPU : ISteppable
 
 	private void ExecuteInstruction()
 	{
-		// TODO JEFF where do steps go?
 		var instruction = ReadNextPCUInt8();
 		AdvanceTimeOneCPUCycle();
 		switch (instruction)
@@ -1765,35 +1761,6 @@ public class CPU : ISteppable
 				break;
 			case 0xf0:
 				{
-					// TODO JEFF putting the advance before reading from memory fixes one test, but breaks another
-					// dotnet run --configuration Release --project Gameboy.UI gb-test-roms/instr_timing/instr_timing.gb
-					// dotnet run --configuration Release --project Gameboy.UI gb-test-roms/mem_timing-2/rom_singles/01-read_timing.gb
-
-					// https://www.reddit.com/r/EmuDev/comments/j4xn0s/comment/g7o8muc/?utm_source=share&utm_medium=web2x&context=3
-
-					// 					// passes instr_timing
-					// 					// fails mem_timing-2/01-read_timing
-					// 					var offset = ReadNextPCUInt8();
-					// #if DEBUG
-					// 					logger.LogTrace($"LDH A, ({ToHex(0xff00)}+{ToHex(offset)})");
-					// #endif
-					// 					AdvanceTimeOneCPUCycle();
-					// 					var value = memory.ReadUInt8((UInt16)(0xff00 + offset));
-					// 					AdvanceTimeOneCPUCycle();
-					// 					RegisterA = value;
-
-					// 					// hangs instr_timing
-					// 					// passes mem_timing-2/01-read_timing
-					// 					AdvanceTimeOneCPUCycle();
-					// 					var offset = ReadNextPCUInt8();
-					// #if DEBUG
-					// 					logger.LogTrace($"LDH A, ({ToHex(0xff00)}+{ToHex(offset)})");
-					// #endif
-					// 					AdvanceTimeOneCPUCycle();
-					// 					var value = memory.ReadUInt8((UInt16)(0xff00 + offset));
-					// 					RegisterA = value;
-
-					// AdvanceTimeOneCPUCycle();
 					var offset = ReadNextPCUInt8();
 #if DEBUG
 					logger.LogTrace($"LDH A, ({ToHex(0xff00)}+{ToHex(offset)})");
@@ -1802,8 +1769,6 @@ public class CPU : ISteppable
 					AdvanceTimeOneCPUCycle();
 					var value = memory.ReadUInt8((UInt16)(0xff00 + offset));
 					RegisterA = value;
-					logger.LogInformation($"TODO JEFF LDH A, ({ToHex(0xff00)}+{ToHex(offset)})   --   value = {ToHex(value)}, clock = {Clock - lastClockForF0}");
-					lastClockForF0 = Clock;
 				}
 				break;
 

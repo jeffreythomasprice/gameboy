@@ -4,7 +4,7 @@ namespace Gameboy;
 
 public class MemoryROM : Memory
 {
-	public MemoryROM(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad) : base(loggerFactory, cartridge, serialIO, timer, video, sound, keypad) { }
+	public MemoryROM(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad, InterruptRegisters interruptRegisters) : base(loggerFactory, cartridge, serialIO, timer, video, sound, keypad, interruptRegisters) { }
 
 	public override void Reset()
 	{

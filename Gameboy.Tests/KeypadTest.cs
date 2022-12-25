@@ -236,14 +236,14 @@ public class KeypadTest
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var keypad = new Keypad(loggerFactory);
-		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), new Video(loggerFactory), new Sound(loggerFactory), keypad, new byte[0]);
-		var cpu = new CPU(loggerFactory, memory, () =>
+		var (memory, interruptRegisters) = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), new Video(loggerFactory), new Sound(loggerFactory), keypad, new byte[0]);
+		var cpu = new CPU(loggerFactory, memory, interruptRegisters, () =>
 		{
 			// intentionally left blank
 		});
 
 		// enable interrupts
-		memory.WriteUInt8(Memory.IO_IE, Memory.IF_MASK_KEYPAD);
+		memory.WriteUInt8(Memory.IO_IE, InterruptRegisters.IF_MASK_KEYPAD);
 
 		var interruptFired = false;
 		keypad.KeypadRegisterDelta += (oldValue, newValue) =>
@@ -262,7 +262,7 @@ public class KeypadTest
 		if (expectedInterruptToFire)
 		{
 			// flag has been set
-			Assert.Equal(Memory.IF_MASK_KEYPAD, memory.ReadUInt8(Memory.IO_IF));
+			Assert.Equal(InterruptRegisters.IF_MASK_KEYPAD, memory.ReadUInt8(Memory.IO_IF));
 		}
 		else
 		{

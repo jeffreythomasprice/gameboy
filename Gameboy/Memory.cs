@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Gameboy;
 
-public abstract class Memory : IDisposable, IMemory, ISteppable
+public abstract class Memory : IMemory, ISteppable
 {
 	public const UInt16 ROM_BANK_1_START = 0x0000;
 	public const UInt16 ROM_BANK_1_END = ROM_BANK_2_START - 1;
@@ -78,14 +78,6 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	public const UInt16 IO_WY = 0xff4a;
 	public const UInt16 IO_WX = 0xff4b;
 
-	public const byte IF_MASK_VBLANK = 0b0000_0001;
-	public const byte IF_MASK_LCDC = 0b0000_0010;
-	public const byte IF_MASK_TIMER = 0b0000_0100;
-	public const byte IF_MASK_SERIAL = 0b0000_1000;
-	public const byte IF_MASK_KEYPAD = 0b0001_0000;
-
-	private bool isDisposed = false;
-
 	private readonly ILogger logger;
 	private readonly Cartridge cartridge;
 	private readonly SerialIO serialIO;
@@ -93,6 +85,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	private readonly Video video;
 	private readonly Sound sound;
 	private readonly Keypad keypad;
+	private readonly InterruptRegisters interruptRegisters;
 
 	private int activeLowROMBank;
 	private int activeHighROMBank;
@@ -102,11 +95,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	private readonly ReadOnlyMemory<byte>[] romBanks;
 	private readonly byte[] internalRAM1 = new byte[INTERNAL_RAM_1_END - INTERNAL_RAM_1_START + 1];
 	private readonly byte[] internalRAM2 = new byte[INTERNAL_RAM_2_END - INTERNAL_RAM_2_START + 1];
-	// IO_IF
-	private byte interruptFlags;
 	private readonly byte[,] ramBanks;
-	// IO_IE
-	private byte interruptsEnabled;
 
 	private UInt64 clock;
 
@@ -114,7 +103,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	private UInt16 dmaDestinationIndex;
 	private int dmaCopiesRemaining;
 
-	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad)
+	public Memory(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad, InterruptRegisters interruptRegisters)
 	{
 		logger = loggerFactory.CreateLogger<Memory>();
 		this.cartridge = cartridge;
@@ -123,6 +112,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		this.video = video;
 		this.sound = sound;
 		this.keypad = keypad;
+		this.interruptRegisters = interruptRegisters;
 
 		activeLowROMBank = 0;
 		activeHighROMBank = 0;
@@ -137,23 +127,6 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		ramBanks = new byte[cartridge.RAMBanks.Count, cartridge.RAMBanks.Length];
 
 		Reset();
-
-		serialIO.DataAvailable += SerialIODataAvailable;
-		timer.Overflow += TimerOverflow;
-		video.VBlankInterrupt += VideoVBlankInterrupt;
-		video.LCDCInterrupt += VideoLCDCInterrupt;
-		keypad.KeypadRegisterDelta += KeypadRegisterDelta;
-	}
-
-	~Memory()
-	{
-		Dispose(false);
-	}
-
-	public void Dispose()
-	{
-		Dispose(true);
-		GC.SuppressFinalize(true);
 	}
 
 	public UInt64 Clock
@@ -194,7 +167,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 			IO_TMA => timer.RegisterTMA,
 			IO_TAC => timer.RegisterTAC,
 
-			IO_IF => interruptFlags,
+			IO_IF => interruptRegisters.InterruptFlags,
 
 			// sound
 			IO_NR10 => sound.RegisterNR10,
@@ -253,7 +226,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 
 			<= INTERNAL_RAM_2_END => internalRAM2[address - INTERNAL_RAM_2_START],
 
-			IO_IE => interruptsEnabled,
+			IO_IE => interruptRegisters.InterruptsEnabled,
 		};
 	}
 
@@ -320,7 +293,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 				break;
 
 			case IO_IF:
-				interruptFlags = value;
+				interruptRegisters.InterruptFlags = value;
 				break;
 
 			// sound
@@ -494,7 +467,7 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 				break;
 
 			case IO_IE:
-				interruptsEnabled = value;
+				interruptRegisters.InterruptsEnabled = value;
 				break;
 		};
 	}
@@ -530,7 +503,6 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		// IO_TAC
 
 		// IO_IF
-		interruptFlags = 0x00;
 
 		// sound
 		// IO_NR10
@@ -571,7 +543,6 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 		// IO_WX
 
 		// IO_IE
-		interruptsEnabled = 0x00;
 
 		clock = 0;
 
@@ -644,42 +615,4 @@ public abstract class Memory : IDisposable, IMemory, ISteppable
 	/// <param name="address">guaranteed to be in the range 0x0000 to 0x7fff, inclusive</param>
 	/// <param name="value"></param>
 	protected abstract void ROMWrite(UInt16 address, byte value);
-
-	private void Dispose(bool disposing)
-	{
-		if (!isDisposed)
-		{
-			isDisposed = true;
-			serialIO.DataAvailable -= SerialIODataAvailable;
-			timer.Overflow -= TimerOverflow;
-			video.VBlankInterrupt -= VideoVBlankInterrupt;
-			video.LCDCInterrupt -= VideoLCDCInterrupt;
-			keypad.KeypadRegisterDelta -= KeypadRegisterDelta;
-		}
-	}
-
-	private void SerialIODataAvailable(byte value)
-	{
-		interruptFlags |= IF_MASK_SERIAL;
-	}
-
-	private void TimerOverflow()
-	{
-		interruptFlags |= IF_MASK_TIMER;
-	}
-
-	private void VideoVBlankInterrupt()
-	{
-		interruptFlags |= IF_MASK_VBLANK;
-	}
-
-	private void VideoLCDCInterrupt()
-	{
-		interruptFlags |= IF_MASK_LCDC;
-	}
-
-	private void KeypadRegisterDelta(byte oldValue, byte newValue)
-	{
-		interruptFlags |= IF_MASK_KEYPAD;
-	}
 }

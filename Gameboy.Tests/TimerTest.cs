@@ -8,7 +8,7 @@ public class TimerTest
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var timer = new Timer(loggerFactory);
-		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), timer, new Video(loggerFactory), new Sound(loggerFactory), new Keypad(loggerFactory), new byte[0]);
+		var (memory, interruptRegisters) = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), timer, new Video(loggerFactory), new Sound(loggerFactory), new Keypad(loggerFactory), new byte[0]);
 		var overflowed = false;
 		timer.Overflow += () =>
 		{
@@ -16,7 +16,7 @@ public class TimerTest
 		};
 
 		// enable interrupts
-		memory.WriteUInt8(Memory.IO_IE, Memory.IF_MASK_TIMER);
+		memory.WriteUInt8(Memory.IO_IE, InterruptRegisters.IF_MASK_TIMER);
 
 		memory.WriteUInt8(Memory.IO_TAC, tac);
 		memory.WriteUInt8(Memory.IO_TMA, tma);
@@ -60,7 +60,7 @@ public class TimerTest
 			Assert.Equal(tma, memory.ReadUInt8(Memory.IO_TIMA));
 			Assert.True(overflowed);
 			// flag has been set
-			Assert.Equal(Memory.IF_MASK_TIMER, memory.ReadUInt8(Memory.IO_IF));
+			Assert.Equal(InterruptRegisters.IF_MASK_TIMER, memory.ReadUInt8(Memory.IO_IF));
 			overflowed = false;
 			memory.WriteUInt8(Memory.IO_IF, 0b0000_0000);
 		}

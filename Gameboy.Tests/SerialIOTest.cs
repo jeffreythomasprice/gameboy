@@ -102,8 +102,8 @@ public class SerialIOTest
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var serialIO = new SerialIO(loggerFactory);
-		var memory = MemoryUtils.CreateMemoryROM(loggerFactory, serialIO, new Timer(loggerFactory), new Video(loggerFactory), new Sound(loggerFactory), new Keypad(loggerFactory), new byte[0]);
-		var cpu = new CPU(loggerFactory, memory, () =>
+		var (memory, interruptRegisters) = MemoryUtils.CreateMemoryROM(loggerFactory, serialIO, new Timer(loggerFactory), new Video(loggerFactory), new Sound(loggerFactory), new Keypad(loggerFactory), new byte[0]);
+		var cpu = new CPU(loggerFactory, memory, interruptRegisters, () =>
 		{
 			// intentionally left blank
 		});
@@ -144,13 +144,15 @@ public class SerialIOTest
 		serialIO.Step();
 		Assert.True(interruptTriggered);
 		// flag has been set
-		Assert.Equal(Memory.IF_MASK_SERIAL, memory.ReadUInt8(Memory.IO_IF));
+		Assert.Equal(InterruptRegisters.IF_MASK_SERIAL, memory.ReadUInt8(Memory.IO_IF));
 		cpu.Step();
 		// flag has been reset
 		Assert.Equal(0b0000_0000, memory.ReadUInt8(Memory.IO_IF));
-		// the full byte should have been output, and we've executed 2 NOP
+		// execution time is the two NOP we executed while sending, plus the time taken to perform the interrupt handler
+		// should be 2 + 5 total instruction cycles = 28 ticks
+		// the serial IO device won't have caught up to the CPU until next CPU tick. so it just sees the actual instructions executed
 		Assert.Equal((UInt64)8, serialIO.Clock);
-		Assert.Equal((UInt64)8, cpu.Clock);
+		Assert.Equal((UInt64)28, cpu.Clock);
 		// the interrupt handler + 1 NOP
 		Assert.Equal(0x0059, cpu.RegisterPC);
 	}

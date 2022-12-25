@@ -58,6 +58,7 @@ public class CPU : ISteppable
 
 	private readonly ILogger logger;
 	private readonly IMemory memory;
+	private readonly InterruptRegisters interruptRegisters;
 	private readonly Action inbetweenStep;
 
 	private byte registerA;
@@ -79,10 +80,11 @@ public class CPU : ISteppable
 	/// <param name="inbetweenStep">
 	/// the operation to perform in between parts of each CPU instruction, presumably the Step function of all other components
 	/// </param>
-	public CPU(ILoggerFactory loggerFactory, IMemory memory, Action inbetweenStep)
+	public CPU(ILoggerFactory loggerFactory, IMemory memory, InterruptRegisters interruptRegisters, Action inbetweenStep)
 	{
 		this.logger = loggerFactory.CreateLogger(GetType());
 		this.memory = memory;
+		this.interruptRegisters = interruptRegisters;
 		this.inbetweenStep = inbetweenStep;
 		Reset();
 	}
@@ -304,8 +306,7 @@ public class CPU : ISteppable
 		var shouldResetPC = false;
 
 		// special case for STOP, resumes on any key press
-		// TODO JEFF move interrupt registers from memory to here
-		if (IsStopped && (memory.ReadUInt8(Memory.IO_IF) & Memory.IF_MASK_KEYPAD) != 0)
+		if (IsStopped && interruptRegisters.InterruptFlagKeypad)
 		{
 #if DEBUG
 			logger.LogTrace("resuming from state STOP, keyboard interrupt flag set");
@@ -316,53 +317,162 @@ public class CPU : ISteppable
 		// interrupts fire if the relevant flag in the IO register is set AND the master enable flag on the CPU is set
 		if (IME || IsHalted)
 		{
-			// TODO JEFF move interrupt registers from memory to here
-			// TODO JEFF manually unroll interrupt handler loop?
-			// TODO JEFF enable and triggered flags should be booleans to avoid decomposing ever instruction cycle
-			var interruptEnableRegister = memory.ReadUInt8(Memory.IO_IE);
-			var interruptFlag = memory.ReadUInt8(Memory.IO_IF);
-			foreach (var (log, mask, address) in new[] {
-				("v-blank", Memory.IF_MASK_VBLANK, (UInt16)0x0040),
-				("LCDC", Memory.IF_MASK_LCDC, (UInt16)0x0048),
-				("timer", Memory.IF_MASK_TIMER, (UInt16)0x0050),
-				("serial", Memory.IF_MASK_SERIAL, (UInt16)0x0058),
-				("keypad", Memory.IF_MASK_KEYPAD, (UInt16)0x0060),
-			})
+			if (interruptRegisters.InterruptEnabledVBlank && interruptRegisters.InterruptFlagVBlank)
 			{
-				var enabled = (interruptEnableRegister & mask) != 0;
-				var triggered = (interruptFlag & mask) != 0;
-				if (enabled && triggered)
+				if (IsHalted)
 				{
-					if (IsHalted)
-					{
 #if DEBUG
-						logger.LogTrace($"resuming from HALT because of {log} interrupt");
+					logger.LogTrace("resuming from HALT because of v-blank interrupt");
 #endif
-						IsHalted = false;
-						if (!IME)
-						{
-							shouldResetPC = true;
-						}
-					}
-					else
+					IsHalted = false;
+					if (!IME)
 					{
-#if DEBUG
-						logger.LogTrace($"{log} interrupt handled");
-#endif
-						AdvanceTimeOneCPUCycle();
-						AdvanceTimeOneCPUCycle();
-						memory.WriteUInt8(Memory.IO_IF, (byte)(interruptFlag & (~mask)));
-						IME = false;
-						AdvanceTimeOneCPUCycle();
-						AdvanceTimeOneCPUCycle();
-						PushUInt16(RegisterPC);
-						AdvanceTimeOneCPUCycle();
-						RegisterPC = address;
+						shouldResetPC = true;
 					}
-					break;
 				}
+				else
+				{
+#if DEBUG
+					logger.LogTrace("v-blank interrupt handled");
+#endif
+					AdvanceTimeOneCPUCycle();
+					AdvanceTimeOneCPUCycle();
+					interruptRegisters.InterruptFlagVBlank = false;
+					IME = false;
+					AdvanceTimeOneCPUCycle();
+					AdvanceTimeOneCPUCycle();
+					PushUInt16(RegisterPC);
+					AdvanceTimeOneCPUCycle();
+					RegisterPC = 0x0040;
+				}
+				goto doneWithInterrupts;
+			}
+
+			if (interruptRegisters.InterruptEnabledLCDC && interruptRegisters.InterruptFlagLCDC)
+			{
+				if (IsHalted)
+				{
+#if DEBUG
+					logger.LogTrace("resuming from HALT because of LCDC interrupt");
+#endif
+					IsHalted = false;
+					if (!IME)
+					{
+						shouldResetPC = true;
+					}
+				}
+				else
+				{
+#if DEBUG
+					logger.LogTrace("LCDC interrupt handled");
+#endif
+					AdvanceTimeOneCPUCycle();
+					AdvanceTimeOneCPUCycle();
+					interruptRegisters.InterruptFlagLCDC = false;
+					IME = false;
+					AdvanceTimeOneCPUCycle();
+					AdvanceTimeOneCPUCycle();
+					PushUInt16(RegisterPC);
+					AdvanceTimeOneCPUCycle();
+					RegisterPC = 0x0048;
+				}
+				goto doneWithInterrupts;
+			}
+
+			if (interruptRegisters.InterruptEnabledTimer && interruptRegisters.InterruptFlagTimer)
+			{
+				if (IsHalted)
+				{
+#if DEBUG
+					logger.LogTrace("resuming from HALT because of timer interrupt");
+#endif
+					IsHalted = false;
+					if (!IME)
+					{
+						shouldResetPC = true;
+					}
+				}
+				else
+				{
+#if DEBUG
+					logger.LogTrace("timer interrupt handled");
+#endif
+					AdvanceTimeOneCPUCycle();
+					AdvanceTimeOneCPUCycle();
+					interruptRegisters.InterruptFlagTimer = false;
+					IME = false;
+					AdvanceTimeOneCPUCycle();
+					AdvanceTimeOneCPUCycle();
+					PushUInt16(RegisterPC);
+					AdvanceTimeOneCPUCycle();
+					RegisterPC = 0x0050;
+				}
+				goto doneWithInterrupts;
+			}
+
+			if (interruptRegisters.InterruptEnabledSerial && interruptRegisters.InterruptFlagSerial)
+			{
+				if (IsHalted)
+				{
+#if DEBUG
+					logger.LogTrace("resuming from HALT because of serial IO interrupt");
+#endif
+					IsHalted = false;
+					if (!IME)
+					{
+						shouldResetPC = true;
+					}
+				}
+				else
+				{
+#if DEBUG
+					logger.LogTrace("serial IO interrupt handled");
+#endif
+					AdvanceTimeOneCPUCycle();
+					AdvanceTimeOneCPUCycle();
+					interruptRegisters.InterruptFlagSerial = false;
+					IME = false;
+					AdvanceTimeOneCPUCycle();
+					AdvanceTimeOneCPUCycle();
+					PushUInt16(RegisterPC);
+					AdvanceTimeOneCPUCycle();
+					RegisterPC = 0x0058;
+				}
+				goto doneWithInterrupts;
+			}
+
+			if (interruptRegisters.InterruptEnabledKeypad && interruptRegisters.InterruptFlagKeypad)
+			{
+				if (IsHalted)
+				{
+#if DEBUG
+					logger.LogTrace("resuming from HALT because of keypad interrupt");
+#endif
+					IsHalted = false;
+					if (!IME)
+					{
+						shouldResetPC = true;
+					}
+				}
+				else
+				{
+#if DEBUG
+					logger.LogTrace("keypad interrupt handled");
+#endif
+					AdvanceTimeOneCPUCycle();
+					AdvanceTimeOneCPUCycle();
+					interruptRegisters.InterruptFlagKeypad = false;
+					IME = false;
+					AdvanceTimeOneCPUCycle();
+					AdvanceTimeOneCPUCycle();
+					PushUInt16(RegisterPC);
+					AdvanceTimeOneCPUCycle();
+					RegisterPC = 0x0060;
+				}
+				goto doneWithInterrupts;
 			}
 		}
+	doneWithInterrupts:
 
 		if (IsStopped)
 		{

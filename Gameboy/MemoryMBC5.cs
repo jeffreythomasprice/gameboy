@@ -18,7 +18,7 @@ public class MemoryMBC5 : Memory
 	private byte romBankHigh;
 	private byte ramBank;
 
-	public MemoryMBC5(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad) : base(loggerFactory, cartridge, serialIO, timer, video, sound, keypad) { }
+	public MemoryMBC5(ILoggerFactory loggerFactory, Cartridge cartridge, SerialIO serialIO, Timer timer, Video video, Sound sound, Keypad keypad, InterruptRegisters interruptRegisters) : base(loggerFactory, cartridge, serialIO, timer, video, sound, keypad, interruptRegisters) { }
 
 	public override void Reset()
 	{

@@ -9,8 +9,13 @@ public class MemoryTest
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
 		using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 		var cartridge = new Cartridge(stream);
+		var serialIO = new SerialIO(loggerFactory);
+		var timer = new Timer(loggerFactory);
 		var video = new Video(loggerFactory);
-		var memory = cartridge.CreateMemory(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), video, new Sound(loggerFactory), new Keypad(loggerFactory));
+		var sound = new Sound(loggerFactory);
+		var keypad = new Keypad(loggerFactory);
+		var interruptRegisters = new InterruptRegisters(serialIO, timer, video, sound, keypad);
+		var memory = cartridge.CreateMemory(loggerFactory, serialIO, timer, video, sound, keypad, interruptRegisters);
 
 		// test data for when reads are disabled
 		var expectedWhenDisabled = CreateUniformArray(160, 0xff);
@@ -56,8 +61,13 @@ public class MemoryTest
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
 		using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 		var cartridge = new Cartridge(stream);
+		var serialIO = new SerialIO(loggerFactory);
+		var timer = new Timer(loggerFactory);
 		var video = new Video(loggerFactory);
-		var memory = cartridge.CreateMemory(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), video, new Sound(loggerFactory), new Keypad(loggerFactory));
+		var sound = new Sound(loggerFactory);
+		var keypad = new Keypad(loggerFactory);
+		var interruptRegisters = new InterruptRegisters(serialIO, timer, video, sound, keypad);
+		var memory = cartridge.CreateMemory(loggerFactory, serialIO, timer, video, sound, keypad, interruptRegisters);
 
 		// intentionally longer than the DMA length, so we can prove it cuts off there
 		var data1 = CreateIncrementingArray(200, 0x11);

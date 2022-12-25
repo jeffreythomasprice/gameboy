@@ -1,0 +1,41 @@
+TODO make test classes for
+
+gb-test-roms/cgb_sound/cgb_sound.gb
+gb-test-roms/cgb_sound/rom_singles/01-registers.gb
+gb-test-roms/cgb_sound/rom_singles/02-len ctr.gb
+gb-test-roms/cgb_sound/rom_singles/03-trigger.gb
+gb-test-roms/cgb_sound/rom_singles/04-sweep.gb
+gb-test-roms/cgb_sound/rom_singles/05-sweep details.gb
+gb-test-roms/cgb_sound/rom_singles/06-overflow on trigger.gb
+gb-test-roms/cgb_sound/rom_singles/07-len sweep period sync.gb
+gb-test-roms/cgb_sound/rom_singles/08-len ctr during power.gb
+gb-test-roms/cgb_sound/rom_singles/09-wave read while on.gb
+gb-test-roms/cgb_sound/rom_singles/10-wave trigger while on.gb
+gb-test-roms/cgb_sound/rom_singles/11-regs after power.gb
+gb-test-roms/cgb_sound/rom_singles/12-wave.gb
+
+gb-test-roms/dmg_sound/dmg_sound.gb
+gb-test-roms/dmg_sound/rom_singles/01-registers.gb
+gb-test-roms/dmg_sound/rom_singles/02-len ctr.gb
+gb-test-roms/dmg_sound/rom_singles/03-trigger.gb
+gb-test-roms/dmg_sound/rom_singles/04-sweep.gb
+gb-test-roms/dmg_sound/rom_singles/05-sweep details.gb
+gb-test-roms/dmg_sound/rom_singles/06-overflow on trigger.gb
+gb-test-roms/dmg_sound/rom_singles/07-len sweep period sync.gb
+gb-test-roms/dmg_sound/rom_singles/08-len ctr during power.gb
+gb-test-roms/dmg_sound/rom_singles/09-wave read while on.gb
+gb-test-roms/dmg_sound/rom_singles/10-wave trigger while on.gb
+gb-test-roms/dmg_sound/rom_singles/11-regs after power.gb
+gb-test-roms/dmg_sound/rom_singles/12-wave write while on.gb
+
+gb-test-roms/halt_bug.gb
+
+gb-test-roms/oam_bug/oam_bug.gb
+gb-test-roms/oam_bug/rom_singles/1-lcd_sync.gb
+gb-test-roms/oam_bug/rom_singles/2-causes.gb
+gb-test-roms/oam_bug/rom_singles/3-non_causes.gb
+gb-test-roms/oam_bug/rom_singles/4-scanline_timing.gb
+gb-test-roms/oam_bug/rom_singles/5-timing_bug.gb
+gb-test-roms/oam_bug/rom_singles/6-timing_no_bug.gb
+gb-test-roms/oam_bug/rom_singles/7-timing_effect.gb
+gb-test-roms/oam_bug/rom_singles/8-instr_effect.gb

@@ -304,6 +304,7 @@ public class CPU : ISteppable
 		var shouldResetPC = false;
 
 		// special case for STOP, resumes on any key press
+		// TODO JEFF move interrupt registers from memory to here
 		if (IsStopped && (memory.ReadUInt8(Memory.IO_IF) & Memory.IF_MASK_KEYPAD) != 0)
 		{
 #if DEBUG
@@ -315,6 +316,9 @@ public class CPU : ISteppable
 		// interrupts fire if the relevant flag in the IO register is set AND the master enable flag on the CPU is set
 		if (IME || IsHalted)
 		{
+			// TODO JEFF move interrupt registers from memory to here
+			// TODO JEFF manually unroll interrupt handler loop?
+			// TODO JEFF enable and triggered flags should be booleans to avoid decomposing ever instruction cycle
 			var interruptEnableRegister = memory.ReadUInt8(Memory.IO_IE);
 			var interruptFlag = memory.ReadUInt8(Memory.IO_IF);
 			foreach (var (log, mask, address) in new[] {
@@ -345,9 +349,14 @@ public class CPU : ISteppable
 #if DEBUG
 						logger.LogTrace($"{log} interrupt handled");
 #endif
+						AdvanceTimeOneCPUCycle();
+						AdvanceTimeOneCPUCycle();
 						memory.WriteUInt8(Memory.IO_IF, (byte)(interruptFlag & (~mask)));
 						IME = false;
+						AdvanceTimeOneCPUCycle();
+						AdvanceTimeOneCPUCycle();
 						PushUInt16(RegisterPC);
+						AdvanceTimeOneCPUCycle();
 						RegisterPC = address;
 					}
 					break;

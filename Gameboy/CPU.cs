@@ -606,50 +606,42 @@ public class CPU : ISteppable
 
 			case 0x06:
 				{
-					var data = ReadNextPCUInt8();
-					SetTo(Register8.B, data);
+					SetToNextUInt8(Register8.B);
 				}
 				break;
 			case 0x0e:
 				{
-					var data = ReadNextPCUInt8();
-					SetTo(Register8.C, data);
+					SetToNextUInt8(Register8.C);
 				}
 				break;
 			case 0x16:
 				{
-					var data = ReadNextPCUInt8();
-					SetTo(Register8.D, data);
+					SetToNextUInt8(Register8.D);
 				}
 				break;
 			case 0x1e:
 				{
-					var data = ReadNextPCUInt8();
-					SetTo(Register8.E, data);
+					SetToNextUInt8(Register8.E);
 				}
 				break;
 			case 0x26:
 				{
-					var data = ReadNextPCUInt8();
-					SetTo(Register8.H, data);
+					SetToNextUInt8(Register8.H);
 				}
 				break;
 			case 0x2e:
 				{
-					var data = ReadNextPCUInt8();
-					SetTo(Register8.L, data);
+					SetToNextUInt8(Register8.L);
 				}
 				break;
 			case 0x36:
 				{
-					var data = ReadNextPCUInt8();
-					SetTo(new Address(RegisterHL, Register16.HL.ToString()), data);
+					SetToNextUInt8(new Address(RegisterHL, Register16.HL.ToString()));
 				}
 				break;
 			case 0x3e:
 				{
-					var data = ReadNextPCUInt8();
-					SetTo(Register8.A, data);
+					SetToNextUInt8(Register8.A);
 				}
 				break;
 
@@ -3316,8 +3308,9 @@ public class CPU : ISteppable
 		RegisterPC = address;
 	}
 
-	private void SetTo(Register8 destination, byte source)
+	private void SetToNextUInt8(Register8 destination)
 	{
+		var source = ReadNextPCUInt8();
 #if DEBUG
 		logger.LogTrace($"LD {destination}, {ToHex(source)}");
 #endif
@@ -3335,12 +3328,13 @@ public class CPU : ISteppable
 		SetRegister(destination, source);
 	}
 
-	private void SetTo(Address destination, byte source)
+	private void SetToNextUInt8(Address destination)
 	{
+		AdvanceTimeOneCPUCycle();
+		var source = ReadNextPCUInt8();
 #if DEBUG
 		logger.LogTrace($"LD {destination}, {ToHex(source)}");
 #endif
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(destination.Value, source);
 	}
@@ -3487,8 +3481,8 @@ public class CPU : ISteppable
 #if DEBUG
 		logger.LogTrace($"ADD {destination}, {source}");
 #endif
-		AdvanceTimeOneCPUCycle();
 		var before = GetRegister(destination);
+		AdvanceTimeOneCPUCycle();
 		var sourceValue = memory.ReadUInt8(source.Value);
 		var after16 = (UInt16)((UInt16)before + (UInt16)sourceValue);
 		var after8 = (byte)after16;
@@ -3900,9 +3894,9 @@ public class CPU : ISteppable
 		logger.LogTrace($"RLC {address}");
 #endif
 		AdvanceTimeOneCPUCycle();
+		AdvanceTimeOneCPUCycle();
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before << 1) | ((before & 0b1000_0000) >> 7));
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(address.Value, after);
 		ZeroFlag = after == 0;
@@ -3932,9 +3926,9 @@ public class CPU : ISteppable
 		logger.LogTrace($"RL {address}");
 #endif
 		AdvanceTimeOneCPUCycle();
+		AdvanceTimeOneCPUCycle();
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before << 1) | (CarryFlag ? 0b0000_0001 : 0));
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(address.Value, after);
 		ZeroFlag = after == 0;
@@ -3964,9 +3958,9 @@ public class CPU : ISteppable
 		logger.LogTrace($"RRC {address}");
 #endif
 		AdvanceTimeOneCPUCycle();
+		AdvanceTimeOneCPUCycle();
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before >> 1) | ((before & 0b0000_0001) << 7));
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(address.Value, after);
 		ZeroFlag = after == 0;
@@ -3996,9 +3990,9 @@ public class CPU : ISteppable
 		logger.LogTrace($"RR {address}");
 #endif
 		AdvanceTimeOneCPUCycle();
+		AdvanceTimeOneCPUCycle();
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before >> 1) | (CarryFlag ? 0b1000_0000 : 0));
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(address.Value, after);
 		ZeroFlag = after == 0;
@@ -4028,9 +4022,9 @@ public class CPU : ISteppable
 		logger.LogTrace($"SLA {address}");
 #endif
 		AdvanceTimeOneCPUCycle();
+		AdvanceTimeOneCPUCycle();
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)(before << 1);
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(address.Value, after);
 		ZeroFlag = after == 0;
@@ -4060,9 +4054,9 @@ public class CPU : ISteppable
 		logger.LogTrace($"SRL {address}");
 #endif
 		AdvanceTimeOneCPUCycle();
+		AdvanceTimeOneCPUCycle();
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)(before >> 1);
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(address.Value, after);
 		ZeroFlag = after == 0;
@@ -4092,9 +4086,9 @@ public class CPU : ISteppable
 		logger.LogTrace($"SRA {address}");
 #endif
 		AdvanceTimeOneCPUCycle();
+		AdvanceTimeOneCPUCycle();
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)((before >> 1) | (before & 0b1000_0000));
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(address.Value, after);
 		ZeroFlag = after == 0;
@@ -4147,9 +4141,9 @@ public class CPU : ISteppable
 		logger.LogTrace($"SWAP {address}");
 #endif
 		AdvanceTimeOneCPUCycle();
+		AdvanceTimeOneCPUCycle();
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)(((before & 0b1111_0000) >> 4) | ((before & 0b0000_1111) << 4));
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(address.Value, after);
 		ZeroFlag = after == 0;
@@ -4200,9 +4194,9 @@ public class CPU : ISteppable
 		logger.LogTrace($"RES {bit}, {address}");
 #endif
 		AdvanceTimeOneCPUCycle();
+		AdvanceTimeOneCPUCycle();
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)(before & (~(1 << bit)));
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(address.Value, after);
 	}
@@ -4224,9 +4218,9 @@ public class CPU : ISteppable
 		logger.LogTrace($"SET {bit}, {address}");
 #endif
 		AdvanceTimeOneCPUCycle();
+		AdvanceTimeOneCPUCycle();
 		var before = memory.ReadUInt8(address.Value);
 		var after = (byte)(before | (1 << bit));
-		AdvanceTimeOneCPUCycle();
 		AdvanceTimeOneCPUCycle();
 		memory.WriteUInt8(address.Value, after);
 	}

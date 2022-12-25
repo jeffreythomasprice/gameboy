@@ -10,13 +10,14 @@ public class MemTiming
 			TimeSpan.FromSeconds(1),
 			TimeSpan.FromSeconds(2),
 			"""
-			instr_timing
+			mem_timing
 
+			01:ok  02:ok  03:ok  
 
-			Passed
-			
+			Passed all tests
+
 			""",
-			"TODO hash goes here"
+			"96b4c31af72e72328aa5116b1a96ba137b9bb7a1"
 		);
 	}
 
@@ -64,13 +65,13 @@ public class MemTiming
 			TimeSpan.FromSeconds(1),
 			TimeSpan.FromSeconds(2),
 			"""
-			instr_timing
+			03-modify_timing
 
 
 			Passed
 			
 			""",
-			"TODO hash goes here"
+			"f4a2d96f52230cdbaee6da55747a03502dc714eb"
 		);
 	}
 }

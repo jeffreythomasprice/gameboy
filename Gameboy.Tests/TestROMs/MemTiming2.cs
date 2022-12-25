@@ -7,16 +7,10 @@ public class MemTiming2
 	{
 		TestROMUtils.PerformTest(
 			"gb-test-roms/mem_timing-2/mem_timing.gb",
-			TimeSpan.FromSeconds(1),
-			TimeSpan.FromSeconds(2),
-			"""
-			instr_timing
-
-
-			Passed
-			
-			""",
-			"TODO hash goes here"
+			TimeSpan.FromSeconds(3),
+			TimeSpan.FromSeconds(5),
+			"",
+			"c8a0e8ed3ace9f342495e6a693424ee9a05c9bc2"
 		);
 	}
 
@@ -51,14 +45,8 @@ public class MemTiming2
 			"gb-test-roms/mem_timing-2/rom_singles/03-modify_timing.gb",
 			TimeSpan.FromSeconds(1),
 			TimeSpan.FromSeconds(2),
-			"""
-			instr_timing
-
-
-			Passed
-			
-			""",
-			"TODO hash goes here"
+			"",
+			"f4a2d96f52230cdbaee6da55747a03502dc714eb"
 		);
 	}
 }

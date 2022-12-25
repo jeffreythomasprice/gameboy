@@ -34,8 +34,4 @@
     <None Include="$(SolutionDir)gb-test-roms/**" CopyToOutputDirectory="PreserveNewest" LinkBase="gb-test-roms" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>

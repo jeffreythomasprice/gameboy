@@ -47,7 +47,7 @@ public abstract class RepeatableTask : IDisposable
 				{
 					await ThreadRunImpl(cancellationToken);
 				}
-				catch (TaskCanceledException)
+				catch (OperationCanceledException)
 				{
 					// expected, no need to log
 				}

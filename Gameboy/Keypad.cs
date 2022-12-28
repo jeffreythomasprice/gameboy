@@ -8,7 +8,7 @@ public class Keypad : ISteppable
 {
 	public delegate void KeypadRegisterDeltaDelegate(byte oldValue, byte newValue);
 
-	public event KeypadRegisterDeltaDelegate? KeypadRegisterDelta;
+	public event KeypadRegisterDeltaDelegate? OnKeypadRegisterDelta;
 
 	private readonly ILogger logger;
 
@@ -77,7 +77,7 @@ public class Keypad : ISteppable
 		if (delta != 0)
 		{
 			logger.LogTrace($"keypad register delta {ToBinary(oldValue)} -> {ToBinary(newValue)}");
-			KeypadRegisterDelta?.Invoke(oldValue, newValue);
+			OnKeypadRegisterDelta?.Invoke(oldValue, newValue);
 		}
 	}
 

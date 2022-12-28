@@ -12,7 +12,7 @@ public class Window : GameWindow
 {
 	private readonly ILoggerFactory loggerFactory;
 	private readonly ILogger logger;
-	private readonly Video video;
+	private readonly RGBVideo video;
 	private readonly Keypad keypad;
 
 	private Shader? shader = null;
@@ -23,24 +23,9 @@ public class Window : GameWindow
 	private Matrix4 orthoMatrix;
 	private Matrix4 modelviewMatrix;
 
-	private VideoBuffer videoBuffer;
-	private bool videoBufferPixelsReady;
-	private byte[] videoBufferPixels;
+	private bool videoDataReady;
 
-	// TODO multiple palettes to switch between
-	private readonly VideoBuffer.Color[] palette = new VideoBuffer.Color[]
-		{
-			// approximately 0.8
-			new(205, 205, 205),
-			// approximately 0.6
-			new(154, 154, 154),
-			// approximately 0.4
-			new(102, 102, 102),
-			// approximately 0.2
-			new(51, 51, 51),
-		};
-
-	public Window(ILoggerFactory loggerFactory, Video video, Keypad keypad) : base(
+	public Window(ILoggerFactory loggerFactory, RGBVideo video, Keypad keypad) : base(
 		GameWindowSettings.Default,
 		new NativeWindowSettings
 		{
@@ -71,16 +56,15 @@ public class Window : GameWindow
 		Flags = {Flags}
 		""");
 
-		videoBuffer = new VideoBuffer(loggerFactory, video, palette);
-		videoBufferPixelsReady = false;
-		videoBufferPixels = new byte[Video.ScreenWidth * Video.ScreenHeight * 3];
+		videoDataReady = false;
 	}
 
 	protected override void OnLoad()
 	{
 		base.OnLoad();
 
-		GL.ClearColor(palette[0].Red / 255.0f, palette[0].Green / 255.0f, palette[0].Blue / 255.0f, 1);
+		var backgroundColor = video.GetColor(new(0, Video.Palette.Background));
+		GL.ClearColor(backgroundColor.Red / 255.0f, backgroundColor.Green / 255.0f, backgroundColor.Blue / 255.0f, 1.0f);
 
 		shader = new Shader(
 			loggerFactory,
@@ -154,17 +138,14 @@ public class Window : GameWindow
 		GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 		GL.BindTexture(TextureTarget.Texture2D, 0);
 
-		videoBuffer.PixelDataReady += VideoBufferPixelDataReady;
-		videoBuffer.Start();
+		video.OnVSync += VideoVSync;
 	}
 
 	protected override void OnUnload()
 	{
 		base.OnUnload();
 
-		videoBuffer.Stop();
-		videoBuffer.Wait(CancellationToken.None);
-		videoBuffer.PixelDataReady -= VideoBufferPixelDataReady;
+		video.OnVSync -= VideoVSync;
 
 		shader?.Dispose();
 		if (vertexBuffer.HasValue)
@@ -219,7 +200,7 @@ public class Window : GameWindow
 			// copy the new texture data
 			lock (this)
 			{
-				if (videoBufferPixelsReady)
+				if (videoDataReady)
 				{
 					GL.TexSubImage2D<byte>(
 						TextureTarget.Texture2D,
@@ -233,9 +214,9 @@ public class Window : GameWindow
 						Video.ScreenHeight,
 						PixelFormat.Rgb,
 						PixelType.UnsignedByte,
-						videoBufferPixels
+						video.Data
 					);
-					videoBufferPixelsReady = false;
+					videoDataReady = false;
 				}
 			}
 
@@ -261,12 +242,11 @@ public class Window : GameWindow
 		keypad.SetPressed(Key.B, KeyboardState.IsKeyDown(Keys.X));
 	}
 
-	private void VideoBufferPixelDataReady(ReadOnlySpan<byte> pixels)
+	private void VideoVSync()
 	{
 		lock (this)
 		{
-			pixels.CopyTo(videoBufferPixels);
-			videoBufferPixelsReady = true;
+			videoDataReady = true;
 		}
 	}
 }

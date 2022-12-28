@@ -22,7 +22,7 @@ public class CPUTest
 		var cpu = new CPU(
 			loggerFactory,
 			new SimpleMemory(),
-			new InterruptRegisters(new(loggerFactory), new(loggerFactory), new(loggerFactory), new(loggerFactory), new(loggerFactory)),
+			new InterruptRegisters(new(loggerFactory), new(loggerFactory), new RGBVideo(loggerFactory), new(loggerFactory), new(loggerFactory)),
 			() =>
 			{
 				// intentionally left blank
@@ -7753,7 +7753,7 @@ public class CPUTest
 		var actual = new CPUBuilder(
 			loggerFactory,
 			memory,
-			new InterruptRegisters(new(loggerFactory), new(loggerFactory), new(loggerFactory), new(loggerFactory), new(loggerFactory)),
+			new InterruptRegisters(new(loggerFactory), new(loggerFactory), new RGBVideo(loggerFactory), new(loggerFactory), new(loggerFactory)),
 			() =>
 			{
 				// intentionally left blank
@@ -7762,7 +7762,7 @@ public class CPUTest
 		var expected = new CPUBuilder(
 			loggerFactory,
 			memory,
-			new InterruptRegisters(new(loggerFactory), new(loggerFactory), new(loggerFactory), new(loggerFactory), new(loggerFactory)),
+			new InterruptRegisters(new(loggerFactory), new(loggerFactory), new RGBVideo(loggerFactory), new(loggerFactory), new(loggerFactory)),
 			() =>
 			{
 				// intentionally left blank
@@ -9642,7 +9642,7 @@ public class CPUTest
 		var actual = actualBuilder(new CPUBuilder(
 			loggerFactory,
 			memory,
-			new InterruptRegisters(new(loggerFactory), new(loggerFactory), new(loggerFactory), new(loggerFactory), new(loggerFactory)),
+			new InterruptRegisters(new(loggerFactory), new(loggerFactory), new RGBVideo(loggerFactory), new(loggerFactory), new(loggerFactory)),
 			() =>
 			{
 				// intentionally left blank
@@ -9651,7 +9651,7 @@ public class CPUTest
 		var expected = expectedBuilder(new CPUBuilder(
 			loggerFactory,
 			memory,
-			new InterruptRegisters(new(loggerFactory), new(loggerFactory), new(loggerFactory), new(loggerFactory), new(loggerFactory)),
+			new InterruptRegisters(new(loggerFactory), new(loggerFactory), new RGBVideo(loggerFactory), new(loggerFactory), new(loggerFactory)),
 			() =>
 			{
 				// intentionally left blank

@@ -33,13 +33,13 @@ public class Emulator : RepeatableTask, ISteppable
 	private TimeSpan emitDebugInterval = TimeSpan.FromSeconds(2);
 	private UInt64 nextEmitDebugClock;
 
-	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge) : base(loggerFactory)
+	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge, Video video) : base(loggerFactory)
 	{
 		logger = loggerFactory.CreateLogger<Emulator>();
 
 		serialIO = new SerialIO(loggerFactory);
 		timer = new Timer(loggerFactory);
-		video = new Video(loggerFactory);
+		this.video = video;
 		sound = new Sound(loggerFactory);
 		keypad = new Keypad(loggerFactory);
 		interruptRegisters = new InterruptRegisters(serialIO, timer, video, sound, keypad);

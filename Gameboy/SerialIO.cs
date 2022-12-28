@@ -6,7 +6,7 @@ public class SerialIO : ISteppable
 {
 	public delegate void DataAvailableDelegate(byte value);
 
-	public event DataAvailableDelegate? DataAvailable;
+	public event DataAvailableDelegate? OnDataAvailable;
 
 	private ILogger logger;
 
@@ -87,7 +87,7 @@ public class SerialIO : ISteppable
 			{
 				TransferStartFlag = false;
 				// emit the result
-				DataAvailable?.Invoke(outgoingByte);
+				OnDataAvailable?.Invoke(outgoingByte);
 				outgoingByte = 0;
 			}
 		}

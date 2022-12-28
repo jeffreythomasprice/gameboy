@@ -40,11 +40,11 @@ public class InterruptRegisters : IDisposable, ISteppable
 		this.sound = sound;
 		this.keypad = keypad;
 
-		video.VBlankInterrupt += VideoVBlankInterrupt;
-		video.LCDCInterrupt += VideoLCDCInterrupt;
-		timer.Overflow += TimerOverflow;
-		serialIO.DataAvailable += SerialIODataAvailable;
-		keypad.KeypadRegisterDelta += KeypadRegisterDelta;
+		video.OnVBlankInterrupt += VideoVBlankInterrupt;
+		video.OnLCDCInterrupt += VideoLCDCInterrupt;
+		timer.OnOverflow += TimerOverflow;
+		serialIO.OnDataAvailable += SerialIODataAvailable;
+		keypad.OnKeypadRegisterDelta += KeypadRegisterDelta;
 
 		Reset();
 	}
@@ -283,11 +283,11 @@ public class InterruptRegisters : IDisposable, ISteppable
 		if (!isDisposed)
 		{
 			isDisposed = true;
-			video.VBlankInterrupt -= VideoVBlankInterrupt;
-			video.LCDCInterrupt -= VideoLCDCInterrupt;
-			timer.Overflow -= TimerOverflow;
-			serialIO.DataAvailable -= SerialIODataAvailable;
-			keypad.KeypadRegisterDelta -= KeypadRegisterDelta;
+			video.OnVBlankInterrupt -= VideoVBlankInterrupt;
+			video.OnLCDCInterrupt -= VideoLCDCInterrupt;
+			timer.OnOverflow -= TimerOverflow;
+			serialIO.OnDataAvailable -= SerialIODataAvailable;
+			keypad.OnKeypadRegisterDelta -= KeypadRegisterDelta;
 		}
 	}
 

@@ -11,7 +11,7 @@ public class MemoryTest
 		var cartridge = new Cartridge(stream);
 		var serialIO = new SerialIO(loggerFactory);
 		var timer = new Timer(loggerFactory);
-		var video = new Video(loggerFactory);
+		var video = new RGBVideo(loggerFactory);
 		var sound = new Sound(loggerFactory);
 		var keypad = new Keypad(loggerFactory);
 		var interruptRegisters = new InterruptRegisters(serialIO, timer, video, sound, keypad);
@@ -63,7 +63,7 @@ public class MemoryTest
 		var cartridge = new Cartridge(stream);
 		var serialIO = new SerialIO(loggerFactory);
 		var timer = new Timer(loggerFactory);
-		var video = new Video(loggerFactory);
+		var video = new RGBVideo(loggerFactory);
 		var sound = new Sound(loggerFactory);
 		var keypad = new Keypad(loggerFactory);
 		var interruptRegisters = new InterruptRegisters(serialIO, timer, video, sound, keypad);

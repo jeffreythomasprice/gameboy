@@ -6,7 +6,7 @@ public class Timer : ISteppable
 {
 	public delegate void OverflowDelegate();
 
-	public event OverflowDelegate? Overflow;
+	public event OverflowDelegate? OnOverflow;
 
 	private readonly ILogger logger;
 
@@ -88,7 +88,7 @@ public class Timer : ISteppable
 					logger.LogTrace("timer overflow");
 #endif
 					timaAfter = RegisterTMA;
-					Overflow?.Invoke();
+					OnOverflow?.Invoke();
 				}
 				RegisterTIMA = timaAfter;
 			}

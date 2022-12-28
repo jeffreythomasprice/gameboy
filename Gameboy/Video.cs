@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Gameboy;
 
-public class Video : ISteppable
+public abstract class Video : ISteppable
 {
 	public enum Palette
 	{
@@ -23,10 +23,7 @@ public class Video : ISteppable
 	)
 	{ }
 
-	/// <param name="y">in range 0 to ScreenHeight-1, inclusive</param>
-	/// <param name="data">a color, each element is a 2-bit value, so the high 6 bits are unused</param>
-	public delegate void ScanlineAvailableDelegate(int y, Color[] data);
-
+	public delegate void ScanlineAvailableDelegate(int y);
 	public delegate void VSyncDelegate();
 	public delegate void VBlankInterruptDelegate();
 	public delegate void LCDCInterruptDelegate();
@@ -103,18 +100,10 @@ public class Video : ISteppable
 	public const int ScreenWidth = 160;
 	public const int ScreenHeight = 144;
 
-	/// <summary>
-	/// Called when a scanline is done drawing.
-	/// </summary>
-	public event ScanlineAvailableDelegate? ScanlineAvailable;
-
-	/// <summary>
-	/// Called when the last scanline is done drawing.
-	/// </summary>
-	public event VSyncDelegate? VSync;
-
-	public event VBlankInterruptDelegate? VBlankInterrupt;
-	public event LCDCInterruptDelegate? LCDCInterrupt;
+	public event ScanlineAvailableDelegate? OnScanlineAvailable;
+	public event VSyncDelegate? OnVSync;
+	public event VBlankInterruptDelegate? OnVBlankInterrupt;
+	public event LCDCInterruptDelegate? OnLCDCInterrupt;
 
 	// total time between screen redraws, including V blank mode
 	private const UInt64 ClockTicksPerFrame = 70224;
@@ -172,7 +161,6 @@ public class Video : ISteppable
 	private UInt64 ticksRemainingInCurrentState;
 
 	// used during output of a scanline
-	private readonly Color[] outputPixels = new Color[ScreenWidth];
 	private readonly byte[] backgroundAndWindowColorIndex = new byte[ScreenWidth];
 
 	// TODO timing debugging
@@ -283,12 +271,13 @@ public class Video : ISteppable
 						logger.LogTrace($"state={state}, LY={RegisterLY}, ticks={ticksRemainingInCurrentState}");
 #endif
 						setStatMode(0b01);
-						VBlankInterrupt?.Invoke();
+						OnVBlankInterrupt?.Invoke();
 						triggerSTATInterruptIfMaskSet(0b0001_0000);
 #if DEBUG
 						logger.LogTrace("emitting vsync");
 #endif
-						VSync?.Invoke();
+						OnVSync?.Invoke();
+						VSync();
 					}
 					triggerSTATInterruptBasedOnLYAndLYC();
 					enableSpriteAttributeMemory();
@@ -337,7 +326,7 @@ public class Video : ISteppable
 			{
 				if ((RegisterSTAT & mask) != 0)
 				{
-					LCDCInterrupt?.Invoke();
+					OnLCDCInterrupt?.Invoke();
 				}
 			}
 
@@ -352,7 +341,7 @@ public class Video : ISteppable
 						(!statConditionFlag && RegisterLY != RegisterLYC)
 					)
 					{
-						LCDCInterrupt?.Invoke();
+						OnLCDCInterrupt?.Invoke();
 					}
 				}
 			}
@@ -472,7 +461,7 @@ public class Video : ISteppable
 					// background disabled, so init the output arrays so sprites can always draw on top correctly
 					for (var i = 0; i < ScreenWidth; i++)
 					{
-						outputPixels[i] = new Color(0, Palette.None);
+						SetPixel(i, RegisterLY, new Color(0, Palette.None));
 						backgroundAndWindowColorIndex[i] = 0;
 					}
 				}
@@ -527,7 +516,8 @@ public class Video : ISteppable
 #if DEBUG
 				logger.LogTrace($"emitting scanline pixels y={RegisterLY}");
 #endif
-				ScanlineAvailable?.Invoke(RegisterLY, outputPixels);
+				ScanLineAvailable(RegisterLY);
+				OnScanlineAvailable?.Invoke(RegisterLY);
 				EmitScanlineStopwatch.Stop();
 
 				void drawTileMap(Span<byte> tileData, Span<byte> tileIndices, int scrollX, int scrollY, bool wrap, Palette palette)
@@ -578,7 +568,7 @@ public class Video : ISteppable
 						}
 						// remember both the actual color and the index
 						var colorIndex = getColorIndexFromTile(tileData, tileIndex, tileX, tileY);
-						outputPixels[screenX] = new(registerBGPPalette[colorIndex], palette);
+						SetPixel(screenX, RegisterLY, new(registerBGPPalette[colorIndex], palette));
 						backgroundAndWindowColorIndex[screenX] = colorIndex;
 					}
 				}
@@ -643,11 +633,11 @@ public class Video : ISteppable
 							{
 								if (sprite.PaletteIsOBP0)
 								{
-									outputPixels[screenX] = new(registerOBP0Palette[colorIndex], Palette.SpriteOBJ0);
+									SetPixel(screenX, RegisterLY, new(registerOBP0Palette[colorIndex], Palette.SpriteOBJ0));
 								}
 								else
 								{
-									outputPixels[screenX] = new(registerOBP1Palette[colorIndex], Palette.SpriteOBJ1);
+									SetPixel(screenX, RegisterLY, new(registerOBP1Palette[colorIndex], Palette.SpriteOBJ1));
 								}
 							}
 						}
@@ -812,4 +802,8 @@ public class Video : ISteppable
 	{
 		spriteAttributesData[address] = value;
 	}
+
+	protected abstract void SetPixel(int x, int y, Color color);
+	protected abstract void ScanLineAvailable(int y);
+	protected abstract void VSync();
 }

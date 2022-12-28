@@ -17,7 +17,8 @@ public static class TestROMUtils
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var logger = loggerFactory.CreateLogger(typeof(TestROMUtils).FullName!);
 		var cartridge = new Cartridge(stream);
-		var emulator = new Emulator(loggerFactory, cartridge);
+		var video = new SkiaSharpImageVideo(loggerFactory);
+		var emulator = new Emulator(loggerFactory, cartridge, video);
 
 		// helper for determining if clock deltas are bigger than a reference amount
 		// we'll use this to exit early once output stablize
@@ -28,7 +29,7 @@ public static class TestROMUtils
 		var serialDataOutput = new MemoryStream();
 		string serialIOAsText() => System.Text.Encoding.ASCII.GetString(serialDataOutput.ToArray());
 		UInt64 lastSerialClock = 0;
-		emulator.SerialIO.DataAvailable += (value) =>
+		emulator.SerialIO.OnDataAvailable += (value) =>
 		{
 			serialDataOutput.WriteByte(value);
 			lastSerialClock = emulator.Clock;
@@ -39,43 +40,16 @@ public static class TestROMUtils
 		UInt64 lastVideoClock = 0;
 		string? lastVideoHash = null;
 		using var hashAlgorithm = SHA1.Create();
-		// the actual image we can write to disk if we get a mismatch
-		using var videoBitmap = new SKBitmap(Video.ScreenWidth, Video.ScreenHeight, SKColorType.Rgb888x, SKAlphaType.Unknown);
-		// the pixel data produced from the video component
-		using var videoBuffer = new VideoBuffer(
-			loggerFactory,
-			emulator.Video,
-			new VideoBuffer.Color[] {
-				new(255,255,255),
-				new(192,192,192),
-				new(128,128,128),
-				new(64,64,64),
-			}
-		);
-		// each time a new image is ready copy it to the bitmap we want to work with
-		videoBuffer.PixelDataReady += (pixels) =>
+		video.OnVSync += () =>
 		{
-			var i = 0;
-			for (var y = 0; y < Video.ScreenHeight; y++)
-			{
-				for (var x = 0; x < Video.ScreenWidth; x++)
-				{
-					var r = pixels[i++];
-					var g = pixels[i++];
-					var b = pixels[i++];
-					videoBitmap.SetPixel(x, y, new(r, g, b));
-				}
-			}
-
 			hashAlgorithm.Initialize();
-			var currentHash = string.Join("", hashAlgorithm.ComputeHash(videoBitmap.Bytes).Select(x => x.ToString("x2")));
+			var currentHash = string.Join("", hashAlgorithm.ComputeHash(video.Bitmap.Bytes).Select(x => x.ToString("x2")));
 			if (currentHash != lastVideoHash)
 			{
 				lastVideoClock = emulator.Clock;
 				lastVideoHash = currentHash;
 			}
 		};
-		videoBuffer.Start();
 
 		// wait until the exit condition
 		emulator.OnTick += (clock) =>
@@ -110,9 +84,6 @@ public static class TestROMUtils
 		await emulator.WaitAsync(CancellationToken.None);
 		logger.LogDebug($"final clock = {emulator.Clock} = {emulator.ClockTime}");
 
-		videoBuffer.Stop();
-		await videoBuffer.WaitAsync(CancellationToken.None);
-
 		// validate the serial output
 		logger.LogDebug($"last serial output at clock = {lastSerialClock} = {TimeUtils.ToTimeSpan(lastSerialClock)}");
 		logger.LogTrace($"wrote {serialDataOutput.Length} bytes to serial IO");
@@ -133,9 +104,9 @@ public static class TestROMUtils
 		{
 			// output image to file
 			var tempFilePath = Path.GetTempFileName();
-			logger.LogDebug($"writing image to {tempFilePath}");
+			logger.LogError($"writing image to {tempFilePath}");
 			using var tempFileStream = new FileStream(tempFilePath, FileMode.Truncate, FileAccess.Write);
-			if (!videoBitmap.Encode(tempFileStream, SKEncodedImageFormat.Png, 100))
+			if (!video.Bitmap.Encode(tempFileStream, SKEncodedImageFormat.Png, 100))
 			{
 				throw new Exception("error writing image data to file");
 			}

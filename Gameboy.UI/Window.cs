@@ -23,30 +23,21 @@ public class Window : GameWindow
 	private Matrix4 orthoMatrix;
 	private Matrix4 modelviewMatrix;
 
-	private class ScanlineUpdateBuffer
-	{
-		public readonly byte[] Pixels = new byte[Video.ScreenWidth * Video.ScreenHeight * 4];
-		public int MinimumY;
-		public int MaximumY;
-	}
-
-	// this one is where we'll write new scanline data to as it comes in
-	private ScanlineUpdateBuffer incomingScanlineBuffer = new();
-	// this one is where we'll copy tex data to opengl
-	private ScanlineUpdateBuffer copyToTextureBuffer = new();
-	private bool needsTextureUpdate = false;
+	private VideoBuffer videoBuffer;
+	private bool videoBufferPixelsReady;
+	private byte[] videoBufferPixels;
 
 	// TODO multiple palettes to switch between
-	private readonly Color[] palette = new[]
+	private readonly VideoBuffer.Color[] palette = new VideoBuffer.Color[]
 		{
 			// approximately 0.8
-			Color.FromArgb(205,205,205),
+			new(205, 205, 205),
 			// approximately 0.6
-			Color.FromArgb(154,154,154),
+			new(154, 154, 154),
 			// approximately 0.4
-			Color.FromArgb(102,102,102),
+			new(102, 102, 102),
 			// approximately 0.2
-			Color.FromArgb(51,51,51),
+			new(51, 51, 51),
 		};
 
 	public Window(ILoggerFactory loggerFactory, Video video, Keypad keypad) : base(
@@ -79,13 +70,17 @@ public class Window : GameWindow
 		Profile = {Profile}
 		Flags = {Flags}
 		""");
+
+		videoBuffer = new VideoBuffer(loggerFactory, video, palette);
+		videoBufferPixelsReady = false;
+		videoBufferPixels = new byte[Video.ScreenWidth * Video.ScreenHeight * 3];
 	}
 
 	protected override void OnLoad()
 	{
 		base.OnLoad();
 
-		GL.ClearColor(palette[0]);
+		GL.ClearColor(palette[0].Red / 255.0f, palette[0].Green / 255.0f, palette[0].Blue / 255.0f, 1);
 
 		shader = new Shader(
 			loggerFactory,
@@ -159,16 +154,17 @@ public class Window : GameWindow
 		GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 		GL.BindTexture(TextureTarget.Texture2D, 0);
 
-		video.ScanlineAvailable += ScanlineAvailable;
-		video.VSync += VSync;
+		videoBuffer.PixelDataReady += VideoBufferPixelDataReady;
+		videoBuffer.Start();
 	}
 
 	protected override void OnUnload()
 	{
 		base.OnUnload();
 
-		video.ScanlineAvailable -= ScanlineAvailable;
-		video.VSync -= VSync;
+		videoBuffer.Stop();
+		videoBuffer.Wait(CancellationToken.None);
+		videoBuffer.PixelDataReady -= VideoBufferPixelDataReady;
 
 		shader?.Dispose();
 		if (vertexBuffer.HasValue)
@@ -221,23 +217,26 @@ public class Window : GameWindow
 			GL.UniformMatrix4(shader.Uniforms["modelviewMatrixUniform"].Location, false, ref modelviewMatrix);
 
 			// copy the new texture data
-			if (needsTextureUpdate)
+			lock (this)
 			{
-				GL.PixelStore(PixelStoreParameter.UnpackSkipRows, copyToTextureBuffer.MinimumY);
-				GL.TexSubImage2D<byte>(
-					TextureTarget.Texture2D,
-					0,
-					0,
-					copyToTextureBuffer.MinimumY,
-					Video.ScreenWidth,
-					copyToTextureBuffer.MaximumY - copyToTextureBuffer.MinimumY + 1,
-					PixelFormat.Rgba,
-					PixelType.UnsignedByte,
-					copyToTextureBuffer.Pixels
-				);
-				// done copying, when this one gets used next it has no rows in int
-				copyToTextureBuffer.MinimumY = Video.ScreenHeight;
-				copyToTextureBuffer.MaximumY = -1;
+				if (videoBufferPixelsReady)
+				{
+					GL.TexSubImage2D<byte>(
+						TextureTarget.Texture2D,
+						// level
+						0,
+						// x offset
+						0,
+						// y offset
+						0,
+						Video.ScreenWidth,
+						Video.ScreenHeight,
+						PixelFormat.Rgb,
+						PixelType.UnsignedByte,
+						videoBufferPixels
+					);
+					videoBufferPixelsReady = false;
+				}
 			}
 
 			GL.BindVertexArray(vertexArray.Value);
@@ -262,28 +261,12 @@ public class Window : GameWindow
 		keypad.SetPressed(Key.B, KeyboardState.IsKeyDown(Keys.X));
 	}
 
-	// TODO JEFF use VideoBuffer
-
-	private void ScanlineAvailable(int y, Video.Color[] data)
+	private void VideoBufferPixelDataReady(ReadOnlySpan<byte> pixels)
 	{
-		var buffer = incomingScanlineBuffer;
-		var bufferOffset = y * Video.ScreenWidth * 4;
-		for (var x = 0; x < Video.ScreenWidth; x++)
+		lock (this)
 		{
-			var color = palette[data[x].Value];
-			buffer.Pixels[bufferOffset++] = color.R;
-			buffer.Pixels[bufferOffset++] = color.G;
-			buffer.Pixels[bufferOffset++] = color.B;
-			buffer.Pixels[bufferOffset++] = color.A;
+			pixels.CopyTo(videoBufferPixels);
+			videoBufferPixelsReady = true;
 		}
-		buffer.MinimumY = Math.Min(buffer.MinimumY, y);
-		buffer.MaximumY = Math.Max(buffer.MaximumY, y);
-	}
-
-	private new void VSync()
-	{
-		// swap the buffers
-		copyToTextureBuffer = Interlocked.Exchange<ScanlineUpdateBuffer>(ref incomingScanlineBuffer, copyToTextureBuffer);
-		needsTextureUpdate = copyToTextureBuffer.MinimumY >= 0 && copyToTextureBuffer.MinimumY <= copyToTextureBuffer.MaximumY;
 	}
 }

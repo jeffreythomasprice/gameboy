@@ -49,18 +49,6 @@ public class VideoBuffer : RepeatableTask
 		operations = null;
 	}
 
-	public void VideoScanlineAvailable(int y, Video.Color[] data)
-	{
-		var copy = new Video.Color[data.Length];
-		Array.Copy(data, copy, data.Length);
-		BlockingEnqueue(new Operation.ScanLine(y, copy), CancellationToken.None);
-	}
-
-	public void VideoVSync()
-	{
-		BlockingEnqueue(new Operation.VSync(), CancellationToken.None);
-	}
-
 	protected override void DisposeImpl()
 	{
 		video.ScanlineAvailable -= VideoScanlineAvailable;
@@ -95,7 +83,6 @@ public class VideoBuffer : RepeatableTask
 						}
 						break;
 					case Operation.VSync:
-						// TODO JEFF emit pixels async, keep multiple buffers allocated and check this buffer back in when event handler completes
 						PixelDataReady?.Invoke(pixels);
 						break;
 				};
@@ -105,6 +92,18 @@ public class VideoBuffer : RepeatableTask
 				logger.LogError(e, "error handling operation");
 			}
 		}
+	}
+
+	private void VideoScanlineAvailable(int y, Video.Color[] data)
+	{
+		var copy = new Video.Color[data.Length];
+		Array.Copy(data, copy, data.Length);
+		BlockingEnqueue(new Operation.ScanLine(y, copy), CancellationToken.None);
+	}
+
+	private void VideoVSync()
+	{
+		BlockingEnqueue(new Operation.VSync(), CancellationToken.None);
 	}
 
 	private void BlockingEnqueue(Operation operation, CancellationToken cancellationToken)

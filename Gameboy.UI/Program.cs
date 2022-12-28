@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 public class Program
 {
-	public static async Task Main(string[] args)
+	public static void Main(string[] args)
 	{
 		using var loggerFactory = LoggerFactory.Create(builder =>
 		{
@@ -48,7 +48,7 @@ public class Program
 			window.Run();
 
 			emulator.Stop();
-			await emulator.WaitAsync(CancellationToken.None);
+			emulator.Wait(CancellationToken.None);
 		}
 		catch (Exception e)
 		{

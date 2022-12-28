@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Gameboy;
 
-public class Emulator : IDisposable, ISteppable
+public class Emulator : RepeatableTask, ISteppable
 {
 	public delegate void OnTickDelegate(UInt64 clock);
 
@@ -20,10 +20,6 @@ public class Emulator : IDisposable, ISteppable
 	private readonly Memory memory;
 	private readonly CPU cpu;
 
-	private bool isDisposed = false;
-	private Thread? thread = null;
-	private bool threadShouldExit;
-
 	// TODO timing debugging
 	private Stopwatch totalStopwatch = new();
 	private Stopwatch serialIOStopwatch = new();
@@ -37,7 +33,7 @@ public class Emulator : IDisposable, ISteppable
 	private TimeSpan emitDebugInterval = TimeSpan.FromSeconds(2);
 	private UInt64 nextEmitDebugClock;
 
-	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge)
+	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge) : base(loggerFactory)
 	{
 		logger = loggerFactory.CreateLogger<Emulator>();
 
@@ -83,17 +79,6 @@ public class Emulator : IDisposable, ISteppable
 				memoryStopwatch.Stop();
 			}
 		);
-	}
-
-	~Emulator()
-	{
-		Dispose(false);
-	}
-
-	public void Dispose()
-	{
-		Dispose(true);
-		GC.SuppressFinalize(true);
 	}
 
 	public SerialIO SerialIO => serialIO;
@@ -218,67 +203,18 @@ public class Emulator : IDisposable, ISteppable
 		}
 	}
 
-	public void Start()
+	protected override void DisposeImpl()
 	{
-		lock (this)
-		{
-			if (thread != null)
-			{
-				logger.LogTrace("already running");
-				return;
-			}
-			logger.LogDebug("starting emulation thread");
-			threadShouldExit = false;
-			thread = new Thread(() =>
-			{
-				while (!threadShouldExit)
-				{
-
-					Step();
-					// TODO wait for configurable amounts of time if we want a speed other than "fastest possible"
-					Thread.Yield();
-				}
-				logger.LogDebug("thread stopped");
-				thread = null;
-			});
-			thread.Start();
-		}
+		interruptRegisters.Dispose();
 	}
 
-	public void Stop()
+	protected override async Task ThreadRunImpl(CancellationToken cancellationToken)
 	{
-		lock (this)
+		while (!cancellationToken.IsCancellationRequested)
 		{
-			if (thread == null)
-			{
-				logger.LogTrace("not running");
-				return;
-			}
-			logger.LogDebug("stopping");
-			threadShouldExit = true;
-		}
-	}
-
-	public void Join(TimeSpan? timeout = null)
-	{
-		if (timeout.HasValue)
-		{
-			thread?.Join(timeout.Value);
-		}
-		else
-		{
-			thread?.Join();
-		}
-	}
-
-	private void Dispose(bool disposing)
-	{
-		if (!isDisposed)
-		{
-			isDisposed = true;
-			Stop();
-			Join();
-			interruptRegisters.Dispose();
+			Step();
+			// TODO wait for configurable amounts of time if we want a speed other than "fastest possible"
+			await Task.Delay(0, cancellationToken);
 		}
 	}
 }

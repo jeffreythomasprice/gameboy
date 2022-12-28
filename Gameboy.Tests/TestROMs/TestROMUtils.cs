@@ -6,13 +6,13 @@ namespace Gameboy.Tests.TestROMs;
 
 public static class TestROMUtils
 {
-	public static void PerformTest(string path, TimeSpan minTime, TimeSpan maxTime, string expectedSerialOutput, string expectedVideoHash)
+	public static async Task PerformTest(string path, TimeSpan minTime, TimeSpan maxTime, string expectedSerialOutput, string expectedVideoHash)
 	{
 		using var stream = new FileStream(path, FileMode.Open);
-		PerformTest(stream, minTime, maxTime, expectedSerialOutput, expectedVideoHash);
+		await PerformTest(stream, minTime, maxTime, expectedSerialOutput, expectedVideoHash);
 	}
 
-	public static void PerformTest(Stream stream, TimeSpan minTime, TimeSpan maxTime, string expectedSerialOutput, string expectedVideoHash)
+	public static async Task PerformTest(Stream stream, TimeSpan minTime, TimeSpan maxTime, string expectedSerialOutput, string expectedVideoHash)
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var logger = loggerFactory.CreateLogger(typeof(TestROMUtils).FullName!);
@@ -34,61 +34,39 @@ public static class TestROMUtils
 			lastSerialClock = emulator.Clock;
 		};
 
-		// keep a video buffer up to date
-		using var videoBitmap = new SKBitmap(Video.ScreenWidth, Video.ScreenHeight, SKColorType.Rgb888x, SKAlphaType.Unknown);
-		// color palette chosen to make it obvious which kind of graphics are in each pixel
-		var palettes = new Dictionary<Video.Palette, SKColor[]>
-		{
-			{
-				Video.Palette.Background,
-				new SKColor[] {
-					new(255,255,255),
-					new(192,192,192),
-					new(128,128,128),
-					new(64,64,64),
-				}
-			},
-			{
-				Video.Palette.Window,
-				new SKColor[] {
-					new(255,0,0),
-					new(192,0,0),
-					new(128,0,0),
-					new(64,0,0),
-				}
-			},
-			{
-				Video.Palette.SpriteOBJ0,
-				new SKColor[] {
-					new(0,255,0),
-					new(0,192,0),
-					new(0,128,0),
-					new(0,64,0),
-				}
-			},
-			{
-				Video.Palette.SpriteOBJ1,
-				new SKColor[] {
-					new(0,0,255),
-					new(0,0,192),
-					new(0,0,128),
-					new(0,0,64),
-				}
-			},
-		};
+		// we're going to write video data to an image we can compare against known values
+		// information about that last image
 		UInt64 lastVideoClock = 0;
 		string? lastVideoHash = null;
-		emulator.Video.ScanlineAvailable += (y, data) =>
-		{
-			for (var x = 0; x < Video.ScreenWidth; x++)
-			{
-				var color = palettes[data[x].Palette][data[x].Value];
-				videoBitmap.SetPixel(x, y, color);
-			}
-		};
 		using var hashAlgorithm = SHA1.Create();
-		emulator.Video.VSync += () =>
+		// the actual image we can write to disk if we get a mismatch
+		using var videoBitmap = new SKBitmap(Video.ScreenWidth, Video.ScreenHeight, SKColorType.Rgb888x, SKAlphaType.Unknown);
+		// the pixel data produced from the video component
+		using var videoBuffer = new VideoBuffer(
+			loggerFactory,
+			emulator.Video,
+			new VideoBuffer.Color[] {
+				new(255,255,255),
+				new(192,192,192),
+				new(128,128,128),
+				new(64,64,64),
+			}
+		);
+		// each time a new image is ready copy it to the bitmap we want to work with
+		videoBuffer.PixelDataReady += (pixels) =>
 		{
+			var i = 0;
+			for (var y = 0; y < Video.ScreenHeight; y++)
+			{
+				for (var x = 0; x < Video.ScreenWidth; x++)
+				{
+					var r = pixels[i++];
+					var g = pixels[i++];
+					var b = pixels[i++];
+					videoBitmap.SetPixel(x, y, new(r, g, b));
+				}
+			}
+
 			hashAlgorithm.Initialize();
 			var currentHash = string.Join("", hashAlgorithm.ComputeHash(videoBitmap.Bytes).Select(x => x.ToString("x2")));
 			if (currentHash != lastVideoHash)
@@ -97,6 +75,7 @@ public static class TestROMUtils
 				lastVideoHash = currentHash;
 			}
 		};
+		videoBuffer.Start();
 
 		// wait until the exit condition
 		emulator.OnTick += (clock) =>
@@ -128,8 +107,11 @@ public static class TestROMUtils
 
 		// run it, and wait for it to finish
 		emulator.Start();
-		emulator.Join();
+		await emulator.WaitAsync(CancellationToken.None);
 		logger.LogDebug($"final clock = {emulator.Clock} = {emulator.ClockTime}");
+
+		videoBuffer.Stop();
+		await videoBuffer.WaitAsync(CancellationToken.None);
 
 		// validate the serial output
 		logger.LogDebug($"last serial output at clock = {lastSerialClock} = {TimeUtils.ToTimeSpan(lastSerialClock)}");

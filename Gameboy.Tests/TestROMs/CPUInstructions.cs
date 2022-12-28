@@ -3,28 +3,28 @@ namespace Gameboy.Tests.TestROMs;
 public class CPUInstructions
 {
 	[Fact]
-	public void Combined()
+	public async Task Combined()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/cpu_instrs.gb",
 			TimeSpan.FromSeconds(54),
 			TimeSpan.FromSeconds(60),
 			"""
-			cpu_instrs
+		cpu_instrs
 
-			01:ok  02:ok  03:ok  04:ok  05:ok  06:ok  07:ok  08:ok  09:ok  10:ok  11:ok  
+		01:ok  02:ok  03:ok  04:ok  05:ok  06:ok  07:ok  08:ok  09:ok  10:ok  11:ok  
 
-			Passed all tests
+		Passed all tests
 
-			""",
+		""",
 			"40c12bfd4b43f52dd3064efc7baf8919fb52cc79"
 		);
 	}
 
 	[Fact]
-	public void _01_Special()
+	public async Task _01_Special()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/01-special.gb",
 			TimeSpan.FromSeconds(3),
 			TimeSpan.FromSeconds(5),
@@ -40,9 +40,9 @@ public class CPUInstructions
 	}
 
 	[Fact]
-	public void _02_Interrupts()
+	public async Task _02_Interrupts()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/02-interrupts.gb",
 			TimeSpan.FromSeconds(0.5),
 			TimeSpan.FromSeconds(1),
@@ -58,9 +58,9 @@ public class CPUInstructions
 	}
 
 	[Fact]
-	public void _03_Op_Sp_Hl()
+	public async Task _03_Op_Sp_Hl()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb",
 			TimeSpan.FromSeconds(3),
 			TimeSpan.FromSeconds(5),
@@ -76,9 +76,9 @@ public class CPUInstructions
 	}
 
 	[Fact]
-	public void _04_Op_R_Imm()
+	public async Task _04_Op_R_Imm()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/04-op r,imm.gb",
 			TimeSpan.FromSeconds(3),
 			TimeSpan.FromSeconds(5),
@@ -94,9 +94,9 @@ public class CPUInstructions
 	}
 
 	[Fact]
-	public void _05_Op_Rp()
+	public async Task _05_Op_Rp()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/05-op rp.gb",
 			TimeSpan.FromSeconds(4),
 			TimeSpan.FromSeconds(6),
@@ -112,9 +112,9 @@ public class CPUInstructions
 	}
 
 	[Fact]
-	public void _06_Ld_R_R()
+	public async Task _06_Ld_R_R()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/06-ld r,r.gb",
 			TimeSpan.FromSeconds(1),
 			TimeSpan.FromSeconds(2),
@@ -130,9 +130,9 @@ public class CPUInstructions
 	}
 
 	[Fact]
-	public void _07_Jr_Jp_Call_Ret_Rst()
+	public async Task _07_Jr_Jp_Call_Ret_Rst()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb",
 			TimeSpan.FromSeconds(1),
 			TimeSpan.FromSeconds(2),
@@ -148,9 +148,9 @@ public class CPUInstructions
 	}
 
 	[Fact]
-	public void _08_Misc_Instrs()
+	public async Task _08_Misc_Instrs()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/08-misc instrs.gb",
 			TimeSpan.FromSeconds(1),
 			TimeSpan.FromSeconds(2),
@@ -166,27 +166,27 @@ public class CPUInstructions
 	}
 
 	[Fact]
-	public void _09_Op_R_R()
+	public async Task _09_Op_R_R()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/09-op r,r.gb",
 			TimeSpan.FromSeconds(10),
 			TimeSpan.FromSeconds(12),
 			"""
-			09-op r,r
+		09-op r,r
 
 
-			Passed
+		Passed
 
-			""",
+		""",
 			"d9597cd7b81dcaab8a51d0e5aceb8f41b82a9f60"
 		);
 	}
 
 	[Fact]
-	public void _10_Bit_Ops()
+	public async Task _10_Bit_Ops()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/10-bit ops.gb",
 			TimeSpan.FromSeconds(14),
 			TimeSpan.FromSeconds(16),
@@ -202,9 +202,9 @@ public class CPUInstructions
 	}
 
 	[Fact]
-	public void _11_Op_A_Hl()
+	public async Task _11_Op_A_Hl()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb",
 			TimeSpan.FromSeconds(18),
 			TimeSpan.FromSeconds(20),

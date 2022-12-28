@@ -3,9 +3,9 @@ namespace Gameboy.Tests.TestROMs;
 public class InstructionTiming
 {
 	[Fact]
-	public void Test()
+	public async Task Test()
 	{
-		TestROMUtils.PerformTest(
+		await TestROMUtils.PerformTest(
 			"gb-test-roms/instr_timing/instr_timing.gb",
 			TimeSpan.FromSeconds(1),
 			TimeSpan.FromSeconds(2),

@@ -262,6 +262,8 @@ public class Window : GameWindow
 		keypad.SetPressed(Key.B, KeyboardState.IsKeyDown(Keys.X));
 	}
 
+	// TODO JEFF use VideoBuffer
+
 	private void ScanlineAvailable(int y, Video.Color[] data)
 	{
 		var buffer = incomingScanlineBuffer;

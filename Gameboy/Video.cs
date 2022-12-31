@@ -361,7 +361,7 @@ public abstract class Video : ISteppable
 #if DEBUG
 				logger.LogTrace("enabling video memory");
 #endif
-				// videoRAMWriteEnabled = true;
+				// VideoDataWriteEnabled = true;
 			}
 
 			void disableVideoMemory()
@@ -369,7 +369,7 @@ public abstract class Video : ISteppable
 #if DEBUG
 				logger.LogTrace("disabling video memory");
 #endif
-				// videoRAMWriteEnabled = false;
+				// VideoDataWriteEnabled = false;
 			}
 
 			void enableSpriteAttributeMemory()
@@ -377,7 +377,7 @@ public abstract class Video : ISteppable
 #if DEBUG
 				logger.LogTrace("enabling sprite attribute memory");
 #endif
-				// spriteAttributesWriteEnabled = true;
+				// SpriteAttributesDataWriteEnabled = true;
 			}
 
 			void disableSpriteAttributeMemory()
@@ -385,7 +385,7 @@ public abstract class Video : ISteppable
 #if DEBUG
 				logger.LogTrace("disabling sprite attribute memory");
 #endif
-				// spriteAttributesWriteEnabled = false;
+				// SpriteAttributesDataWriteEnabled = false;
 			}
 
 			void drawScanLine()

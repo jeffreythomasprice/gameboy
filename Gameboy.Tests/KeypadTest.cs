@@ -236,7 +236,7 @@ public class KeypadTest
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var keypad = new Keypad(loggerFactory);
-		var (memory, interruptRegisters) = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), new RGBVideo(loggerFactory), new Sound(loggerFactory), keypad, new byte[0]);
+		var (memory, interruptRegisters) = MemoryUtils.CreateMemoryROM(loggerFactory, new SerialIO(loggerFactory), new Timer(loggerFactory), new RGBVideo(loggerFactory, new StopwatchCollection()), new Sound(loggerFactory), keypad, new byte[0]);
 		var cpu = new CPU(loggerFactory, memory, interruptRegisters, () =>
 		{
 			// intentionally left blank

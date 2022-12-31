@@ -133,6 +133,13 @@ public abstract class Video : ISteppable
 	private const int BothTileDataSectionsLengthInBytes = TileDataSegmentLength * 3;
 
 	private readonly ILogger logger;
+
+	// TODO JEFF put in preprocessor
+	internal readonly StopwatchCollection.IStopwatch tileDataReadStopwatch;
+	internal readonly StopwatchCollection.IStopwatch backgroundAndWindowStopwatch;
+	internal readonly StopwatchCollection.IStopwatch spritesStopwatch;
+	internal readonly StopwatchCollection.IStopwatch emitScanlineStopwatch;
+
 	private readonly byte[] videoData = new byte[Memory.VIDEO_RAM_END - Memory.VIDEO_RAM_START + 1];
 	private readonly byte[] spriteAttributesData = new byte[Memory.SPRITE_ATTRIBUTES_END - Memory.SPRITE_ATTRIBUTES_START + 1];
 
@@ -163,15 +170,16 @@ public abstract class Video : ISteppable
 	// used during output of a scanline
 	private readonly byte[] backgroundAndWindowColorIndex = new byte[ScreenWidth];
 
-	// TODO timing debugging
-	internal readonly Stopwatch TileDataReadStopwatch = new();
-	internal readonly Stopwatch BackgroundAndWindowStopwatch = new();
-	internal readonly Stopwatch SpritesStopwatch = new();
-	internal readonly Stopwatch EmitScanlineStopwatch = new();
-
-	public Video(ILoggerFactory loggerFactory)
+	public Video(ILoggerFactory loggerFactory, StopwatchCollection stopwatchCollection)
 	{
 		logger = loggerFactory.CreateLogger<Video>();
+
+		// TODO JEFF constants for names of stopwatches
+		tileDataReadStopwatch = stopwatchCollection.Get("tile data", "video");
+		backgroundAndWindowStopwatch = stopwatchCollection.Get("background and window", "video");
+		spritesStopwatch = stopwatchCollection.Get("sprites", "video");
+		emitScanlineStopwatch = stopwatchCollection.Get("emit scanline", "video");
+
 		Reset();
 	}
 
@@ -204,7 +212,7 @@ public abstract class Video : ISteppable
 		RegisterLY = 0;
 		ticksRemainingInCurrentState = 0;
 
-		TileDataReadStopwatch.Reset();
+		tileDataReadStopwatch.Reset();
 	}
 
 	public void Step()
@@ -390,7 +398,7 @@ public abstract class Video : ISteppable
 
 			void drawScanLine()
 			{
-				TileDataReadStopwatch.Start();
+				tileDataReadStopwatch.Start();
 				/*
 				unsigned indices, values from 0 to 255
 				tile 0 is at 0x8000
@@ -406,7 +414,7 @@ public abstract class Video : ISteppable
 				the two tile data do overlap
 				*/
 				var tileData2 = videoData.AsSpan(TileDataSegmentLength, OneTileDataSectionLengthInBytes);
-				TileDataReadStopwatch.Stop();
+				tileDataReadStopwatch.Stop();
 
 				// LCDC flags
 				var backgroundAndWindowEnabled = (RegisterLCDC & 0b0000_0001) != 0;
@@ -433,7 +441,7 @@ public abstract class Video : ISteppable
 				var windowTileIndicesAddress = (UInt16)((RegisterLCDC & 0b0100_0000) != 0 ? 0x1c00 : 0x1800);
 				// TODO respect LCDC bit 7, display enabled
 
-				BackgroundAndWindowStopwatch.Start();
+				backgroundAndWindowStopwatch.Start();
 				if (backgroundAndWindowEnabled)
 				{
 					drawTileMap(
@@ -465,9 +473,9 @@ public abstract class Video : ISteppable
 						backgroundAndWindowColorIndex[i] = 0;
 					}
 				}
-				BackgroundAndWindowStopwatch.Stop();
+				backgroundAndWindowStopwatch.Stop();
 
-				SpritesStopwatch.Start();
+				spritesStopwatch.Start();
 				const int MaxSprites = 40;
 				const int MaxVisibleSprites = 10;
 				var spriteHeight = spritesAreBig ? TileSizeInPixels * 2 : TileSizeInPixels;
@@ -510,15 +518,15 @@ public abstract class Video : ISteppable
 						drawSpriteLine(tileData1, sprite);
 					}
 				}
-				SpritesStopwatch.Stop();
+				spritesStopwatch.Stop();
 
-				EmitScanlineStopwatch.Start();
+				emitScanlineStopwatch.Start();
 #if DEBUG
 				logger.LogTrace($"emitting scanline pixels y={RegisterLY}");
 #endif
 				ScanLineAvailable(RegisterLY);
 				OnScanlineAvailable?.Invoke(RegisterLY);
-				EmitScanlineStopwatch.Stop();
+				emitScanlineStopwatch.Stop();
 
 				void drawTileMap(Span<byte> tileData, Span<byte> tileIndices, int scrollX, int scrollY, bool wrap, Palette palette)
 				{

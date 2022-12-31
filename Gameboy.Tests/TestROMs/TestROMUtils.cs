@@ -17,8 +17,9 @@ public static class TestROMUtils
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var logger = loggerFactory.CreateLogger(typeof(TestROMUtils).FullName!);
 		var cartridge = new Cartridge(stream);
-		var video = new SkiaSharpImageVideo(loggerFactory);
-		var emulator = new Emulator(loggerFactory, cartridge, video);
+		var stopwatchCollection = new StopwatchCollection();
+		var video = new SkiaSharpImageVideo(loggerFactory, stopwatchCollection);
+		var emulator = new Emulator(loggerFactory, stopwatchCollection, cartridge, video);
 
 		// helper for determining if clock deltas are bigger than a reference amount
 		// we'll use this to exit early once output stablize

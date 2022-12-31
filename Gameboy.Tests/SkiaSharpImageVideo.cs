@@ -14,7 +14,7 @@ public class SkiaSharpImageVideo : Video
 		new(64,64,64),
 	};
 
-	public SkiaSharpImageVideo(ILoggerFactory loggerFactory) : base(loggerFactory)
+	public SkiaSharpImageVideo(ILoggerFactory loggerFactory, StopwatchCollection stopwatchCollection) : base(loggerFactory, stopwatchCollection)
 	{
 		Bitmap = new SKBitmap(Video.ScreenWidth, Video.ScreenHeight, SKColorType.Rgb888x, SKAlphaType.Opaque);
 	}

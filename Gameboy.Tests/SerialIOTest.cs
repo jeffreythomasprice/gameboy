@@ -102,7 +102,7 @@ public class SerialIOTest
 	{
 		using var loggerFactory = LoggerUtils.CreateLoggerFactory();
 		var serialIO = new SerialIO(loggerFactory);
-		var (memory, interruptRegisters) = MemoryUtils.CreateMemoryROM(loggerFactory, serialIO, new Timer(loggerFactory), new RGBVideo(loggerFactory), new Sound(loggerFactory), new Keypad(loggerFactory), new byte[0]);
+		var (memory, interruptRegisters) = MemoryUtils.CreateMemoryROM(loggerFactory, serialIO, new Timer(loggerFactory), new RGBVideo(loggerFactory, new StopwatchCollection()), new Sound(loggerFactory), new Keypad(loggerFactory), new byte[0]);
 		var cpu = new CPU(loggerFactory, memory, interruptRegisters, () =>
 		{
 			// intentionally left blank

@@ -9,9 +9,10 @@ public class MemoryTest
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
 		using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 		var cartridge = new Cartridge(stream);
+		var stopwatchCollection = new StopwatchCollection();
 		var serialIO = new SerialIO(loggerFactory);
 		var timer = new Timer(loggerFactory);
-		var video = new RGBVideo(loggerFactory);
+		var video = new RGBVideo(loggerFactory, stopwatchCollection);
 		var sound = new Sound(loggerFactory);
 		var keypad = new Keypad(loggerFactory);
 		var interruptRegisters = new InterruptRegisters(serialIO, timer, video, sound, keypad);
@@ -61,9 +62,10 @@ public class MemoryTest
 		var logger = loggerFactory.CreateLogger(GetType().FullName!);
 		using var stream = new FileStream("gb-test-roms/cpu_instrs/cpu_instrs.gb", FileMode.Open);
 		var cartridge = new Cartridge(stream);
+		var stopwatchCollection = new StopwatchCollection();
 		var serialIO = new SerialIO(loggerFactory);
 		var timer = new Timer(loggerFactory);
-		var video = new RGBVideo(loggerFactory);
+		var video = new RGBVideo(loggerFactory, stopwatchCollection);
 		var sound = new Sound(loggerFactory);
 		var keypad = new Keypad(loggerFactory);
 		var interruptRegisters = new InterruptRegisters(serialIO, timer, video, sound, keypad);

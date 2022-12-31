@@ -21,7 +21,7 @@ public class RGBVideo : Video
 
 	public readonly byte[] Data;
 
-	public RGBVideo(ILoggerFactory loggerFactory) : base(loggerFactory)
+	public RGBVideo(ILoggerFactory loggerFactory, StopwatchCollection stopwatchCollection) : base(loggerFactory, stopwatchCollection)
 	{
 		Data = new byte[Video.ScreenWidth * Video.ScreenHeight * 3];
 	}

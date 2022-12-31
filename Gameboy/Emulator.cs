@@ -11,6 +11,20 @@ public class Emulator : RepeatableTask, ISteppable
 
 	private readonly ILogger logger;
 
+	// TODO JEFF put in preprocessor
+	private readonly StopwatchCollection stopwatchCollection;
+	private readonly StopwatchCollection.IStopwatch totalStopwatch;
+	private readonly StopwatchCollection.IStopwatch serialIOStopwatch;
+	private readonly StopwatchCollection.IStopwatch timerStopwatch;
+	private readonly StopwatchCollection.IStopwatch videoStopwatch;
+	private readonly StopwatchCollection.IStopwatch soundStopwatch;
+	private readonly StopwatchCollection.IStopwatch keypadStopwatch;
+	private readonly StopwatchCollection.IStopwatch interruptRegistersStopwatch;
+	private readonly StopwatchCollection.IStopwatch memoryStopwatch;
+	private readonly StopwatchCollection.IStopwatch cpuStopwatch;
+	private TimeSpan emitDebugInterval = TimeSpan.FromSeconds(2);
+	private UInt64 nextEmitDebugClock;
+
 	private readonly SerialIO serialIO;
 	private readonly Timer timer;
 	private readonly Video video;
@@ -20,22 +34,21 @@ public class Emulator : RepeatableTask, ISteppable
 	private readonly Memory memory;
 	private readonly CPU cpu;
 
-	// TODO timing debugging
-	private Stopwatch totalStopwatch = new();
-	private Stopwatch serialIOStopwatch = new();
-	private Stopwatch timerStopwatch = new();
-	private Stopwatch videoStopwatch = new();
-	private Stopwatch soundStopwatch = new();
-	private Stopwatch keypadStopwatch = new();
-	private Stopwatch interruptRegistersStopwatch = new();
-	private Stopwatch memoryStopwatch = new();
-	private Stopwatch cpuStopwatch = new();
-	private TimeSpan emitDebugInterval = TimeSpan.FromSeconds(2);
-	private UInt64 nextEmitDebugClock;
-
-	public Emulator(ILoggerFactory loggerFactory, Cartridge cartridge, Video video) : base(loggerFactory)
+	public Emulator(ILoggerFactory loggerFactory, StopwatchCollection stopwatchCollection, Cartridge cartridge, Video video) : base(loggerFactory)
 	{
 		logger = loggerFactory.CreateLogger<Emulator>();
+
+		this.stopwatchCollection = stopwatchCollection;
+		// TODO JEFF constants for names of stopwatches
+		totalStopwatch = stopwatchCollection.Get("total");
+		serialIOStopwatch = stopwatchCollection.Get("serial IO", "total");
+		timerStopwatch = stopwatchCollection.Get("timer", "total");
+		videoStopwatch = stopwatchCollection.Get("video", "total");
+		soundStopwatch = stopwatchCollection.Get("sound", "total");
+		keypadStopwatch = stopwatchCollection.Get("keypad", "total");
+		interruptRegistersStopwatch = stopwatchCollection.Get("interrupt registers", "total");
+		memoryStopwatch = stopwatchCollection.Get("memory", "total");
+		cpuStopwatch = stopwatchCollection.Get("cpu", "total", new[] { "serial IO", "timer", "video", "sound", "keypad", "interrupt registers", "memory" });
 
 		serialIO = new SerialIO(loggerFactory);
 		timer = new Timer(loggerFactory);
@@ -176,30 +189,8 @@ public class Emulator : RepeatableTask, ISteppable
 			logger.LogDebug($"""
 			CPU state = {cpuState}
 			total time = {totalStopwatch.Elapsed} ({cpu.Clock} clock ticks) ({ratio} real time)
-				serialIO = {StopwatchString(serialIOStopwatch, totalStopwatch)}
-				timer = {StopwatchString(timerStopwatch, totalStopwatch)}
-				video = {StopwatchString(videoStopwatch, totalStopwatch)}
-					tile data = {StopwatchString(video.TileDataReadStopwatch, videoStopwatch)}
-					bg and window = {StopwatchString(video.BackgroundAndWindowStopwatch, videoStopwatch)}
-					sprites = {StopwatchString(video.SpritesStopwatch, videoStopwatch)}
-					emit scanline = {StopwatchString(video.EmitScanlineStopwatch, videoStopwatch)}
-				sound = {StopwatchString(soundStopwatch, totalStopwatch)}
-				keypad = {StopwatchString(keypadStopwatch, totalStopwatch)}
-				interrupt registers = {StopwatchString(interruptRegistersStopwatch, totalStopwatch)}
-				memory = {StopwatchString(memoryStopwatch, totalStopwatch)}
-				cpu = {StopwatchString(cpuStopwatch, totalStopwatch, serialIOStopwatch, timerStopwatch, videoStopwatch, soundStopwatch, keypadStopwatch, memoryStopwatch)}
+			{stopwatchCollection}
 			""");
-
-			string StopwatchString(Stopwatch s1, Stopwatch s2, params Stopwatch[] minus)
-			{
-				var timeSpan1 = s1.Elapsed;
-				foreach (var other in minus)
-				{
-					timeSpan1 -= other.Elapsed;
-				}
-				var percentage = (timeSpan1.TotalNanoseconds / s2.Elapsed.TotalNanoseconds * 100.0).ToString("N2");
-				return $"{timeSpan1} ({percentage}%)";
-			}
 		}
 	}
 

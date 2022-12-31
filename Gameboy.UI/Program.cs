@@ -37,8 +37,9 @@ public class Program
 			super? {cartridge.IsSuperGameboy}
 			""");
 
-			var video = new RGBVideo(loggerFactory);
-			var emulator = new Emulator(loggerFactory, cartridge, video);
+			var stopwatchCollection = new StopwatchCollection();
+			var video = new RGBVideo(loggerFactory, stopwatchCollection);
+			var emulator = new Emulator(loggerFactory, stopwatchCollection, cartridge, video);
 			emulator.EmitDebugStatsEnabled = true;
 
 			using var window = new Window(loggerFactory, video, emulator.Keypad);
